@@ -211,8 +211,8 @@ export default function KPICard({ kpi, index }: KPICardProps) {
         el.style.boxShadow = 'none'
       }}
     >
-      {/* Ícone + badge */}
-      <div className="flex items-start justify-between gap-2">
+      {/* Ícone + badge — altura fixa para alinhar valor abaixo */}
+      <div className="flex items-start justify-between gap-2" style={{ minHeight: '36px' }}>
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{
@@ -240,11 +240,18 @@ export default function KPICard({ kpi, index }: KPICardProps) {
         )}
       </div>
 
-      {/* Label + tooltip */}
-      <div className="flex items-center gap-1.5">
+      {/* Label + tooltip — altura mínima para 2 linhas */}
+      <div className="flex items-start gap-1.5" style={{ minHeight: '2.5em' }}>
         <p
-          className="text-xs font-semibold truncate flex-1 uppercase"
-          style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}
+          className="text-xs font-semibold flex-1 uppercase"
+          style={{
+            color: 'var(--text-muted)',
+            letterSpacing: '0.06em',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical' as const,
+            overflow: 'hidden',
+          }}
         >
           {kpi.label}
         </p>

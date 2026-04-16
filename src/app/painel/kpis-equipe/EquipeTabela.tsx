@@ -143,7 +143,7 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                         {getIniciaisNome(op.nome)}
                       </div>
                       <div>
-                        <p className="font-semibold text-sm leading-none" style={{ color: 'var(--text-primary)' }}>
+                        <p className="text-sm leading-none" style={{ color: 'var(--text-primary)', fontWeight: 400 }}>
                           {op.nome}
                         </p>
                         <p className="text-xs mt-0.5" style={{ color: '#4a90d9' }}>
@@ -255,7 +255,7 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                   {getIniciaisNome(op.nome)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+                  <p className="truncate text-sm" style={{ color: 'var(--text-primary)', fontWeight: 400 }}>
                     {op.nome}
                   </p>
                   <p className="text-xs" style={{ color: '#4a90d9' }}>{op.username}</p>

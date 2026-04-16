@@ -32,8 +32,8 @@ export default function MetricCard({
 
   return (
     <div
-      className={clsx('card flex flex-col gap-3 relative overflow-hidden', className)}
-      style={{ animationFillMode: 'both', minHeight: '120px' }}
+      className={clsx('card flex flex-col justify-between relative overflow-hidden', className)}
+      style={{ minHeight: '130px' }}
     >
       {/* Decorative top accent */}
       <div
@@ -45,10 +45,11 @@ export default function MetricCard({
         }}
       />
 
+      {/* TOP: label + ícone */}
       <div className="flex items-start justify-between">
         <p
-          className="text-xs font-semibold uppercase"
-          style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
+          className="text-[10px] font-semibold uppercase"
+          style={{ color: 'var(--text-muted)', letterSpacing: '0.1em' }}
         >
           {label}
         </p>
@@ -68,6 +69,7 @@ export default function MetricCard({
         )}
       </div>
 
+      {/* MEIO: valor */}
       <div>
         {useGradientValue ? (
           <p
@@ -97,23 +99,26 @@ export default function MetricCard({
             {valor}
           </p>
         )}
-        {descricao && (
-          <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{descricao}</p>
-        )}
       </div>
 
-      {temVariacao && (
-        <div
-          className={clsx('flex items-center gap-1 text-xs font-medium')}
-          style={{ color: positivo ? '#10b981' : negativo ? '#ef4444' : 'var(--text-muted)' }}
-        >
-          {positivo ? <TrendingUp size={12} /> : negativo ? <TrendingDown size={12} /> : <Minus size={12} />}
-          <span>
-            {positivo ? '+' : ''}
-            {variacao!.toFixed(1)}% vs período anterior
-          </span>
-        </div>
-      )}
+      {/* BASE: subtítulo + variação */}
+      <div>
+        {descricao && (
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{descricao}</p>
+        )}
+        {temVariacao && (
+          <div
+            className={clsx('flex items-center gap-1 text-xs font-medium mt-0.5')}
+            style={{ color: positivo ? '#10b981' : negativo ? '#ef4444' : 'var(--text-muted)' }}
+          >
+            {positivo ? <TrendingUp size={12} /> : negativo ? <TrendingDown size={12} /> : <Minus size={12} />}
+            <span>
+              {positivo ? '+' : ''}
+              {variacao!.toFixed(1)}% vs período anterior
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

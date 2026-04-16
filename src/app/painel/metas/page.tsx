@@ -21,14 +21,27 @@ export default async function MetasPage() {
     <PainelShell profile={profile} title="Metas KPI">
       <div className="max-w-2xl space-y-6">
         {/* Header */}
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Target size={20} style={{ color: 'var(--gold)' }} />
-            Configuração de Metas
-          </h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            Defina as metas para cada coluna da planilha. As cores dos KPIs são calculadas automaticamente.
-          </p>
+        <div className="flex items-start gap-3">
+          <div
+            className="p-2.5 rounded-xl shrink-0"
+            style={{ background: 'var(--gold-dim)', color: 'var(--gold-light)' }}
+          >
+            <Target size={18} />
+          </div>
+          <div>
+            <h2 style={{
+              fontFamily: 'var(--ff-display)',
+              fontSize: '20px',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+            }}>
+              Configuração de Metas
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
+              Defina as metas para cada coluna da planilha. As cores dos KPIs são calculadas automaticamente.
+            </p>
+          </div>
         </div>
 
         {/* Aviso sem planilha */}
@@ -51,24 +64,33 @@ export default async function MetasPage() {
 
         {/* Info sobre a planilha ativa */}
         {planilha && (
-          <div
-            className="flex items-center gap-3 rounded-xl border px-4 py-3"
-            style={{ background: 'var(--bg-elevated)', borderColor: 'rgba(201,168,76,0.10)' }}
-          >
-            <div className="flex-1">
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Planilha ativa:{' '}
-                <strong style={{ color: 'var(--text-primary)' }}>{planilha.nome}</strong>
-                {planilha.aba && (
-                  <> · Aba: <strong style={{ color: 'var(--text-secondary)' }}>{planilha.aba}</strong></>
-                )}
-                {' · '}{headers.length} colunas disponíveis
-              </p>
+          <div className="card p-4 flex items-center gap-3 flex-wrap">
+            <div className="flex-1 flex items-center gap-2 flex-wrap">
+              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Planilha ativa:</span>
+              <span style={{
+                background: 'var(--gold-dim)',
+                color: 'var(--gold-light)',
+                border: '1px solid rgba(201,168,76,0.3)',
+                borderRadius: '20px',
+                padding: '2px 10px',
+                fontSize: '11px',
+                fontWeight: 600,
+              }}>
+                {planilha.nome}
+              </span>
+              {planilha.aba && (
+                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                  · aba: <span style={{ color: 'var(--text-secondary)' }}>{planilha.aba}</span>
+                </span>
+              )}
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                · {headers.length} colunas
+              </span>
             </div>
             <Link
               href="/painel/config"
-              className="text-xs transition-colors hover:opacity-75"
-              style={{ color: 'var(--gold-light)' }}
+              className="btn-secondary"
+              style={{ fontSize: '11px', padding: '4px 12px' }}
             >
               Trocar planilha
             </Link>

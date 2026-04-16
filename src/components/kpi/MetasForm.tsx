@@ -6,6 +6,13 @@ import type { Meta } from '@/lib/kpi-utils'
 import { Plus, Trash2, Edit2, Check, X, Star, Loader2 } from 'lucide-react'
 import { ICON_MAP, ICON_NAMES } from '@/lib/kpi-icons'
 
+function sufixoDisplay(unidade: string): string {
+  const u = unidade.trim().toLowerCase()
+  if (u === 'porcentagem') return '%'
+  if (u === 'tempo') return 's'
+  return ''
+}
+
 interface MetasFormProps {
   metas: Meta[]
   headers: string[]
@@ -241,13 +248,14 @@ export default function MetasForm({ metas, headers }: MetasFormProps) {
       {/* KPI Básico */}
       {basicosOrdenados.length > 0 && (
         <div>
-          <h3
-            className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <Star size={12} className="text-amber-400" />
-            KPI Básico ({basicosOrdenados.length} métricas)
-          </h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="section-heading flex items-center gap-1.5">
+              <Star size={11} className="text-amber-400" />
+              KPI Básico
+            </h3>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({basicosOrdenados.length} métricas)</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+          </div>
           <div className="space-y-2">
             {basicosOrdenados.map((meta) => (
               <MetaItem
@@ -267,12 +275,11 @@ export default function MetasForm({ metas, headers }: MetasFormProps) {
       {/* Todas as outras */}
       {semBasico.length > 0 && (
         <div>
-          <h3
-            className="text-xs font-semibold uppercase tracking-wider mb-3"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            KPI Completo ({semBasico.length} métricas)
-          </h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="section-heading">KPI Completo</h3>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({semBasico.length} métricas)</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+          </div>
           <div className="space-y-2">
             {semBasico.map((meta) => (
               <MetaItem
@@ -313,7 +320,8 @@ export default function MetasForm({ metas, headers }: MetasFormProps) {
       ) : (
         <button
           onClick={() => setEditando('new')}
-          className="btn-secondary w-full flex items-center justify-center gap-2 text-sm py-3"
+          className="btn-primary w-full flex items-center justify-center gap-2"
+          style={{ padding: '10px 18px' }}
         >
           <Plus size={15} />
           Adicionar nova meta
@@ -346,60 +354,117 @@ function MetaItem({
     )
   }
 
-  const tipoTexto = meta.tipo === 'maior_melhor'
-    ? `≥ ${meta.verde_inicio}${meta.unidade} = verde · ≥ ${meta.amarelo_inicio}${meta.unidade} = amarelo`
-    : `≤ ${meta.verde_inicio}${meta.unidade} = verde · ≤ ${meta.amarelo_inicio}${meta.unidade} = amarelo`
+  const suf = sufixoDisplay(meta.unidade)
+  const simb = meta.tipo === 'maior_melhor' ? '≥' : '≤'
 
   return (
     <div
-      className="flex items-center gap-3 rounded-xl border px-4 py-3 group transition-colors"
-      style={{ background: 'var(--bg-elevated)', borderColor: 'rgba(201,168,76,0.10)' }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.20)' }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,168,76,0.10)' }}
+      className="card group transition-colors"
+      style={{ padding: '14px 18px' }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
     >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Nome + badge tipo */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span
+            style={{
+              fontFamily: 'var(--ff-display)',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {meta.label}
           </span>
           {meta.basico && (
             <span
-              className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
-              style={{ color: '#fbbf24', background: 'rgba(245,158,11,0.1)' }}
+              className="flex items-center gap-0.5 shrink-0"
+              style={{
+                background: 'var(--gold-dim)',
+                color: 'var(--gold-light)',
+                border: '1px solid rgba(201,168,76,0.25)',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '9px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
             >
-              <Star size={9} /> básico #{meta.ordem}
+              <Star size={8} className="fill-current" /> básico #{meta.ordem}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span
-            className="text-[10px] font-mono px-1.5 py-0.5 rounded"
-            style={{ color: 'var(--text-muted)', background: 'rgba(201,168,76,0.06)' }}
-          >
-            {meta.nome_coluna}
+
+        {/* Tag coluna */}
+        <span
+          style={{
+            background: 'var(--bg-surface)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: '6px',
+            padding: '3px 8px',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {meta.nome_coluna}
+        </span>
+
+        {/* Pills thresholds */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span style={{
+            background: 'rgba(34,197,94,0.12)',
+            color: '#22c55e',
+            border: '1px solid rgba(34,197,94,0.25)',
+            borderRadius: '6px',
+            padding: '3px 8px',
+            fontSize: '10px',
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+          }}>
+            {simb} {meta.verde_inicio}{suf}
           </span>
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{tipoTexto}</span>
+          <span style={{
+            background: 'rgba(234,179,8,0.12)',
+            color: '#eab308',
+            border: '1px solid rgba(234,179,8,0.25)',
+            borderRadius: '6px',
+            padding: '3px 8px',
+            fontSize: '10px',
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+          }}>
+            {simb} {meta.amarelo_inicio}{suf}
+          </span>
         </div>
-      </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={onEditar}
-          className="p-1.5 rounded-lg transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-primary)'; el.style.background = 'rgba(201,168,76,0.06)' }}
-          onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
-        >
-          <Edit2 size={13} />
-        </button>
-        <button
-          onClick={onExcluir}
-          className="p-1.5 rounded-lg transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = '#f87171'; el.style.background = 'rgba(239,68,68,0.08)' }}
-          onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
-        >
-          <Trash2 size={13} />
-        </button>
+
+        {/* Ações */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <button
+            onClick={onEditar}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-primary)'; el.style.background = 'rgba(201,168,76,0.06)' }}
+            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
+          >
+            <Edit2 size={13} />
+          </button>
+          <button
+            onClick={onExcluir}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = '#f87171'; el.style.background = 'rgba(239,68,68,0.08)' }}
+            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
     </div>
   )
