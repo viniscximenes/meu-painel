@@ -140,7 +140,7 @@ export default function MonitoriaClient({
         </p>
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
           {operadores.map((op) => {
-            const count = monitoriasMes.filter((m) => m.colaborador === op.nome).length
+            const count = monitoriasMes.filter((m) => m.colaborador === op.nome && m.status === 'verde').length
             return <ProgressCard key={op.id} nome={op.nome} count={count} meta={metaMonitorias} />
           })}
         </div>
