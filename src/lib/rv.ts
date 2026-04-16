@@ -262,13 +262,15 @@ export function calcularRV(
   const debug = !!label
 
   const det = {
-    retracao: detectarIndice(headers, 'retracao'),
-    indisp:   detectarIndice(headers, 'indisp'),
-    tma:      detectarIndice(headers, 'tma'),
-    ticket:   detectarIndice(headers, 'ticket'),
-    pedidos:  detectarIndice(headers, 'pedidos'),
-    churn:    detectarIndice(headers, 'churn'),
-    abs:      detectarIndice(headers, 'abs'),
+    retracao:        detectarIndice(headers, 'retracao'),
+    indisp:          detectarIndice(headers, 'indisp'),
+    tma:             detectarIndice(headers, 'tma'),
+    ticket:          detectarIndice(headers, 'ticket'),
+    pedidos:         detectarIndice(headers, 'pedidos'),
+    churn:           detectarIndice(headers, 'churn'),
+    abs:             detectarIndice(headers, 'abs'),
+    tempo_projetado: detectarIndice(headers, 'tempo_projetado'),
+    tempo_logado:    detectarIndice(headers, 'tempo_logado'),
   }
 
   if (debug) {
@@ -302,14 +304,29 @@ export function calcularRV(
   const churnVal    = parseNumSig(rawChurn)
   const absVal      = parsePct(rawAbs)
 
+  // ABS dinâmico: se colunas Tempo Projetado (AG) e Tempo Real (AH) existem, computar ABS% dinamicamente
+  const rawProjetado = get(det.tempo_projetado)
+  const rawTempoReal = get(det.tempo_logado)
+  let absValFinal = absVal
+  if (rawProjetado && rawTempoReal) {
+    const projMin = parseTempo(rawProjetado)
+    const realMin = parseTempo(rawTempoReal)
+    if (projMin > 0) {
+      absValFinal = Math.max(0, Math.round((projMin - realMin) / projMin * 10000) / 100)
+    }
+  }
+
   if (debug) {
     console.log(`[RV] Valores brutos: ret="${rawRetracao}" indisp="${rawIndisp}" tma="${rawTma}" ticket="${rawTicket}" pedidos="${rawPedidos}" churn="${rawChurn}" abs="${rawAbs}"`)
-    console.log(`[RV] Valores parsed: ret=${retracaoVal}% indisp=${indispVal}% tma=${tmaVal}s ticket=${ticketVal}% pedidos=${pedidosVal} churn=${churnVal} abs=${absVal}%`)
+    if (rawProjetado && rawTempoReal) {
+      console.log(`[RV] ABS dinâmico AG/AH: projetado="${rawProjetado}" real="${rawTempoReal}" → ABS=${absValFinal}%`)
+    }
+    console.log(`[RV] Valores parsed: ret=${retracaoVal}% indisp=${indispVal}% tma=${tmaVal}s ticket=${ticketVal}% pedidos=${pedidosVal} churn=${churnVal} abs=${absValFinal}%`)
     console.log(`[RV] semDados=${semDados}`)
   }
 
   const motivosInelegivel: string[] = []
-  if (!semDados && absVal > config.absMaximo) {
+  if (!semDados && absValFinal > config.absMaximo) {
     motivosInelegivel.push(`ABS ${fmtPct(absVal)} — máximo ${fmtPct(config.absMaximo)}`)
   }
   const elegivel = !semDados && motivosInelegivel.length === 0

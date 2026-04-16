@@ -54,6 +54,23 @@ function parseNum(raw: string | undefined): number {
   return isNaN(n) ? 0 : n
 }
 
+function parseTempoSeg(raw: string): number {
+  if (!raw) return 0
+  const hms = raw.trim().match(/^(\d+):(\d{2}):(\d{2})$/)
+  if (hms) return parseInt(hms[1]) * 3600 + parseInt(hms[2]) * 60 + parseInt(hms[3])
+  const ms = raw.trim().match(/^(\d+):(\d{2})$/)
+  if (ms) return parseInt(ms[1]) * 60 + parseInt(ms[2])
+  const n = parseFloat(raw.replace(',', '.').replace(/[^\d.]/g, ''))
+  return isNaN(n) ? 0 : n
+}
+
+const ABS_PALAVRAS = ['absenteísmo', 'absenteismo', 'ausência', 'ausencia']
+function isAbsHeader(header: string): boolean {
+  const h = normalizarChave(header)
+  if (h === 'abs') return true
+  return ABS_PALAVRAS.some((kw) => h.includes(normalizarChave(kw)))
+}
+
 function calcStatus(v: number, meta: Meta): Status {
   const { tipo } = meta
   // Usa verde_inicio se configurado; caso contrário, cai de volta para valor_meta
@@ -135,7 +152,8 @@ export function computarKPIs(
       // Correspondência por nome exato da coluna, não por posição
       const meta = metaMap.get(chave)
       const raw  = row[idx] ?? ''
-      let valorNum = parseNum(raw)
+      const isTempo = meta && ['tempo', 'seg', 's', 'segundos'].includes(meta.unidade.trim().toLowerCase())
+      let valorNum = isTempo ? parseTempoSeg(raw) : parseNum(raw)
 
       if (meta && (meta.unidade === 'porcentagem' || meta.unidade === '%')) {
         const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
@@ -144,6 +162,11 @@ export function computarKPIs(
           valorNum = Math.round(valorNum * 10000) / 100
         }
       }
+
+      // ABS: planilha pode armazenar % de presença (ex: 97.8%); exibir como % de ausência (2.2%)
+      const valorDisplay = isAbsHeader(header) && valorNum > 50
+        ? `${Math.round((100 - valorNum) * 100) / 100}%`
+        : raw || '—'
 
       const status   = meta ? calcStatus(valorNum, meta) : 'neutro'
       const progresso = meta ? calcProgresso(valorNum, meta) : 0
@@ -160,7 +183,7 @@ export function computarKPIs(
       return {
         nome_coluna: header,
         label: meta?.label ?? header,
-        valor: raw || '—',
+        valor: valorDisplay,
         valorNum,
         unidade: meta?.unidade ?? '',
         status,

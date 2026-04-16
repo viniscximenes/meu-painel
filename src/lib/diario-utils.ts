@@ -2,7 +2,7 @@
 // Este arquivo NÃO importa googleapis nem qualquer lib Node.js.
 // Pode ser importado em Client Components com segurança.
 
-export const TIPOS_REGISTRO = ['Pausa justificada', 'Fora da jornada', 'Geral', 'Outros'] as const
+export const TIPOS_REGISTRO = ['Pausa justificada', 'Fora da jornada', 'Geral', 'Outros', 'Tempo logado'] as const
 export type TipoRegistro = (typeof TIPOS_REGISTRO)[number]
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────

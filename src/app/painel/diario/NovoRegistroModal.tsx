@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { X, BookOpen, Save, AlertTriangle, CheckCircle } from 'lucide-react'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
-import { TIPOS_REGISTRO, hojeFormatado, type TipoRegistro } from '@/lib/diario-utils'
+import { TIPOS_REGISTRO, hojeFormatado, parseTempo, type TipoRegistro } from '@/lib/diario-utils'
 import { salvarRegistroDiarioAction } from './actions'
 
 interface Props {
@@ -17,6 +17,15 @@ const TIPO_CORES: Record<TipoRegistro, string> = {
   'Fora da jornada':   '#60a5fa',
   'Geral':             '#a78bfa',
   'Outros':            '#94a3b8',
+  'Tempo logado':      '#34d399',
+}
+
+const JORNADA_PADRAO_MIN = 380 // 06:20:00 = 6h 20min
+
+function fmtHHMM(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -63,7 +72,11 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
     return () => document.removeEventListener('keydown', onKey)
   }, [aberto, onFechar])
 
-  const precisaTempo = tipo === 'Pausa justificada' || tipo === 'Fora da jornada'
+  const precisaTempo   = tipo === 'Pausa justificada' || tipo === 'Fora da jornada' || tipo === 'Tempo logado'
+  const isTempoLogado  = tipo === 'Tempo logado'
+  const deficitMin     = isTempoLogado && tempo.trim()
+    ? (() => { const m = parseTempo(tempo.trim()); return m > 0 ? Math.max(0, JORNADA_PADRAO_MIN - m) : null })()
+    : null
 
   function validar(): boolean {
     const e: Record<string, string> = {}
@@ -253,12 +266,22 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
                 type="text"
                 value={tempo}
                 onChange={(e) => setTempo(e.target.value)}
-                placeholder="20min, 1:30"
+                placeholder={isTempoLogado ? '06:15:00' : '20min, 1:30'}
                 style={{ ...INPUT_STYLE, borderColor: erros.tempo ? 'rgba(239,68,68,0.5)' : undefined }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = erros.tempo ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
               />
               {erros.tempo && <p className="text-[10px] mt-0.5" style={{ color: '#f87171' }}>{erros.tempo}</p>}
+              {isTempoLogado && deficitMin !== null && (
+                <p className="text-[10px] mt-0.5 font-semibold" style={{ color: deficitMin > 0 ? '#f87171' : '#34d399' }}>
+                  {deficitMin > 0 ? `Déficit: ${fmtHHMM(deficitMin)}` : 'Jornada completa ✓'}
+                </p>
+              )}
+              {isTempoLogado && !tempo.trim() && (
+                <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Jornada padrão: 06:20:00
+                </p>
+              )}
             </div>
 
             <div>

@@ -131,7 +131,6 @@ function Campo({
 interface Estado {
   absMaximo: string
   bonusValor: string
-  horasMensais: string
   retracaoFaixas: FaixaRV[]
   indispLimite: string
   indispValor: string
@@ -156,7 +155,6 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
     return {
       absMaximo:           s('abs_maximo'),
       bonusValor:          s('bonus_valor'),
-      horasMensais:        s('horas_mensais') || '132',
       retracaoFaixas:      j<FaixaRV[]>('retracao_faixas', [{min:66,valor:700},{min:63,valor:400},{min:60,valor:300},{min:57,valor:200}]).sort((a,b)=>b.min-a.min),
       indispLimite:        s('indisp_limite'),
       indispValor:         s('indisp_valor'),
@@ -193,7 +191,6 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
     const dados: Record<string, string> = {
       abs_maximo:            e.absMaximo,
       bonus_valor:           e.bonusValor,
-      horas_mensais:         e.horasMensais,
       retracao_faixas:       JSON.stringify(e.retracaoFaixas),
       indisp_limite:         e.indispLimite,
       indisp_valor:          e.indispValor,
@@ -244,13 +241,6 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
               <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>R$</span>
               <input type="number" value={e.bonusValor} step="50"
                 onChange={ev => upd('bonusValor')(ev.target.value)} style={INPUT} />
-            </div>
-          </Campo>
-          <Campo label="Horas mensais esperadas" hint="Usado para calcular indisponibilidade estimada contestada (padrão: 132h)">
-            <div className="flex items-center gap-1.5">
-              <input type="number" value={e.horasMensais} step="1" min="1"
-                onChange={ev => upd('horasMensais')(ev.target.value)} style={INPUT} />
-              <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>h</span>
             </div>
           </Campo>
         </div>
