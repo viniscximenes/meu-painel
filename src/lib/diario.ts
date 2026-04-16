@@ -147,7 +147,7 @@ export async function escreverRegistro(
 ): Promise<void> {
   // Para "Tempo logado": salvar apenas o déficit (jornada padrão − logado)
   let tempoParaSalvar = dados.tempo
-  if (dados.tipo === 'Tempo logado' && dados.tempo.trim()) {
+  if (dados.tipo === 'Fora da jornada' && dados.tempo.trim()) {
     const logadoMin = parseTempo(dados.tempo)
     if (logadoMin > 0) {
       const defMin = Math.max(0, JORNADA_PADRAO_MIN - logadoMin)

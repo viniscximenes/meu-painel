@@ -35,7 +35,6 @@ const TIPO_CORES: Record<TipoRegistro, { bg: string; color: string; border: stri
   'Fora da jornada':   { bg: 'rgba(96,165,250,0.10)',  color: '#60a5fa', border: 'rgba(96,165,250,0.25)' },
   'Geral':             { bg: 'rgba(167,139,250,0.10)', color: '#a78bfa', border: 'rgba(167,139,250,0.25)' },
   'Outros':            { bg: 'rgba(148,163,184,0.10)', color: '#94a3b8', border: 'rgba(148,163,184,0.20)' },
-  'Tempo logado':      { bg: 'rgba(52,211,153,0.10)',  color: '#34d399', border: 'rgba(52,211,153,0.25)' },
 }
 
 const BADGE_STYLE: Record<BadgeStatus, { bg: string; color: string; border: string }> = {
@@ -130,12 +129,11 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
   const comGlpi     = contarComGLPI(registros)
   const pausasJust  = registros.filter((r) => r.tipo === 'Pausa justificada')
   const foraJornada = registros.filter((r) => r.tipo === 'Fora da jornada')
-  const tempoLogado = registros.filter((r) => r.tipo === 'Tempo logado')
 
-  // "Tempo logado": valor ≥ 240min → salvo como tempo bruto → deficit = 380 − valor
-  //                 valor < 240min → já salvo como déficit → usar diretamente
+  // "Fora da jornada": valor ≥ 240min → salvo como tempo logado bruto → deficit = 380 − valor
+  //                    valor < 240min → já salvo como déficit → usar diretamente
   const LIMIAR_BRUTO_MIN = 240
-  const defsLogado = tempoLogado.map((r) => {
+  const defsForaJornada = foraJornada.map((r) => {
     const min = r.tempoMin
     let def = 0
     if (min > 0 && min < 380) def = min >= LIMIAR_BRUTO_MIN ? 380 - min : min
@@ -149,9 +147,8 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
   })
 
   const minPausas = totalPausasJustificadas(registros)
-  const minFora   = foraJornada.reduce((s, r) => s + r.tempoMin, 0)
-                  + defsLogado.reduce((s, d) => s + d, 0)
-  const qtdFora   = foraJornada.length + tempoLogado.length
+  const minFora   = defsForaJornada.reduce((s, d) => s + d, 0)
+  const qtdFora   = foraJornada.length
 
   // ── Contestação ─────────────────────────────────────────────────────────────
   const horasMensais = parseInt((rvConfigRaw['horas_mensais'] as string | undefined) ?? '132')
@@ -187,10 +184,10 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
   const minutosLogados    = Math.round(tempoLogadoHoras * 60)
   const JORNADA_DIA_MIN   = 380   // 6h20min
 
-  // Para cada "Fora da jornada": diff = 380 − tempoMin logado naquele dia
-  const detalhesFora = foraJornada.map((r) => ({
+  // Para cada "Fora da jornada": usa o mesmo déficit já calculado em defsForaJornada
+  const detalhesFora = foraJornada.map((r, i) => ({
     registro: r,
-    diff: Math.max(0, JORNADA_DIA_MIN - r.tempoMin),
+    diff: defsForaJornada[i] ?? 0,
   }))
   const minutosAcrescentar    = detalhesFora.reduce((s, d) => s + d.diff, 0)
   const minutosLogadosContest = minutosLogados + minutosAcrescentar

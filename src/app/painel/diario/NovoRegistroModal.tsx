@@ -17,7 +17,6 @@ const TIPO_CORES: Record<TipoRegistro, string> = {
   'Fora da jornada':   '#60a5fa',
   'Geral':             '#a78bfa',
   'Outros':            '#94a3b8',
-  'Tempo logado':      '#34d399',
 }
 
 const JORNADA_PADRAO_MIN = 380 // 06:20:00 = 6h 20min
@@ -72,9 +71,9 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
     return () => document.removeEventListener('keydown', onKey)
   }, [aberto, onFechar])
 
-  const precisaTempo   = tipo === 'Pausa justificada' || tipo === 'Fora da jornada' || tipo === 'Tempo logado'
-  const isTempoLogado  = tipo === 'Tempo logado'
-  const deficitMin     = isTempoLogado && tempo.trim()
+  const precisaTempo   = tipo === 'Pausa justificada' || tipo === 'Fora da jornada'
+  const isForaJornada  = tipo === 'Fora da jornada'
+  const deficitMin     = isForaJornada && tempo.trim()
     ? (() => { const m = parseTempo(tempo.trim()); return m > 0 ? Math.max(0, JORNADA_PADRAO_MIN - m) : null })()
     : null
 
@@ -260,24 +259,24 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
 
             <div>
               <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                Tempo {precisaTempo && <span style={{ color: '#f87171' }}>*</span>}
+                {isForaJornada ? 'Tempo logado no dia' : 'Tempo'} {precisaTempo && <span style={{ color: '#f87171' }}>*</span>}
               </label>
               <input
                 type="text"
                 value={tempo}
                 onChange={(e) => setTempo(e.target.value)}
-                placeholder={isTempoLogado ? '06:15:00' : '20min, 1:30'}
+                placeholder={isForaJornada ? '06:15:00' : '20min, 1:30'}
                 style={{ ...INPUT_STYLE, borderColor: erros.tempo ? 'rgba(239,68,68,0.5)' : undefined }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = erros.tempo ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
               />
               {erros.tempo && <p className="text-[10px] mt-0.5" style={{ color: '#f87171' }}>{erros.tempo}</p>}
-              {isTempoLogado && deficitMin !== null && (
+              {isForaJornada && deficitMin !== null && (
                 <p className="text-[10px] mt-0.5 font-semibold" style={{ color: deficitMin > 0 ? '#f87171' : '#34d399' }}>
                   {deficitMin > 0 ? `Déficit: ${fmtHHMM(deficitMin)}` : 'Jornada completa ✓'}
                 </p>
               )}
-              {isTempoLogado && !tempo.trim() && (
+              {isForaJornada && !tempo.trim() && (
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                   Jornada padrão: 06:20:00
                 </p>
