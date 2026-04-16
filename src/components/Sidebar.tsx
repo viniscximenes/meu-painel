@@ -7,7 +7,7 @@ import { Profile } from '@/types'
 import { OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   LayoutDashboard, Users, ChevronRight, ChevronDown, BarChart2,
-  Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen,
+  Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -166,6 +166,10 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
       <Link href="/painel/diario" onClick={onClose}
         className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <BookOpen size={15} /> Diário de Bordo
+      </Link>
+      <Link href="/painel/monitoria" onClick={onClose}
+        className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <ClipboardList size={15} /> Monitoria
       </Link>
 
       {/* ── Operadores — recolhível (fechado por padrão) ── */}
