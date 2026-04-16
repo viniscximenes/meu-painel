@@ -23,6 +23,19 @@ export function mmssParaSeg(mmss: string): number {
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
+export interface PenalidadeRV {
+  metaId: string
+  metaLabel: string
+  ativa: boolean
+  percentual: number  // ex: 10 → desconta 10% do rvTotal
+}
+
+export interface PenalidadeAplicada {
+  metaLabel: string
+  percentual: number
+  valorDeduzido: number
+}
+
 export interface FaixaRV {
   min: number    // limiar em %
   valor: number  // prêmio em R$
@@ -44,6 +57,7 @@ export interface RVConfig {
   bonusValor: number
   bonusRetracaoMinima: number
   bonusIndispMaxima: number
+  penalidades: PenalidadeRV[]
 }
 
 export interface ComponenteRV {
@@ -81,6 +95,9 @@ export interface ResultadoRV {
   bonusCriterios: BonusCriterios
   bonus: number
   rvTotal: number
+  penalidades: PenalidadeAplicada[]
+  totalPenalidade: number
+  rvFinal: number
   semDados: boolean
   config: RVConfig
 }
@@ -99,6 +116,7 @@ export const RV_CONFIG_DEFAULTS: RVConfigRaw = {
   churn_meta:            '0',
   bonus_retracao_minima: '66',
   bonus_indisp_maxima:   '14.5',
+  penalidades:           '[]',
 }
 
 export function parseRVConfig(raw: RVConfigRaw): RVConfig {
@@ -118,5 +136,6 @@ export function parseRVConfig(raw: RVConfigRaw): RVConfig {
     bonusValor:          n('bonus_valor'),
     bonusRetracaoMinima: n('bonus_retracao_minima'),
     bonusIndispMaxima:   n('bonus_indisp_maxima'),
+    penalidades:         j<PenalidadeRV[]>('penalidades'),
   }
 }

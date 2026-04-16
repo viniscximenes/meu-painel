@@ -55,14 +55,17 @@ function parseNum(raw: string | undefined): number {
 }
 
 function calcStatus(v: number, meta: Meta): Status {
-  const { tipo, verde_inicio, amarelo_inicio } = meta
+  const { tipo, verde_inicio } = meta
+  // Limiar amarelo automático: 80% do verde_inicio
+  const limiarAmarelo = verde_inicio > 0 ? verde_inicio * 0.8 : 0
+
   if (tipo === 'maior_melhor') {
     if (v >= verde_inicio) return 'verde'
-    if (v >= amarelo_inicio) return 'amarelo'
+    if (verde_inicio > 0 && v >= limiarAmarelo) return 'amarelo'
     return 'vermelho'
   } else {
-    if (v <= verde_inicio) return 'verde'
-    if (v <= amarelo_inicio) return 'amarelo'
+    if (verde_inicio > 0 && v < limiarAmarelo) return 'verde'
+    if (v <= verde_inicio) return 'amarelo'
     return 'vermelho'
   }
 }

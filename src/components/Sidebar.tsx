@@ -139,30 +139,36 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
 /* ── Gestor nav ──────────────────────────────────────────────────────────────── */
 
 function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
-  const [opsExpandidas, setOpsExpandidas] = useState(true)
-
-  function cls(href: string, exact = true) {
-    return (exact ? pathname === href : pathname.startsWith(href) && !pathname.startsWith('/painel/kpis'))
-      ? 'sidebar-item-active'
-      : 'sidebar-item-inactive'
-  }
+  const [opsExpandidas, setOpsExpandidas] = useState(false)
 
   return (
     <div className="space-y-0.5">
+      {/* ── Geral ── */}
       <NavLabel>Geral</NavLabel>
 
-      <Link href="/painel" onClick={onClose} className={cls('/painel')}>
+      <Link href="/painel" onClick={onClose}
+        className={pathname === '/painel' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <LayoutDashboard size={15} /> Visão Geral
       </Link>
-      <Link
-        href="/painel/kpis-equipe"
-        onClick={onClose}
-        className={pathname === '/painel/kpis-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-      >
+      <Link href="/painel/kpis-equipe" onClick={onClose}
+        className={pathname === '/painel/kpis-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <TableProperties size={15} /> KPIs da Equipe
       </Link>
+      <Link href="/painel/rv-equipe" onClick={onClose}
+        className={pathname === '/painel/rv-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <Trophy size={15} style={{ color: pathname === '/painel/rv-equipe' ? 'var(--gold)' : undefined }} />
+        RV da Equipe
+      </Link>
 
-      {/* ── Seção Operadores com toggle ─────────────────────────────────────── */}
+      {/* ── Registros ── */}
+      <NavLabel>Registros</NavLabel>
+
+      <Link href="/painel/diario" onClick={onClose}
+        className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <BookOpen size={15} /> Diário de Bordo
+      </Link>
+
+      {/* ── Operadores — recolhível (fechado por padrão) ── */}
       <NavLabelCollapsible
         expanded={opsExpandidas}
         onToggle={() => setOpsExpandidas((v) => !v)}
@@ -170,15 +176,11 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         Operadores
       </NavLabelCollapsible>
 
-      <Link
-        href="/painel/operadores"
-        onClick={onClose}
-        className={pathname === '/painel/operadores' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-      >
+      <Link href="/painel/operadores" onClick={onClose}
+        className={pathname === '/painel/operadores' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <Users size={15} /> Todos os Operadores
       </Link>
 
-      {/* Lista individual — recolhível */}
       <div
         style={{
           maxHeight: opsExpandidas ? '1200px' : '0px',
@@ -233,48 +235,19 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         </div>
       </div>
 
-      <NavLabel>Registros</NavLabel>
+      {/* ── Configurações ── */}
+      <NavLabel>Configurações</NavLabel>
 
-      <Link
-        href="/painel/diario"
-        onClick={onClose}
-        className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-      >
-        <BookOpen size={15} /> Diário de Bordo
-      </Link>
-
-      <NavLabel>Remuneração</NavLabel>
-
-      <Link
-        href="/painel/rv-equipe"
-        onClick={onClose}
-        className={pathname === '/painel/rv-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-      >
-        <Trophy size={15} style={{ color: pathname === '/painel/rv-equipe' ? 'var(--gold)' : undefined }} />
-        RV da Equipe
-      </Link>
-      <Link
-        href="/painel/rv-config"
-        onClick={onClose}
-        className={pathname === '/painel/rv-config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-      >
-        <SlidersHorizontal size={15} /> Config. RV
-      </Link>
-
-      <NavLabel>Configuração</NavLabel>
-
-      <Link
-        href="/painel/metas"
-        onClick={onClose}
-        className={pathname === '/painel/metas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-      >
+      <Link href="/painel/metas" onClick={onClose}
+        className={pathname === '/painel/metas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <Target size={15} /> Metas KPI
       </Link>
-      <Link
-        href="/painel/config"
-        onClick={onClose}
-        className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-      >
+      <Link href="/painel/rv-config" onClick={onClose}
+        className={pathname === '/painel/rv-config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <SlidersHorizontal size={15} /> Config. RV
+      </Link>
+      <Link href="/painel/config" onClick={onClose}
+        className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <Database size={15} /> Planilhas
       </Link>
     </div>

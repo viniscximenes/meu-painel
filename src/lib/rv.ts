@@ -15,11 +15,13 @@ import {
   type ComponenteRV,
   type BonusCriterios,
   type ResultadoRV,
+  type PenalidadeAplicada,
   RV_CONFIG_DEFAULTS,
   parseRVConfig,
   formatBRL,
   segParaMMSS,
 } from '@/lib/rv-utils'
+import type { KPIItem } from '@/lib/kpi-utils'
 
 // ── Supabase: ler / salvar config ─────────────────────────────────────────────
 
@@ -252,6 +254,7 @@ export function calcularRV(
   row: string[],
   config: RVConfig,
   label = '',
+  kpis: KPIItem[] = [],
 ): ResultadoRV {
   const debug = !!label
 
@@ -410,14 +413,34 @@ export function calcularRV(
 
   if (debug) {
     console.log(`[RV] Bônus: ret≥${config.bonusRetracaoMinima}%=${bonusRetracaoOk} | indisp≤${config.bonusIndispMaxima}%=${bonusIndispOk} | churn=${bonusChurnOk} → R$${bonus}`)
-    console.log(`[RV] ★ RV TOTAL: R$${rvTotal}\n`)
+    console.log(`[RV] ★ RV TOTAL: R$${rvTotal}`)
   }
+
+  // ── Penalidades por meta não atingida ────────────────────────────────────────
+  const penalidadesAplicadas: PenalidadeAplicada[] = []
+  if (elegivel && kpis.length > 0 && config.penalidades.length > 0) {
+    for (const pen of config.penalidades) {
+      if (!pen.ativa) continue
+      const kpi = kpis.find(k => k.meta?.id === pen.metaId)
+      if (!kpi) continue
+      if (kpi.status === 'vermelho') {
+        const valorDeduzido = Math.round(rvTotal * pen.percentual / 100 * 100) / 100
+        penalidadesAplicadas.push({ metaLabel: pen.metaLabel, percentual: pen.percentual, valorDeduzido })
+        if (debug) console.log(`[RV] Penalidade: "${pen.metaLabel}" vermelho → -${pen.percentual}% = -R$${valorDeduzido}`)
+      }
+    }
+  }
+  const totalPenalidade = Math.round(penalidadesAplicadas.reduce((s, p) => s + p.valorDeduzido, 0) * 100) / 100
+  const rvFinal = Math.max(0, Math.round((rvTotal - totalPenalidade) * 100) / 100)
+
+  if (debug) console.log(`[RV] Penalidades: -R$${totalPenalidade} → rvFinal: R$${rvFinal}\n`)
 
   return {
     elegivel, motivosInelegivel, componentes,
     rvBase, pedidosRealizados: pedidosVal, pedidosMeta: config.pedidosMeta,
     multiplicador, rvAposPedidos,
     bonusCriterios, bonus, rvTotal,
+    penalidades: penalidadesAplicadas, totalPenalidade, rvFinal,
     semDados, config,
   }
 }

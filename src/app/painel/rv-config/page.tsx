@@ -1,13 +1,14 @@
 import { requireGestor } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { getRVConfigRaw } from '@/lib/rv'
+import { getMetas } from '@/lib/kpi'
 import RVConfigForm from './RVConfigForm'
 import { SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function RVConfigPage() {
   const profile = await requireGestor()
-  const raw     = await getRVConfigRaw()
+  const [raw, metas] = await Promise.all([getRVConfigRaw(), getMetas()])
 
   return (
     <PainelShell profile={profile} title="Configurar RV">
@@ -39,7 +40,7 @@ export default async function RVConfigPage() {
         </div>
 
         {/* Formulário */}
-        <RVConfigForm raw={raw} />
+        <RVConfigForm raw={raw} metas={metas} />
       </div>
     </PainelShell>
   )

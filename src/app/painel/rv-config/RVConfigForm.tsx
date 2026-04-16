@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Save, Plus, Trash2, CheckCircle, AlertTriangle } from 'lucide-react'
-import type { FaixaRV, RVConfigRaw } from '@/lib/rv-utils'
+import { Save, Plus, Trash2, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react'
+import type { FaixaRV, RVConfigRaw, PenalidadeRV } from '@/lib/rv-utils'
 import { mmssParaSeg, segParaMMSS } from '@/lib/rv-utils'
+import type { Meta } from '@/lib/kpi-utils'
 import { salvarRVConfigAction } from './actions'
 
 // ── Estilos compartilhados ────────────────────────────────────────────────────
@@ -141,9 +142,10 @@ interface Estado {
   churnMeta: string
   bonusRetracaoMinima: string
   bonusIndispMaxima: string
+  penalidades: PenalidadeRV[]
 }
 
-export default function RVConfigForm({ raw }: { raw: RVConfigRaw }) {
+export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: Meta[] }) {
   const [e, setE] = useState<Estado>(() => {
     const j = <T,>(k: string, fb: T): T => {
       try { return JSON.parse(raw[k] ?? '') } catch { return fb }
@@ -164,6 +166,14 @@ export default function RVConfigForm({ raw }: { raw: RVConfigRaw }) {
       churnMeta:           s('churn_meta'),
       bonusRetracaoMinima: s('bonus_retracao_minima'),
       bonusIndispMaxima:   s('bonus_indisp_maxima'),
+      penalidades:         (() => {
+        const saved: PenalidadeRV[] = j<PenalidadeRV[]>('penalidades', [])
+        // Mescla metas existentes com penalidades salvas
+        return metas.map((m) => {
+          const found = saved.find((p) => p.metaId === m.id)
+          return found ?? { metaId: m.id, metaLabel: m.label, ativa: false, percentual: 10 }
+        })
+      })(),
     }
   })
 
@@ -191,6 +201,7 @@ export default function RVConfigForm({ raw }: { raw: RVConfigRaw }) {
       churn_meta:            e.churnMeta,
       bonus_retracao_minima: e.bonusRetracaoMinima,
       bonus_indisp_maxima:   e.bonusIndispMaxima,
+      penalidades:           JSON.stringify(e.penalidades.filter(p => p.ativa || true)),
     }
     startSave(async () => {
       try {
@@ -355,6 +366,81 @@ export default function RVConfigForm({ raw }: { raw: RVConfigRaw }) {
             </div>
           </Campo>
         </div>
+      </div>
+
+      {/* ── Penalidades por Meta Não Atingida ── */}
+      <div style={SECTION}>
+        {sectionTitle('Penalidades por Meta Não Atingida')}
+        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+          Quando uma meta está <b style={{ color: '#f87171' }}>vermelha</b>, desconta o percentual configurado do RV total do operador.
+          Ative apenas as metas que devem gerar penalidade.
+        </p>
+        {metas.length === 0 ? (
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma meta cadastrada. Acesse "Metas KPI" para adicionar.</p>
+        ) : (
+          <div className="space-y-2">
+            {e.penalidades.map((pen, idx) => (
+              <div
+                key={pen.metaId}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-colors"
+                style={{
+                  background: pen.ativa ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.02)',
+                  borderColor: pen.ativa ? 'rgba(239,68,68,0.20)' : 'rgba(255,255,255,0.06)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setE(prev => ({
+                    ...prev,
+                    penalidades: prev.penalidades.map((p, i) => i === idx ? { ...p, ativa: !p.ativa } : p),
+                  }))}
+                  className="w-9 h-5 rounded-full relative shrink-0 transition-colors"
+                  style={{
+                    background: pen.ativa ? '#ef4444' : 'rgba(255,255,255,0.08)',
+                    border: '1px solid ' + (pen.ativa ? '#ef4444' : 'rgba(255,255,255,0.12)'),
+                  }}
+                  aria-checked={pen.ativa}
+                  role="switch"
+                >
+                  <span
+                    className="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all"
+                    style={{ left: pen.ativa ? 'calc(100% - 1.125rem)' : '2px' }}
+                  />
+                </button>
+                <span className="flex-1 text-sm truncate" style={{ color: pen.ativa ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {pen.metaLabel}
+                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>−</span>
+                  <input
+                    type="number"
+                    value={pen.percentual}
+                    min={1}
+                    max={100}
+                    step={1}
+                    disabled={!pen.ativa}
+                    onChange={ev => setE(prev => ({
+                      ...prev,
+                      penalidades: prev.penalidades.map((p, i) =>
+                        i === idx ? { ...p, percentual: parseFloat(ev.target.value) || 0 } : p
+                      ),
+                    }))}
+                    style={{ ...INPUT, width: 56, opacity: pen.ativa ? 1 : 0.4 }}
+                  />
+                  <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {e.penalidades.some(p => p.ativa) && (
+          <div className="flex items-center gap-2 mt-3 text-xs px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+            <ShieldAlert size={12} />
+            {e.penalidades.filter(p => p.ativa).length} penalidade(s) ativa(s).
+            O RV final é calculado após deduzir as penalidades.
+          </div>
+        )}
       </div>
 
       {/* ── Botão salvar (sticky) ── */}

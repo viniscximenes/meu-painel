@@ -13,6 +13,22 @@ function sufixoDisplay(unidade: string): string {
   return ''
 }
 
+function segParaHHMMSS(s: number): string {
+  if (!s) return ''
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = Math.round(s % 60)
+  if (h > 0) return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
+function hhmmssParaSeg(s: string): number {
+  const parts = s.trim().split(':').map(Number)
+  if (parts.length === 3) return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0)
+  if (parts.length === 2) return (parts[0] || 0) * 60 + (parts[1] || 0)
+  return parseFloat(s) || 0
+}
+
 interface MetasFormProps {
   metas: Meta[]
   headers: string[]
@@ -40,12 +56,20 @@ function MetaForm({
   const [tipo, setTipo] = useState<'maior_melhor' | 'menor_melhor'>(
     inicial?.tipo ?? 'maior_melhor'
   )
+  const [unidade, setUnidade] = useState(inicial?.unidade ?? 'numero')
   const [basicoAtivo, setBasicoAtivo] = useState(inicial?.basico ?? false)
   const [iconeAtivo, setIconeAtivo] = useState(inicial?.icone ?? 'BarChart2')
+
+  const isTempo = unidade === 'tempo'
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    // Converte HH:MM:SS para segundos nos campos de tempo
+    if (isTempo) {
+      fd.set('valor_meta', String(hhmmssParaSeg(fd.get('valor_meta') as string)))
+      fd.set('verde_inicio', String(hhmmssParaSeg(fd.get('verde_inicio') as string)))
+    }
     startTransition(async () => {
       await onSalvar(fd)
       onCancelar()
@@ -119,41 +143,56 @@ function MetaForm({
           </select>
         </div>
 
-        {/* Valor meta */}
-        <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            {tipo === 'maior_melhor' ? 'Meta alvo (≥)' : 'Meta alvo (≤)'}
-          </label>
-          <input type="number" name="valor_meta" step="any"
-            defaultValue={inicial?.valor_meta ?? 0} required className="input" />
-        </div>
-
         {/* Unidade */}
         <div>
           <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Unidade</label>
-          <select name="unidade" defaultValue={inicial?.unidade ?? 'numero'} className="select">
+          <select
+            name="unidade"
+            value={unidade}
+            onChange={(e) => setUnidade(e.target.value)}
+            className="select"
+          >
             <option value="numero">Número (ex: 150)</option>
             <option value="porcentagem">Porcentagem (ex: 87%)</option>
-            <option value="tempo">Tempo em seg → MM:SS (ex: 125 → 02:05)</option>
+            <option value="tempo">Tempo → HH:MM:SS (TMA, Indisponibilidade)</option>
             <option value="texto">Texto (sem formatação)</option>
           </select>
         </div>
 
-        {/* Limiar amarelo */}
+        {/* Valor meta */}
         <div>
           <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            {tipo === 'maior_melhor' ? 'Início amarelo (valor mín.)' : 'Início amarelo (valor máx.)'}
+            {tipo === 'maior_melhor' ? 'Meta alvo (≥)' : 'Meta alvo (≤)'}
+            {isTempo && <span className="ml-1 opacity-60">(HH:MM:SS)</span>}
           </label>
-          <input type="number" name="amarelo_inicio" step="any" defaultValue={inicial?.amarelo_inicio ?? 0} required className="input" />
+          {isTempo ? (
+            <input type="text" name="valor_meta" placeholder="00:12:11"
+              defaultValue={inicial?.valor_meta ? segParaHHMMSS(inicial.valor_meta) : ''}
+              required className="input" />
+          ) : (
+            <input type="number" name="valor_meta" step="any"
+              defaultValue={inicial?.valor_meta ?? 0} required className="input" />
+          )}
         </div>
 
         {/* Limiar verde */}
         <div>
           <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
             {tipo === 'maior_melhor' ? 'Início verde (valor mín.)' : 'Início verde (valor máx.)'}
+            {isTempo && <span className="ml-1 opacity-60">(HH:MM:SS)</span>}
           </label>
-          <input type="number" name="verde_inicio" step="any" defaultValue={inicial?.verde_inicio ?? 0} required className="input" />
+          {isTempo ? (
+            <input type="text" name="verde_inicio" placeholder="00:12:11"
+              defaultValue={inicial?.verde_inicio ? segParaHHMMSS(inicial.verde_inicio) : ''}
+              required className="input" />
+          ) : (
+            <input type="number" name="verde_inicio" step="any"
+              defaultValue={inicial?.verde_inicio ?? 0} required className="input" />
+          )}
         </div>
+
+        {/* Limiar amarelo — automático (80% do verde), campo oculto */}
+        <input type="hidden" name="amarelo_inicio" value="0" />
 
         {/* Ordem */}
         <div>
@@ -354,8 +393,10 @@ function MetaItem({
     )
   }
 
-  const suf = sufixoDisplay(meta.unidade)
+  const isTempo = meta.unidade === 'tempo'
+  const suf = isTempo ? '' : sufixoDisplay(meta.unidade)
   const simb = meta.tipo === 'maior_melhor' ? '≥' : '≤'
+  const fmtVal = (v: number) => isTempo ? segParaHHMMSS(v) : `${v}${suf}`
 
   return (
     <div
@@ -428,7 +469,7 @@ function MetaItem({
             fontWeight: 600,
             whiteSpace: 'nowrap',
           }}>
-            {simb} {meta.verde_inicio}{suf}
+            {simb} {fmtVal(meta.verde_inicio)}
           </span>
           <span style={{
             background: 'rgba(234,179,8,0.12)',
@@ -440,7 +481,7 @@ function MetaItem({
             fontWeight: 600,
             whiteSpace: 'nowrap',
           }}>
-            {simb} {meta.amarelo_inicio}{suf}
+            auto 80%
           </span>
         </div>
 

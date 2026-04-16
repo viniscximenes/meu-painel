@@ -83,9 +83,37 @@ function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
           <span>+ Bônus <b style={{ color: 'var(--gold-light)' }}>{formatBRL(rv.bonus)}</b></span>
         )}
         <span className="ml-auto font-bold" style={{ color: rv.elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
-          Total: {formatBRL(rv.rvTotal)}
+          Subtotal: {formatBRL(rv.rvTotal)}
         </span>
       </div>
+
+      {/* Penalidades */}
+      {rv.penalidades && rv.penalidades.length > 0 && (
+        <div className="rounded-xl border px-3 py-2.5 space-y-1.5"
+          style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.15)' }}>
+          <p className="text-[9px] font-bold uppercase" style={{ color: '#f87171', letterSpacing: '0.07em' }}>
+            Penalidades
+          </p>
+          {rv.penalidades.map((p) => (
+            <div key={p.metaLabel} className="flex items-center justify-between text-xs">
+              <span style={{ color: 'var(--text-muted)' }}>{p.metaLabel} (vermelho)</span>
+              <span style={{ color: '#f87171' }}>−{p.percentual}% = −{formatBRL(p.valorDeduzido)}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between text-xs font-bold pt-1"
+            style={{ borderTop: '1px solid rgba(239,68,68,0.12)' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>RV Final</span>
+            <span style={{ color: rv.elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
+              {formatBRL(rv.rvFinal)}
+            </span>
+          </div>
+        </div>
+      )}
+      {(!rv.penalidades || rv.penalidades.length === 0) && (
+        <div className="text-xs text-right font-bold" style={{ color: rv.elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
+          RV Final: {formatBRL(rv.rvFinal)}
+        </div>
+      )}
     </div>
   )
 }
@@ -102,7 +130,7 @@ export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
   })
 
   const sorted = filtro === 'maior-rv'
-    ? [...filtered].sort((a, b) => (b.rv?.rvTotal ?? 0) - (a.rv?.rvTotal ?? 0))
+    ? [...filtered].sort((a, b) => (b.rv?.rvFinal ?? 0) - (a.rv?.rvFinal ?? 0))
     : filtered
 
   const cntEleg   = operadores.filter(o => o.rv?.elegivel).length
@@ -214,15 +242,20 @@ export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
                     </div>
                   </div>
 
-                  {/* RV Total */}
+                  {/* RV Final */}
                   <div className="text-center">
                     {rv && !semDados ? (
                       <>
                         <p className="text-base font-extrabold tabular-nums"
                           style={{ color: elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
-                          {formatBRL(rv.rvTotal)}
+                          {formatBRL(rv.rvFinal)}
                         </p>
-                        {rv.bonus > 0 && (
+                        {rv.totalPenalidade > 0 && (
+                          <p className="text-[9px]" style={{ color: '#f87171' }}>
+                            −{formatBRL(rv.totalPenalidade)} pen.
+                          </p>
+                        )}
+                        {rv.bonus > 0 && rv.totalPenalidade === 0 && (
                           <p className="text-[9px]" style={{ color: 'var(--gold)' }}>
                             + bônus {formatBRL(rv.bonus)}
                           </p>

@@ -57,7 +57,7 @@ export default async function RVEquipePage() {
         const motivosVermelhos = kpis.filter((k) => k.status === 'vermelho').map((k) => k.label)
 
         let rv: ResultadoRV | null = null
-        try { rv = calcularRV(headers, row, rvConfig) } catch { /* continua */ }
+        try { rv = calcularRV(headers, row, rvConfig, '', kpis) } catch { /* continua */ }
 
         return { id: op.id, nome: op.nome, username: op.username, gs, encontrado: true, motivosVermelhos, rv }
       })
@@ -67,8 +67,8 @@ export default async function RVEquipePage() {
   // Cards de resumo
   const elegiveis   = operadores.filter(o => o.rv?.elegivel === true).length
   const inelegiveis = operadores.filter(o => o.rv?.elegivel === false && !o.rv?.semDados).length
-  const rvTotalEquipe = operadores.reduce((s, o) => s + (o.rv?.rvTotal ?? 0), 0)
-  const maiorRV       = Math.max(0, ...operadores.map(o => o.rv?.rvTotal ?? 0))
+  const rvTotalEquipe = operadores.reduce((s, o) => s + (o.rv?.rvFinal ?? 0), 0)
+  const maiorRV       = Math.max(0, ...operadores.map(o => o.rv?.rvFinal ?? 0))
 
   return (
     <PainelShell profile={profile} title="RV da Equipe">
