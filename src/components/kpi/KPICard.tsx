@@ -262,11 +262,13 @@ export default function KPICard({ kpi, index }: KPICardProps) {
       <p
         className="leading-none tabular-nums"
         style={{
-          fontFamily: 'var(--ff-display)',
+          fontFamily: 'var(--ff-body)',
           fontSize: '22px',
           fontWeight: 700,
-          color: st.valorColor,
+          lineHeight: 1,
           fontVariantNumeric: 'tabular-nums',
+          fontFeatureSettings: '"tnum" 1',
+          color: st.valorColor,
         }}
       >
         {valorFmt}

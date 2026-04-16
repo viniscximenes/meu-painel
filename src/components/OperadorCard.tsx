@@ -71,7 +71,7 @@ export default function OperadorCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+          <p className="truncate text-sm" style={{ color: 'var(--text-primary)', fontWeight: 400 }}>
             {operador.nome}
           </p>
           <p className="text-xs truncate font-medium" style={{ color: '#4a90d9' }}>
@@ -106,7 +106,18 @@ export default function OperadorCard({
               <p className="text-[10px] truncate uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                 {item.label}
               </p>
-              <p className="font-bold text-sm mt-0.5 tabular-nums" style={{ color: 'var(--text-primary)' }}>
+              <p
+                className="mt-0.5"
+                style={{
+                  fontFamily: 'var(--ff-body)',
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  fontVariantNumeric: 'tabular-nums',
+                  fontFeatureSettings: '"tnum" 1',
+                  color: 'var(--text-primary)',
+                }}
+              >
                 {item.valor}
               </p>
             </div>

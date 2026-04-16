@@ -207,7 +207,15 @@ function Chip({ cor, label, valor }: { cor: string; label: string; valor: number
   const s = styles[cor]
   return (
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border" style={{ background: s.bg, borderColor: s.border }}>
-      <span className="text-sm font-bold" style={{ color: s.color }}>{valor}</span>
+      <span style={{
+        fontFamily: 'var(--ff-body)',
+        fontSize: '0.875rem',
+        fontWeight: 700,
+        lineHeight: 1,
+        fontVariantNumeric: 'tabular-nums',
+        fontFeatureSettings: '"tnum" 1',
+        color: s.color,
+      }}>{valor}</span>
       <span className="text-[10px] opacity-80" style={{ color: s.color }}>{label}</span>
     </div>
   )

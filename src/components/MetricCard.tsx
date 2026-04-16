@@ -75,9 +75,12 @@ export default function MetricCard({
           <p
             className="tabular-nums leading-none animate-countUp"
             style={{
-              fontFamily: 'var(--ff-display)',
+              fontFamily: 'var(--ff-body)',
               fontSize: '26px',
               fontWeight: 700,
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+              fontFeatureSettings: '"tnum" 1',
               background: 'linear-gradient(135deg, var(--gold-bright) 0%, var(--gold-light) 50%, #fbbf24 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -90,9 +93,12 @@ export default function MetricCard({
           <p
             className="tabular-nums leading-none animate-countUp"
             style={{
-              fontFamily: 'var(--ff-display)',
+              fontFamily: 'var(--ff-body)',
               fontSize: '26px',
               fontWeight: 700,
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+              fontFeatureSettings: '"tnum" 1',
               color: valorColor,
             }}
           >
