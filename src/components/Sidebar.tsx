@@ -8,6 +8,7 @@ import { OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/opera
 import {
   LayoutDashboard, Users, ChevronRight, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
+  TrendingUp,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -159,6 +160,10 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         className={pathname === '/painel/rv-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <Trophy size={15} style={{ color: pathname === '/painel/rv-equipe' ? 'var(--gold)' : undefined }} />
         RV da Equipe
+      </Link>
+      <Link href="/painel/semanal" onClick={onClose}
+        className={pathname === '/painel/semanal' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <TrendingUp size={15} /> Semanal
       </Link>
 
       {/* ── Registros ── */}
