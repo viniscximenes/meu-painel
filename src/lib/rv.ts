@@ -223,6 +223,10 @@ function parsePct(raw: string): number {
 
 function parseSeg(raw: string): number {
   if (!raw) return 0
+  // HH:MM:SS (formato da planilha: "00:09:51")
+  const hms = raw.trim().match(/^(\d+):(\d{1,2}):(\d{1,2})$/)
+  if (hms) return parseInt(hms[1]) * 3600 + parseInt(hms[2]) * 60 + parseInt(hms[3])
+  // MM:SS
   const mmss = raw.trim().match(/^(\d+):(\d{2})$/)
   if (mmss) return parseInt(mmss[1]) * 60 + parseInt(mmss[2])
   const n = parseFloat(raw.replace(',', '.').replace(/[^\d.]/g, ''))
@@ -441,21 +445,11 @@ export function calcularRV(
     for (const pen of config.penalidades) {
       if (!pen.ativa) continue
       const kpi = kpis.find(k => k.meta?.id === pen.metaId)
-      const isTmaPen = pen.metaLabel.toLowerCase().includes('tma')
-      if (isTmaPen) {
-        // Log sempre para diagnóstico de TMA
-        console.log(
-          `[RV Pen TMA] elegível=${elegivel} | kpi=${kpi
-            ? `col="${kpi.nome_coluna}" raw="${kpi.valor}" val=${kpi.valorNum}s status=${kpi.status}`
-            : `NÃO ENCONTRADO (metaId=${pen.metaId})`
-          } | limite=${config.tmaLimiteSeg}s`
-        )
-      }
       if (!kpi) continue
       if (kpi.status === 'vermelho') {
         const valorDeduzido = Math.round(rvTotal * pen.percentual / 100 * 100) / 100
         penalidadesAplicadas.push({ metaLabel: pen.metaLabel, percentual: pen.percentual, valorDeduzido })
-        if (debug || isTmaPen) console.log(`[RV] Penalidade: "${pen.metaLabel}" vermelho → -${pen.percentual}% = -R$${valorDeduzido}`)
+        if (debug) console.log(`[RV] Penalidade: "${pen.metaLabel}" vermelho → -${pen.percentual}% = -R$${valorDeduzido}`)
       }
     }
   }
@@ -463,6 +457,21 @@ export function calcularRV(
   let rvFinal = Math.max(0, Math.round((rvTotal - totalPenalidade) * 100) / 100)
 
   if (debug) console.log(`[RV] Penalidades: -R$${totalPenalidade} → rvFinal: R$${rvFinal}`)
+
+  // Diagnóstico TMA — loga para TODOS os operadores (elegíveis ou não) quando penalty TMA existe
+  for (const pen of config.penalidades) {
+    if (!pen.ativa || !pen.metaLabel.toLowerCase().includes('tma')) continue
+    const kpi      = kpis.find(k => k.meta?.id === pen.metaId)
+    const aplicada = penalidadesAplicadas.find(p => p.metaLabel === pen.metaLabel)
+    console.log(
+      `[RV Pen TMA] ${label || '?'} | elegível=${elegivel}` +
+      ` | kpi=${kpi
+        ? `col="${kpi.nome_coluna}" raw="${kpi.valor}" val=${kpi.valorNum}s status=${kpi.status}`
+        : `NÃO ENCONTRADO (metaId=${pen.metaId})`}` +
+      ` | limite=${config.tmaLimiteSeg}s | pen=${pen.percentual}%` +
+      ` | APLICADA=${aplicada ? `sim -R$${aplicada.valorDeduzido}` : 'não'}`
+    )
+  }
 
   // ── Desconto individual para este operador/mês ────────────────────────────────
   const descontoConf: DescontoIndividual | undefined =
