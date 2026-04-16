@@ -54,9 +54,9 @@ function SectionHeader({ href, title }: { href: string; title: string }) {
       className="dp-section-link"
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 4,
-        fontFamily: 'var(--ff-display)', fontSize: '.69rem', fontWeight: 700,
+        fontFamily: 'var(--ff-body)', fontSize: '.75rem', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '.08em',
-        color: '#94a3b8', textDecoration: 'none',
+        color: '#cbd5e1', textDecoration: 'none',
       }}
     >
       {title}<span className="dp-arrow"> →</span>
@@ -175,7 +175,7 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
         .dp-list-item { transition: background .15s; }
         .dp-list-item:hover { background: rgba(26,34,53,.9) !important; }
         .dp-section-link .dp-arrow { opacity: 0; display: inline-block; transition: opacity .15s, transform .15s; }
-        .dp-section-link:hover { color: #f1f5f9 !important; }
+        .dp-section-link:hover { color: #f8fafc !important; }
         .dp-section-link:hover .dp-arrow { opacity: 1; transform: translateX(3px); }
         .dp-see-all { font-size: .72rem; color: #475569; text-decoration: none; transition: color .15s; }
         .dp-see-all:hover { color: #94a3b8; }
@@ -237,7 +237,7 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
               <Users size={14} style={{ color: '#22d3ee' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-display)', fontSize: 36, fontWeight: 800, color: '#f1f5f9', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#f1f5f9', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
             {OPERADORES_DISPLAY.length}
           </div>
           <div style={{ fontSize: '.72rem', color: '#475569', marginTop: '.5rem' }}>equipe ativa este mês</div>
@@ -258,7 +258,7 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
               <TrendingUp size={14} style={{ color: '#a78bfa' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-display)', fontSize: 36, fontWeight: 800, color: '#a78bfa', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#a78bfa', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
             {mediaKPI !== null ? `${mediaKPI}%` : '—'}
           </div>
           <div style={{ fontSize: '.72rem', color: '#475569', marginTop: '.5rem' }}>média geral da equipe</div>
@@ -279,7 +279,7 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
               <XCircle size={14} style={{ color: '#f43f5e' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-display)', fontSize: 36, fontWeight: 800, color: '#f43f5e', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#f43f5e', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
             {inelegiveis.length}
             <span style={{ fontSize: 18, fontWeight: 600, color: '#475569' }}>/{OPERADORES_DISPLAY.length}</span>
           </div>
@@ -301,7 +301,7 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
               <FileText size={14} style={{ color: '#f59e0b' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-display)', fontSize: 36, fontWeight: 800, color: '#f59e0b', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#f59e0b', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
             {totalEnviadas}
             <span style={{ fontSize: 18, fontWeight: 600, color: '#475569' }}>/{metaTotal}</span>
           </div>
@@ -314,7 +314,7 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
       </div>
 
       {/* ── 3 Sections ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-4">
 
         {/* A — Progresso de Monitoria */}
         <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '1.25rem' }}>
