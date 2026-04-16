@@ -1,5 +1,5 @@
 import { requireGestor } from '@/lib/auth'
-import { getMetas, computarKPIs, type KPIItem, type Status } from '@/lib/kpi'
+import { getMetas, computarKPIs, type KPIItem } from '@/lib/kpi'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, extrairDataAtualizacao, formatarDataCurta } from '@/lib/sheets'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import PainelShell from '@/components/PainelShell'
@@ -13,16 +13,6 @@ export type DadosOperador = {
   kpis: KPIItem[]
   encontrado: boolean
 }
-
-function globalStatus(kpis: KPIItem[]): Status {
-  const com = kpis.filter((k) => k.status !== 'neutro')
-  if (com.some((k) => k.status === 'vermelho')) return 'vermelho'
-  if (com.some((k) => k.status === 'amarelo')) return 'amarelo'
-  if (com.some((k) => k.status === 'verde')) return 'verde'
-  return 'neutro'
-}
-
-export { globalStatus }
 
 export default async function KPIsEquipePage() {
   const profile = await requireGestor()
