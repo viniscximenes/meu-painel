@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import {
   buscarMonitorias,
@@ -11,10 +12,14 @@ import {
 export const dynamic = 'force-dynamic'
 
 async function getGestor() {
+  // Sessão via anon client (lê cookie)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  const { data: profile } = await supabase
+
+  // Profile via admin client (bypassa RLS recursiva na tabela profiles)
+  const admin = createAdminClient()
+  const { data: profile } = await admin
     .from('profiles')
     .select('*')
     .eq('id', user.id)
