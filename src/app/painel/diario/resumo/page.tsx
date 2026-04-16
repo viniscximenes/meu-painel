@@ -1,6 +1,6 @@
 import { requireGestor } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
-import { buscarDiarioAtivo, filtrarPorOperador, totalPausasJustificadas, totalForaJornada } from '@/lib/diario'
+import { buscarDiarioAtivo, filtrarPorOperador, totalPausasJustificadas } from '@/lib/diario'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { BookOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -15,10 +15,21 @@ export default async function DiarioResumoPage() {
   const profile = await requireGestor()
   const { registros: todos } = await buscarDiarioAtivo()
 
+  // >= 240min → salvo como tempo logado bruto → déficit = 380 − valor
+  // <  240min → já salvo como déficit → usar diretamente
+  const LIMIAR_BRUTO_MIN = 240
+  const JORNADA_MIN      = 380
+
   const operadoresComRegistros = OPERADORES_DISPLAY.map((op) => {
     const regs      = filtrarPorOperador(todos, op.username, op.nome)
     const minPausas = totalPausasJustificadas(regs)
-    const minFora   = totalForaJornada(regs)
+    const minFora   = regs
+      .filter((r) => r.tipo === 'Fora da jornada')
+      .reduce((s, r) => {
+        const min = r.tempoMin
+        if (min <= 0 || min >= JORNADA_MIN) return s
+        return s + (min >= LIMIAR_BRUTO_MIN ? JORNADA_MIN - min : min)
+      }, 0)
     const tipoCounts = Object.fromEntries(
       TIPOS.map((t) => [t, regs.filter((r) => r.tipo === t).length])
     ) as Record<TipoRegistro, number>
