@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { ClipboardList, Plus, Search, Pencil, Trash2, Check, Clock, AlertTriangle } from 'lucide-react'
 import type { Monitoria, StatusMonitoria } from '@/lib/monitoria-utils'
 import { STATUS_INFO, mesDeData, parseDateDMY } from '@/lib/monitoria-utils'
+import { deletarMonitoriaAction } from './actions'
 import NovaMonitoriaModal from './NovaMonitoriaModal'
 import EditarMonitoriaModal from './EditarMonitoriaModal'
 
@@ -56,6 +58,7 @@ export default function MonitoriaClient({
   const [editando,          setEditando]          = useState<Monitoria | null>(null)
   const [deletando,         setDeletando]         = useState<number | null>(null)
   const [,                  startDel]             = useTransition()
+  const router = useRouter()
 
   // Meses disponíveis (descendente)
   const meses = Array.from(
@@ -91,30 +94,13 @@ export default function MonitoriaClient({
       return dt !== 0 ? dt : b.sheetRowIndex - a.sheetRowIndex
     })
 
-  async function recarregar() {
-    try {
-      const res = await fetch('/api/monitoria', { cache: 'no-store' })
-      if (res.ok) {
-        const data = await res.json()
-        setMonitorias(data.monitorias ?? [])
-      }
-    } catch { /* silencia */ }
-  }
-
   function handleDeletar(m: Monitoria) {
     if (!confirm(`Deletar monitoria de ${m.colaborador} (${m.dataAtendimento || 'sem data'})?`)) return
     setDeletando(m.sheetRowIndex)
     startDel(async () => {
-      try {
-        await fetch('/api/monitoria', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sheetRowIndex: m.sheetRowIndex }),
-        })
-        await recarregar()
-      } finally {
-        setDeletando(null)
-      }
+      await deletarMonitoriaAction(m.sheetRowIndex)
+      setDeletando(null)
+      router.refresh()
     })
   }
 
@@ -211,7 +197,7 @@ export default function MonitoriaClient({
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                {['Status', 'Colaborador', 'ID Chamada', 'Contrato', 'Data', 'Sinalização', 'Forms', 'Ações'].map((col) => (
+                {['Status', 'Colaborador', 'Contrato', 'Data', 'Sinalização', 'Anexo', 'Forms', 'Ações'].map((col) => (
                   <th
                     key={col}
                     className="text-left px-4 py-3 text-xs font-semibold uppercase"
@@ -260,11 +246,6 @@ export default function MonitoriaClient({
                         {m.colaborador || '—'}
                       </td>
 
-                      {/* ID Chamada */}
-                      <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {m.idChamada || '—'}
-                      </td>
-
                       {/* Contrato */}
                       <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
                         {m.contratoCliente || '—'}
@@ -284,6 +265,40 @@ export default function MonitoriaClient({
                         >
                           {m.sinalizacao || '—'}
                         </span>
+                      </td>
+
+                      {/* Anexo */}
+                      <td className="px-4 py-3">
+                        {m.anexo ? (
+                          <a
+                            href={m.anexo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Abrir anexo"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors"
+                            style={{
+                              background: 'rgba(201,168,76,0.12)',
+                              color: 'var(--gold-light)',
+                              border: '1px solid rgba(201,168,76,0.20)',
+                              fontSize: '0.55rem',
+                              lineHeight: 1,
+                            }}
+                            onMouseEnter={(e) => {
+                              const el = e.currentTarget as HTMLElement
+                              el.style.background = 'rgba(201,168,76,0.22)'
+                              el.style.borderColor = 'rgba(201,168,76,0.50)'
+                            }}
+                            onMouseLeave={(e) => {
+                              const el = e.currentTarget as HTMLElement
+                              el.style.background = 'rgba(201,168,76,0.12)'
+                              el.style.borderColor = 'rgba(201,168,76,0.20)'
+                            }}
+                          >
+                            ▶
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
                       </td>
 
                       {/* Enviado Forms */}
@@ -337,7 +352,7 @@ export default function MonitoriaClient({
         onFechar={() => setNovaAberta(false)}
         onSalvo={async () => {
           setNovaAberta(false)
-          await recarregar()
+          router.refresh()
         }}
       />
 
@@ -348,7 +363,7 @@ export default function MonitoriaClient({
           onFechar={() => setEditando(null)}
           onSalvo={async () => {
             setEditando(null)
-            await recarregar()
+            router.refresh()
           }}
         />
       )}

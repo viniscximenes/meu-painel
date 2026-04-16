@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { X, ClipboardList, Save, AlertTriangle, CheckCircle } from 'lucide-react'
 import { SINALIZACOES, NOTAS, STATUS_INFO } from '@/lib/monitoria-utils'
 import type { Monitoria } from '@/lib/monitoria-utils'
+import { atualizarMonitoriaAction } from './actions'
 
 interface Operador { id: number; nome: string; username: string }
 
@@ -11,7 +12,7 @@ interface Props {
   monitoria:  Monitoria
   operadores: Operador[]
   onFechar:   () => void
-  onSalvo:    () => Promise<void>
+  onSalvo:    () => void
 }
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -69,34 +70,25 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
     if (!validar()) return
     setErroGlobal('')
     startSave(async () => {
-      try {
-        const res = await fetch('/api/monitoria', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sheetRowIndex: monitoria.sheetRowIndex,
-            colaborador, idChamada, contratoCliente, dataAtendimento,
-            encaminhouPesquisa, sinalizacao, apresentacao, comunicacao,
-            processo, resumo, anexo, enviadoForms,
-          }),
-        })
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setErroGlobal(data.error ?? 'Erro ao salvar.')
-          return
-        }
-        setSucesso(true)
-        setTimeout(async () => {
-          await onSalvo()
-          setSucesso(false)
-        }, 800)
-      } catch {
-        setErroGlobal('Erro de rede.')
+      const result = await atualizarMonitoriaAction({
+        sheetRowIndex: monitoria.sheetRowIndex,
+        colaborador, idChamada, contratoCliente, dataAtendimento,
+        encaminhouPesquisa, sinalizacao, apresentacao, comunicacao,
+        processo, resumo, anexo, enviadoForms,
+      })
+      if (!result.ok) {
+        setErroGlobal(result.erro ?? 'Erro ao salvar.')
+        return
       }
+      setSucesso(true)
+      setTimeout(() => {
+        onSalvo()
+        setSucesso(false)
+      }, 800)
     })
   }
 
-  const si = STATUS_INFO[monitoria.status]
+  const si = STATUS_INFO[monitoria.status] ?? STATUS_INFO['amarelo']
 
   return (
     <div
