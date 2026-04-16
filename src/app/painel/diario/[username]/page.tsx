@@ -130,9 +130,28 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
   const comGlpi     = contarComGLPI(registros)
   const pausasJust  = registros.filter((r) => r.tipo === 'Pausa justificada')
   const foraJornada = registros.filter((r) => r.tipo === 'Fora da jornada')
+  const tempoLogado = registros.filter((r) => r.tipo === 'Tempo logado')
+
+  // "Tempo logado": valor ≥ 240min → salvo como tempo bruto → deficit = 380 − valor
+  //                 valor < 240min → já salvo como déficit → usar diretamente
+  const LIMIAR_BRUTO_MIN = 240
+  const defsLogado = tempoLogado.map((r) => {
+    const min = r.tempoMin
+    let def = 0
+    if (min > 0 && min < 380) def = min >= LIMIAR_BRUTO_MIN ? 380 - min : min
+    console.log(
+      `[Diário Déficit] ${operador.username} | ${r.data} raw="${r.tempo}" ${min}min → ` +
+      (min >= 380 ? 'completo(def=0)'
+        : min >= LIMIAR_BRUTO_MIN ? `bruto→def=${def}min`
+        : `déficit=${def}min`)
+    )
+    return def
+  })
 
   const minPausas = totalPausasJustificadas(registros)
   const minFora   = foraJornada.reduce((s, r) => s + r.tempoMin, 0)
+                  + defsLogado.reduce((s, d) => s + d, 0)
+  const qtdFora   = foraJornada.length + tempoLogado.length
 
   // ── Contestação ─────────────────────────────────────────────────────────────
   const horasMensais = parseInt((rvConfigRaw['horas_mensais'] as string | undefined) ?? '132')
@@ -267,7 +286,7 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
               {minFora > 0 ? formatTempo(minFora) : '—'}
             </p>
             <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {foraJornada.length} {foraJornada.length === 1 ? 'entrada' : 'entradas'}
+              {qtdFora} {qtdFora === 1 ? 'entrada' : 'entradas'}
             </p>
           </div>
 
