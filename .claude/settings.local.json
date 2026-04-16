@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(notepad .env.local)",
+      "Bash(npm run:*)",
+      "Bash(notepad supabase/seed.sql)",
+      "Bash(notepad supabase/schema.sql)",
+      "Bash(taskkill /PID 8076 /F)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Read(//c/Users/ximenes/Downloads/**)",
+      "Bash(ls meu-painel-*.json)",
+      "Bash(notepad:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx.cmd tsc:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(xargs grep:*)",
+      "Bash(taskkill /PID 4856 /F)",
+      "Bash(dir:*)",
+      "Bash(node -e \"console.log\\('running'\\)\")",
+      "Bash(npx --prefix C:/Users/ximenes/meu-painel tsc --noEmit --project C:/Users/ximenes/meu-painel/tsconfig.json)"
+    ]
+  }
+}
