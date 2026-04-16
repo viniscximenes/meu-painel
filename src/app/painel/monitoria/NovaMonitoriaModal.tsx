@@ -18,17 +18,6 @@ function hojeFormatado(): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
 }
 
-const INPUT_STYLE: React.CSSProperties = {
-  width: '100%',
-  padding: '0.625rem 0.875rem',
-  borderRadius: '0.625rem',
-  fontSize: '0.875rem',
-  background: 'rgba(5,5,8,0.7)',
-  border: '1px solid rgba(59,130,246,0.12)',
-  color: 'var(--text-primary)',
-  outline: 'none',
-  transition: 'border-color 200ms ease, box-shadow 200ms ease',
-}
 
 export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSalvo }: Props) {
   const [colaborador,     setColaborador]     = useState('')
@@ -100,18 +89,13 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
       onClick={(e) => { if (e.target === e.currentTarget) onFechar() }}
     >
       <div
-        className="animate-fadeInScale w-full max-w-lg rounded-2xl border overflow-hidden flex flex-col"
-        style={{
-          background: 'linear-gradient(180deg, rgba(17,24,39,0.99) 0%, rgba(8,12,20,0.99) 100%)',
-          borderColor: 'rgba(201,168,76,0.20)',
-          boxShadow: '0 32px 96px rgba(0,0,0,0.85)',
-          maxHeight: '90vh',
-        }}
+        className="animate-fadeInScale w-full max-w-lg rounded-2xl overflow-hidden flex flex-col glass-premium"
+        style={{ maxHeight: '90vh' }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4 shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl" style={{ background: 'rgba(201,168,76,0.10)', color: 'var(--gold-light)' }}>
@@ -169,9 +153,8 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
                 value={idChamada}
                 onChange={(e) => setIdChamada(e.target.value)}
                 placeholder="Ex: 000123456"
-                style={{ ...INPUT_STYLE, borderColor: erros.idChamada ? 'rgba(239,68,68,0.5)' : undefined }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                onBlur={(e)  => { e.currentTarget.style.borderColor = erros.idChamada ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                className="input"
+                style={{ borderColor: erros.idChamada ? 'rgba(239,68,68,0.5)' : undefined }}
               />
               {erros.idChamada && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.idChamada}</p>}
             </div>
@@ -184,9 +167,8 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
                 value={dataAtendimento}
                 onChange={(e) => setDataAtendimento(e.target.value)}
                 placeholder="DD/MM/AAAA"
-                style={{ ...INPUT_STYLE, borderColor: erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : undefined }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                onBlur={(e)  => { e.currentTarget.style.borderColor = erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                className="input"
+                style={{ borderColor: erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : undefined }}
               />
               {erros.dataAtendimento && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.dataAtendimento}</p>}
             </div>
@@ -202,9 +184,8 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
               value={contratoCliente}
               onChange={(e) => setContratoCliente(e.target.value)}
               placeholder="Ex: 123456789"
-              style={{ ...INPUT_STYLE, borderColor: erros.contratoCliente ? 'rgba(239,68,68,0.5)' : undefined }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-              onBlur={(e)  => { e.currentTarget.style.borderColor = erros.contratoCliente ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+              className="input"
+              style={{ borderColor: erros.contratoCliente ? 'rgba(239,68,68,0.5)' : undefined }}
             />
             {erros.contratoCliente && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.contratoCliente}</p>}
           </div>
@@ -219,9 +200,7 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
               value={anexo}
               onChange={(e) => setAnexo(e.target.value)}
               placeholder="https://…"
-              style={INPUT_STYLE}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-              onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+              className="input"
             />
           </div>
 
@@ -240,7 +219,7 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
         {/* Footer */}
         <div
           className="px-6 py-4 flex items-center justify-between gap-3 shrink-0"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderTop: '1px solid var(--border)' }}
         >
           <button type="button" onClick={onFechar} className="btn-ghost text-sm">
             Cancelar

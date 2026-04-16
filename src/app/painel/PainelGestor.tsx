@@ -26,18 +26,18 @@ interface OpData {
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
 function monitoriaColor(count: number): string {
-  if (count >= META_MONITORIAS) return '#10b981'
-  if (count >= 2)               return '#f59e0b'
-  return '#f43f5e'
+  if (count >= META_MONITORIAS) return 'var(--verde)'
+  if (count >= 2)               return 'var(--amarelo)'
+  return 'var(--vermelho)'
 }
 
 function kpiColor(op: OpData): string {
-  if (op.pctVerde < 0) return '#475569'
+  if (op.pctVerde < 0) return 'var(--text-muted)'
   const max = Math.max(op.kpiVerde, op.kpiAmarelo, op.kpiVermelho)
-  if (max === 0)               return '#475569'
-  if (op.kpiVerde === max)     return '#10b981'
-  if (op.kpiAmarelo === max)   return '#f59e0b'
-  return '#f43f5e'
+  if (max === 0)               return 'var(--text-muted)'
+  if (op.kpiVerde === max)     return 'var(--verde)'
+  if (op.kpiAmarelo === max)   return 'var(--amarelo)'
+  return 'var(--vermelho)'
 }
 
 function firstName2(nome: string): string {
@@ -56,7 +56,7 @@ function SectionHeader({ href, title }: { href: string; title: string }) {
         display: 'inline-flex', alignItems: 'center', gap: 4,
         fontFamily: 'var(--ff-body)', fontSize: '.75rem', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '.08em',
-        color: '#cbd5e1', textDecoration: 'none',
+        color: 'var(--text-secondary)', textDecoration: 'none',
       }}
     >
       {title}<span className="dp-arrow"> →</span>
@@ -141,19 +141,16 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
     : null
   const inelegiveis  = opData.filter(op => !op.rvElegivel && !op.rvSemDados)
   const totalEnviadas = monitoriasMes.length
-  const metaTotal    = OPERADORES_DISPLAY.length * META_MONITORIAS   // 52
+  const metaTotal    = OPERADORES_DISPLAY.length * META_MONITORIAS
   const pctEnviadas  = metaTotal > 0 ? Math.min(100, Math.round(totalEnviadas / metaTotal * 100)) : 0
 
   // ── Section data ──────────────────────────────────────────────────────────
-  // A: 4 operators with fewest monitorias (most need attention)
   const secaoMonitoria = [...opData]
     .sort((a, b) => a.monitoriaCount - b.monitoriaCount)
     .slice(0, 4)
 
-  // B: last 4 operators in list
   const secaoKPI = opData.slice(-4).reverse()
 
-  // C: RV — ineligible first (up to 2), then eligible, fill to 4
   const opsComRV   = opData.filter(op => !op.rvSemDados)
   const ineleg2    = opsComRV.filter(op => !op.rvElegivel).slice(0, 2)
   const eleg       = opsComRV.filter(op => op.rvElegivel)
@@ -168,17 +165,17 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
   return (
     <div className="space-y-8">
 
-      {/* Scoped CSS — hover effects only, no globals.css changes */}
+      {/* Scoped CSS */}
       <style>{`
         .dp-stat-card { transition: border-color .2s, transform .2s, box-shadow .2s; }
-        .dp-stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.45); }
+        .dp-stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-gold); }
         .dp-list-item { transition: background .15s; }
-        .dp-list-item:hover { background: rgba(26,34,53,.9) !important; }
+        .dp-list-item:hover { background: var(--bg-hover) !important; }
         .dp-section-link .dp-arrow { opacity: 0; display: inline-block; transition: opacity .15s, transform .15s; }
-        .dp-section-link:hover { color: #f8fafc !important; }
+        .dp-section-link:hover { color: var(--text-primary) !important; }
         .dp-section-link:hover .dp-arrow { opacity: 1; transform: translateX(3px); }
-        .dp-see-all { font-size: .72rem; color: #475569; text-decoration: none; transition: color .15s; }
-        .dp-see-all:hover { color: #94a3b8; }
+        .dp-see-all { font-size: .72rem; color: var(--text-muted); text-decoration: none; transition: color .15s; }
+        .dp-see-all:hover { color: var(--text-secondary); }
       `}</style>
 
       {/* ── Header ── */}
@@ -186,25 +183,25 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
         <div>
           <h2 style={{
             fontFamily: 'var(--ff-display)', fontSize: '1.75rem', fontWeight: 800,
-            color: '#f1f5f9', letterSpacing: '-0.03em', lineHeight: 1.15,
+            color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1.15,
           }}>
             {saudacao}, {profile.nome.split(' ')[0]}!
           </h2>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span style={{
               width: 7, height: 7, borderRadius: '50%',
-              background: '#10b981', display: 'inline-block',
+              background: 'var(--verde)', display: 'inline-block',
               animation: 'dotPulse 2s ease-in-out infinite', flexShrink: 0,
             }} />
-            <span style={{ fontSize: '.75rem', color: '#10b981', fontWeight: 600 }}>Ao vivo</span>
-            <span style={{ fontSize: '.75rem', color: '#334155' }}>·</span>
-            <span style={{ fontSize: '.75rem', color: '#94a3b8', textTransform: 'capitalize' }}>{mesAnoLabel}</span>
+            <span style={{ fontSize: '.75rem', color: 'var(--verde)', fontWeight: 600 }}>Ao vivo</span>
+            <span style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>·</span>
+            <span style={{ fontSize: '.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{mesAnoLabel}</span>
             {dataAtualizacao && (
               <>
-                <span style={{ fontSize: '.75rem', color: '#334155' }}>·</span>
-                <span style={{ fontSize: '.75rem', color: '#475569' }}>
+                <span style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>·</span>
+                <span style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>
                   Atualizado até{' '}
-                  <span style={{ color: '#94a3b8' }}>{formatarDataPtBR(dataAtualizacao)}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{formatarDataPtBR(dataAtualizacao)}</span>
                 </span>
               </>
             )}
@@ -212,8 +209,8 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
         </div>
         <span style={{
           fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.10em',
-          color: '#94a3b8', background: 'rgba(255,255,255,.04)',
-          border: '1px solid rgba(255,255,255,.08)', borderRadius: 9999,
+          color: 'var(--text-secondary)', background: 'var(--gold-glow)',
+          border: '1px solid var(--border)', borderRadius: 9999,
           padding: '.3rem .875rem', alignSelf: 'flex-start', marginTop: '.25rem', whiteSpace: 'nowrap',
         }}>
           Gestão · Retenção
@@ -224,91 +221,67 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
 
         {/* Card 1 — Operadores */}
-        <div className="dp-stat-card animate-fadeUp" style={{
-          background: '#111827', borderRadius: 16, padding: '1.25rem',
-          border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
-          animationDelay: '0ms',
-        }}>
+        <div className="card dp-stat-card animate-fadeUp" style={{ animationDelay: '0ms' }}>
           <div className="flex items-start justify-between" style={{ marginBottom: '1rem' }}>
-            <span style={{ fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#475569' }}>
-              Operadores
-            </span>
+            <span className="label-uppercase">Operadores</span>
             <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(34,211,238,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Users size={14} style={{ color: '#22d3ee' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#f1f5f9', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
+          <div className="metric-value" style={{ color: 'var(--text-primary)' }}>
             {OPERADORES_DISPLAY.length}
           </div>
-          <div style={{ fontSize: '.72rem', color: '#475569', marginTop: '.5rem' }}>equipe ativa este mês</div>
+          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: '.5rem' }}>equipe ativa este mês</div>
         </div>
 
         {/* Card 2 — Meta KPI */}
-        <div className="dp-stat-card animate-fadeUp" style={{
-          background: '#111827', borderRadius: 16, padding: '1.25rem',
-          border: '1px solid rgba(167,139,250,.18)', overflow: 'hidden',
-          position: 'relative', animationDelay: '60ms',
-        }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#a78bfa,transparent)' }} />
+        <div className="card dp-stat-card animate-fadeUp" style={{ borderColor: 'rgba(167,139,250,.22)', animationDelay: '60ms' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,rgba(167,139,250,.8),transparent)' }} />
           <div className="flex items-start justify-between" style={{ marginBottom: '1rem' }}>
-            <span style={{ fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#475569' }}>
-              Meta KPI
-            </span>
+            <span className="label-uppercase">Meta KPI</span>
             <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(167,139,250,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <TrendingUp size={14} style={{ color: '#a78bfa' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#a78bfa', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
+          <div className="metric-value" style={{ color: '#a78bfa' }}>
             {mediaKPI !== null ? `${mediaKPI}%` : '—'}
           </div>
-          <div style={{ fontSize: '.72rem', color: '#475569', marginTop: '.5rem' }}>média geral da equipe</div>
+          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: '.5rem' }}>média geral da equipe</div>
         </div>
 
         {/* Card 3 — Inelegíveis RV */}
-        <div className="dp-stat-card animate-fadeUp" style={{
-          background: '#111827', borderRadius: 16, padding: '1.25rem',
-          border: '1px solid rgba(244,63,94,.18)', overflow: 'hidden',
-          position: 'relative', animationDelay: '120ms',
-        }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#f43f5e,transparent)' }} />
+        <div className="card dp-stat-card animate-fadeUp" style={{ borderColor: 'rgba(239,68,68,.22)', animationDelay: '120ms' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,rgba(239,68,68,.8),transparent)' }} />
           <div className="flex items-start justify-between" style={{ marginBottom: '1rem' }}>
-            <span style={{ fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#475569' }}>
-              Inelegíveis RV
-            </span>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(244,63,94,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <XCircle size={14} style={{ color: '#f43f5e' }} />
+            <span className="label-uppercase">Inelegíveis RV</span>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(239,68,68,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <XCircle size={14} style={{ color: 'var(--vermelho)' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#f43f5e', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
+          <div className="metric-value" style={{ color: 'var(--vermelho)' }}>
             {inelegiveis.length}
-            <span style={{ fontSize: 18, fontWeight: 600, color: '#475569' }}>/{OPERADORES_DISPLAY.length}</span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-muted)' }}>/{OPERADORES_DISPLAY.length}</span>
           </div>
-          <div style={{ fontSize: '.72rem', color: '#475569', marginTop: '.5rem' }}>abaixo do limite ABS</div>
+          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: '.5rem' }}>abaixo do limite ABS</div>
         </div>
 
         {/* Card 4 — Monitoria */}
-        <div className="dp-stat-card animate-fadeUp" style={{
-          background: '#111827', borderRadius: 16, padding: '1.25rem',
-          border: '1px solid rgba(245,158,11,.18)', overflow: 'hidden',
-          position: 'relative', animationDelay: '180ms',
-        }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#f59e0b,transparent)' }} />
+        <div className="card dp-stat-card animate-fadeUp" style={{ borderColor: 'rgba(201,168,76,.22)', animationDelay: '180ms' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,var(--gold),.transparent)' }} />
           <div className="flex items-start justify-between" style={{ marginBottom: '1rem' }}>
-            <span style={{ fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: '#475569' }}>
-              Monitoria
-            </span>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(245,158,11,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <FileText size={14} style={{ color: '#f59e0b' }} />
+            <span className="label-uppercase">Monitoria</span>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--gold-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <FileText size={14} style={{ color: 'var(--gold-light)' }} />
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--ff-body)', fontSize: 36, fontWeight: 800, color: '#f59e0b', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"tnum" 1', display: 'block' }}>
+          <div className="metric-value" style={{ color: 'var(--gold-light)' }}>
             {totalEnviadas}
-            <span style={{ fontSize: 18, fontWeight: 600, color: '#475569' }}>/{metaTotal}</span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-muted)' }}>/{metaTotal}</span>
           </div>
-          <div style={{ height: 3, background: 'rgba(255,255,255,.06)', borderRadius: 2, margin: '.625rem 0 0', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${pctEnviadas}%`, background: '#f59e0b', borderRadius: 2 }} />
+          <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, margin: '.625rem 0 0', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pctEnviadas}%`, background: 'var(--gold)', borderRadius: 2 }} />
           </div>
-          <div style={{ fontSize: '.72rem', color: '#475569', marginTop: '.5rem' }}>enviadas este mês</div>
+          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginTop: '.5rem' }}>enviadas este mês</div>
         </div>
 
       </div>
@@ -317,9 +290,9 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
       <div className="flex flex-col gap-4">
 
         {/* A — Progresso de Monitoria */}
-        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '1.25rem' }}>
+        <div className="card" style={{ padding: '1.25rem' }}>
           <SectionHeader href="/painel/monitoria" title="Progresso de Monitoria" />
-          <div style={{ height: 1, background: 'rgba(255,255,255,.05)', margin: '.75rem 0' }} />
+          <div className="divider" style={{ margin: '.75rem 0' }} />
           <div>
             {secaoMonitoria.map(op => {
               const cor = monitoriaColor(op.monitoriaCount)
@@ -328,16 +301,16 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
                 <div key={op.id} className="dp-list-item" style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '.5rem', marginBottom: 2,
-                  borderBottom: '1px solid rgba(255,255,255,.04)',
+                  borderBottom: '1px solid var(--border)',
                   borderLeft: `2px solid ${cor}`,
                   paddingLeft: 8, borderRadius: 4,
                 }}>
                   <OpAvatar id={op.id} nome={op.nome} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '.78rem', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
+                    <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
                       {firstName2(op.nome)}
                     </div>
-                    <div style={{ height: 3, background: 'rgba(255,255,255,.06)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: cor, borderRadius: 2 }} />
                     </div>
                   </div>
@@ -354,9 +327,9 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
         </div>
 
         {/* B — Resultados de KPI */}
-        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '1.25rem' }}>
+        <div className="card" style={{ padding: '1.25rem' }}>
           <SectionHeader href="/painel/kpis-equipe" title="Resultados de KPI" />
-          <div style={{ height: 1, background: 'rgba(255,255,255,.05)', margin: '.75rem 0' }} />
+          <div className="divider" style={{ margin: '.75rem 0' }} />
           <div>
             {secaoKPI.map(op => {
               const cor = kpiColor(op)
@@ -364,23 +337,23 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
                 <div key={op.id} className="dp-list-item" style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '.5rem', marginBottom: 2,
-                  borderBottom: '1px solid rgba(255,255,255,.04)',
+                  borderBottom: '1px solid var(--border)',
                   borderLeft: `2px solid ${cor}`,
                   paddingLeft: 8, borderRadius: 4,
                 }}>
                   <OpAvatar id={op.id} nome={op.nome} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '.78rem', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
+                    <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
                       {firstName2(op.nome)}
                     </div>
                     {op.pctVerde >= 0 ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.68rem' }}>
-                        <span style={{ color: '#10b981' }}>{op.kpiVerde} ✓</span>
-                        <span style={{ color: '#f59e0b' }}>{op.kpiAmarelo} ⚠</span>
-                        <span style={{ color: '#f43f5e' }}>{op.kpiVermelho} ✕</span>
+                        <span style={{ color: 'var(--verde)' }}>{op.kpiVerde} ✓</span>
+                        <span style={{ color: 'var(--amarelo)' }}>{op.kpiAmarelo} ⚠</span>
+                        <span style={{ color: 'var(--vermelho)' }}>{op.kpiVermelho} ✕</span>
                       </div>
                     ) : (
-                      <span style={{ fontSize: '.68rem', color: '#475569' }}>Sem dados</span>
+                      <span style={{ fontSize: '.68rem', color: 'var(--text-muted)' }}>Sem dados</span>
                     )}
                   </div>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: cor, flexShrink: 0 }} />
@@ -394,34 +367,34 @@ export default async function PainelGestor({ profile }: PainelGestorProps) {
         </div>
 
         {/* C — Casos de RV */}
-        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, padding: '1.25rem' }}>
+        <div className="card" style={{ padding: '1.25rem' }}>
           <SectionHeader href="/painel/rv-equipe" title="Casos de RV" />
-          <div style={{ height: 1, background: 'rgba(255,255,255,.05)', margin: '.75rem 0' }} />
+          <div className="divider" style={{ margin: '.75rem 0' }} />
           <div>
             {secaoRV.map(op => {
               const elegivel   = !op.rvSemDados && op.rvElegivel
               const inelegivel = !op.rvSemDados && !op.rvElegivel
-              const cor        = inelegivel ? '#f43f5e' : elegivel ? '#10b981' : '#475569'
-              const badgeBg    = inelegivel ? 'rgba(244,63,94,.10)' : elegivel ? 'rgba(16,185,129,.10)' : 'rgba(71,85,105,.10)'
-              const badgeBdr   = inelegivel ? 'rgba(244,63,94,.25)' : elegivel ? 'rgba(16,185,129,.25)' : 'rgba(71,85,105,.25)'
+              const cor        = inelegivel ? 'var(--vermelho)' : elegivel ? 'var(--verde)' : 'var(--text-muted)'
+              const badgeBg    = inelegivel ? 'rgba(239,68,68,.10)' : elegivel ? 'rgba(34,197,94,.10)' : 'rgba(82,106,133,.10)'
+              const badgeBdr   = inelegivel ? 'rgba(239,68,68,.25)' : elegivel ? 'rgba(34,197,94,.25)' : 'rgba(82,106,133,.20)'
               const badgeLabel = inelegivel ? 'Inelegível' : elegivel ? 'Elegível' : '—'
               return (
                 <div key={op.id} className="dp-list-item" style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '.5rem', marginBottom: 2,
-                  borderBottom: '1px solid rgba(255,255,255,.04)',
+                  borderBottom: '1px solid var(--border)',
                   borderLeft: `2px solid ${cor}`,
                   paddingLeft: 8, borderRadius: 4,
                 }}>
                   <OpAvatar id={op.id} nome={op.nome} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '.78rem', fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {firstName2(op.nome)}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     {elegivel && (
-                      <span style={{ fontSize: '.72rem', fontWeight: 700, color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ fontSize: '.72rem', fontWeight: 700, color: 'var(--gold-light)', fontVariantNumeric: 'tabular-nums' }}>
                         {formatBRL(op.rvFinal)}
                       </span>
                     )}

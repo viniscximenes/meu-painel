@@ -27,17 +27,6 @@ function fmtHHMM(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-const INPUT_STYLE: React.CSSProperties = {
-  width: '100%',
-  padding: '0.625rem 0.875rem',
-  borderRadius: '0.625rem',
-  fontSize: '0.875rem',
-  background: 'rgba(5,5,8,0.7)',
-  border: '1px solid rgba(59,130,246,0.12)',
-  color: 'var(--text-primary)',
-  outline: 'none',
-  transition: 'border-color 200ms ease, box-shadow 200ms ease',
-}
 
 export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) {
   const [tipo,         setTipo]         = useState<TipoRegistro>('Pausa justificada')
@@ -128,18 +117,13 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
       onClick={(e) => { if (e.target === e.currentTarget) onFechar() }}
     >
       <div
-        className="animate-fadeInScale w-full max-w-xl rounded-2xl border overflow-hidden flex flex-col"
-        style={{
-          background: 'linear-gradient(180deg, rgba(17,24,39,0.99) 0%, rgba(8,12,20,0.99) 100%)',
-          borderColor: 'rgba(201,168,76,0.20)',
-          boxShadow: '0 32px 96px rgba(0,0,0,0.85)',
-          maxHeight: '90vh',
-        }}
+        className="animate-fadeInScale w-full max-w-xl rounded-2xl overflow-hidden flex flex-col glass-premium"
+        style={{ maxHeight: '90vh' }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4 shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl" style={{ background: 'rgba(201,168,76,0.10)', color: 'var(--gold-light)' }}>
@@ -220,14 +204,8 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
               onChange={(e) => setObservacoes(e.target.value)}
               rows={3}
               placeholder="Descreva o ocorrido em detalhes..."
-              style={{
-                ...INPUT_STYLE,
-                resize: 'vertical',
-                minHeight: '80px',
-                borderColor: erros.observacoes ? 'rgba(239,68,68,0.5)' : undefined,
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = erros.observacoes ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+              className="input"
+              style={{ resize: 'vertical', minHeight: '80px', borderColor: erros.observacoes ? 'rgba(239,68,68,0.5)' : undefined }}
             />
             <div className="flex items-center justify-between mt-0.5">
               {erros.observacoes
@@ -251,9 +229,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
                 value={glpi}
                 onChange={(e) => setGlpi(e.target.value)}
                 placeholder="#0000"
-                style={INPUT_STYLE}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                className="input"
               />
             </div>
 
@@ -266,9 +242,8 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
                 value={tempo}
                 onChange={(e) => setTempo(e.target.value)}
                 placeholder={isForaJornada ? '06:15:00' : '20min, 1:30'}
-                style={{ ...INPUT_STYLE, borderColor: erros.tempo ? 'rgba(239,68,68,0.5)' : undefined }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = erros.tempo ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                className="input"
+                style={{ borderColor: erros.tempo ? 'rgba(239,68,68,0.5)' : undefined }}
               />
               {erros.tempo && <p className="text-[10px] mt-0.5" style={{ color: '#f87171' }}>{erros.tempo}</p>}
               {isForaJornada && deficitMin !== null && (
@@ -292,9 +267,8 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
                 value={data}
                 onChange={(e) => setData(e.target.value)}
                 placeholder="DD/MM/AAAA"
-                style={{ ...INPUT_STYLE, borderColor: erros.data ? 'rgba(239,68,68,0.5)' : undefined }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = erros.data ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                className="input"
+                style={{ borderColor: erros.data ? 'rgba(239,68,68,0.5)' : undefined }}
               />
               {erros.data && <p className="text-[10px] mt-0.5" style={{ color: '#f87171' }}>{erros.data}</p>}
             </div>
@@ -314,7 +288,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
         {/* Footer */}
         <div
           className="px-6 py-4 flex items-center justify-between gap-3 shrink-0"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderTop: '1px solid var(--border)' }}
         >
           <button type="button" onClick={onFechar} className="btn-ghost text-sm">
             Cancelar

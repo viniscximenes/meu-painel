@@ -30,18 +30,13 @@ export default function RegistroModal({ registro, historico, onFechar }: Props) 
       onClick={(e) => { if (e.target === e.currentTarget) onFechar() }}
     >
       <div
-        className="animate-fadeInScale w-full max-w-lg rounded-2xl border overflow-hidden flex flex-col"
-        style={{
-          background: 'linear-gradient(180deg, rgba(17,24,39,0.99) 0%, rgba(8,12,20,0.99) 100%)',
-          borderColor: tc.border,
-          boxShadow: `0 32px 96px rgba(0,0,0,0.85), 0 0 0 1px ${tc.bg}`,
-          maxHeight: '88vh',
-        }}
+        className="animate-fadeInScale w-full max-w-lg rounded-2xl overflow-hidden flex flex-col glass-premium"
+        style={{ borderColor: tc.border, maxHeight: '88vh' }}
       >
         {/* Header */}
         <div
           className="flex items-start justify-between px-6 py-4 shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-xl shrink-0 mt-0.5" style={{ background: tc.bg, color: tc.color }}>
@@ -177,7 +172,7 @@ export default function RegistroModal({ registro, historico, onFechar }: Props) 
         {/* Footer */}
         <div
           className="px-6 py-4 flex justify-end shrink-0"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderTop: '1px solid var(--border)' }}
         >
           <button type="button" onClick={onFechar} className="btn-secondary text-sm">
             Fechar

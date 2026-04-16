@@ -9,7 +9,7 @@ export default async function PainelPage() {
 
   if (profile.role === 'gestor') {
     return (
-      <PainelShell profile={profile} title="Visão Geral" fullWidth>
+      <PainelShell profile={profile} title="Visão Geral">
         <PainelGestor profile={profile} />
       </PainelShell>
     )

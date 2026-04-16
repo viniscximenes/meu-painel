@@ -15,17 +15,6 @@ interface Props {
   onSalvo:    () => void
 }
 
-const INPUT_STYLE: React.CSSProperties = {
-  width: '100%',
-  padding: '0.625rem 0.875rem',
-  borderRadius: '0.625rem',
-  fontSize: '0.875rem',
-  background: 'rgba(5,5,8,0.7)',
-  border: '1px solid rgba(59,130,246,0.12)',
-  color: 'var(--text-primary)',
-  outline: 'none',
-  transition: 'border-color 200ms ease, box-shadow 200ms ease',
-}
 
 const SIM_NAO = ['', 'Sim', 'Não'] as const
 
@@ -119,18 +108,13 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
       onClick={(e) => { if (e.target === e.currentTarget) onFechar() }}
     >
       <div
-        className="animate-fadeInScale w-full max-w-2xl rounded-2xl border overflow-hidden flex flex-col"
-        style={{
-          background: 'linear-gradient(180deg, rgba(17,24,39,0.99) 0%, rgba(8,12,20,0.99) 100%)',
-          borderColor: 'rgba(201,168,76,0.20)',
-          boxShadow: '0 32px 96px rgba(0,0,0,0.85)',
-          maxHeight: '92vh',
-        }}
+        className="animate-fadeInScale w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col glass-premium"
+        style={{ maxHeight: '92vh' }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4 shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl" style={{ background: 'rgba(201,168,76,0.10)', color: 'var(--gold-light)' }}>
@@ -201,9 +185,8 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                   <div className="flex items-center gap-1">
                     <input type="text" value={idChamada} onChange={(e) => setIdChamada(e.target.value)}
                       placeholder="000123456"
-                      style={{ ...INPUT_STYLE, flex: 1, borderColor: erros.idChamada ? 'rgba(239,68,68,0.5)' : undefined }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                      onBlur={(e)  => { e.currentTarget.style.borderColor = erros.idChamada ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                      className="input"
+                      style={{ flex: 1, borderColor: erros.idChamada ? 'rgba(239,68,68,0.5)' : undefined }}
                     />
                     <CopyButton value={idChamada} />
                   </div>
@@ -216,9 +199,8 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                   <div className="flex items-center gap-1">
                     <input type="text" value={dataAtendimento} onChange={(e) => setDataAtendimento(e.target.value)}
                       placeholder="DD/MM/AAAA"
-                      style={{ ...INPUT_STYLE, flex: 1, borderColor: erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : undefined }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                      onBlur={(e)  => { e.currentTarget.style.borderColor = erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                      className="input"
+                      style={{ flex: 1, borderColor: erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : undefined }}
                     />
                     <CopyButton value={dataAtendimento} />
                   </div>
@@ -231,9 +213,8 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                   <div className="flex items-center gap-1">
                     <input type="text" value={contratoCliente} onChange={(e) => setContratoCliente(e.target.value)}
                       placeholder="123456789"
-                      style={{ ...INPUT_STYLE, flex: 1, borderColor: erros.contratoCliente ? 'rgba(239,68,68,0.5)' : undefined }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                      onBlur={(e)  => { e.currentTarget.style.borderColor = erros.contratoCliente ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                      className="input"
+                      style={{ flex: 1, borderColor: erros.contratoCliente ? 'rgba(239,68,68,0.5)' : undefined }}
                     />
                     <CopyButton value={contratoCliente} />
                   </div>
@@ -243,8 +224,7 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
             </div>
           </div>
 
-          {/* Divisor */}
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+          <div className="divider" />
 
           {/* ── Seção 2: Avaliação ── */}
           <div>
@@ -304,9 +284,8 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                     onChange={(e) => setResumo(e.target.value)}
                     rows={3}
                     placeholder="Descreva pontos relevantes da monitoria..."
-                    style={{ ...INPUT_STYLE, flex: 1, resize: 'vertical', minHeight: '72px' }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                    className="input"
+                    style={{ flex: 1, resize: 'vertical', minHeight: '72px' }}
                   />
                   <CopyButton value={resumo} />
                 </div>
@@ -324,9 +303,8 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                       value={anexo}
                       onChange={(e) => setAnexo(e.target.value)}
                       placeholder="https://…"
-                      style={{ ...INPUT_STYLE, flex: 1 }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                      onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                      className="input"
+                      style={{ flex: 1 }}
                     />
                     <CopyButton value={anexo} />
                   </div>
@@ -358,7 +336,7 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
         {/* Footer */}
         <div
           className="px-6 py-4 flex items-center justify-between gap-3 shrink-0"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ borderTop: '1px solid var(--border)' }}
         >
           <button type="button" onClick={onFechar} className="btn-ghost text-sm">
             Cancelar

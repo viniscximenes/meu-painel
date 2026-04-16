@@ -106,13 +106,12 @@ export default function DeflatoresModal({ metas, dadosEquipe }: Props) {
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
 
           <div
-            className="relative rounded-2xl border shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
-            style={{ background: 'var(--bg-surface)', borderColor: 'rgba(201,168,76,0.20)' }}
+            className="relative rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col glass-premium"
           >
             {/* Header */}
             <div
               className="flex items-center justify-between px-6 py-4 border-b"
-              style={{ borderColor: 'rgba(201,168,76,0.10)' }}
+              style={{ borderColor: 'var(--border)' }}
             >
               <div>
                 <h3 className="font-bold text-base flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -137,7 +136,7 @@ export default function DeflatoresModal({ metas, dadosEquipe }: Props) {
             {/* Critérios */}
             <div
               className="px-6 py-4 grid grid-cols-2 gap-4 border-b"
-              style={{ borderColor: 'rgba(201,168,76,0.08)' }}
+              style={{ borderColor: 'var(--border)' }}
             >
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Critério 1</label>
@@ -177,7 +176,7 @@ export default function DeflatoresModal({ metas, dadosEquipe }: Props) {
                   )}
 
                   {criterio2 && data2 && (
-                    <div style={{ borderTop: '1px solid rgba(201,168,76,0.08)', paddingTop: '1.25rem' }}>
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
                       <SecaoCriterio data={data2} />
                     </div>
                   )}
