@@ -11,9 +11,10 @@ export * from '@/lib/diario-utils'
 import type { DiarioRegistro, NovoRegistroInput, TipoRegistro } from '@/lib/diario-utils'
 import { TIPOS_REGISTRO, parseTempo } from '@/lib/diario-utils'
 
-// ── Constante interna ─────────────────────────────────────────────────────────
+// ── Constantes ───────────────────────────────────────────────────────────────
 
-const ABA_DIARIO = 'DIARIO DE BORDO'
+const ABA_DIARIO        = 'DIARIO DE BORDO'
+const JORNADA_PADRAO_MIN = 380 // 06:20:00
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -144,12 +145,24 @@ export async function escreverRegistro(
   spreadsheetId: string,
   dados: NovoRegistroInput
 ): Promise<void> {
+  // Para "Tempo logado": salvar apenas o déficit (jornada padrão − logado)
+  let tempoParaSalvar = dados.tempo
+  if (dados.tipo === 'Tempo logado' && dados.tempo.trim()) {
+    const logadoMin = parseTempo(dados.tempo)
+    if (logadoMin > 0) {
+      const defMin = Math.max(0, JORNADA_PADRAO_MIN - logadoMin)
+      const h = Math.floor(defMin / 60)
+      const m = defMin % 60
+      tempoParaSalvar = `${h}:${String(m).padStart(2, '0')}`
+    }
+  }
+
   const row = [
     dados.colaborador,
     dados.tipo,
     dados.observacoes,
     dados.glpi,
-    dados.tempo,
+    tempoParaSalvar,
     dados.data,
   ]
   await withTimeout(

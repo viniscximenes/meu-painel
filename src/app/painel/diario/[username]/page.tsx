@@ -176,8 +176,13 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
   const minutosAcrescentar    = detalhesFora.reduce((s, d) => s + d.diff, 0)
   const minutosLogadosContest = minutosLogados + minutosAcrescentar
 
-  const absBruto      = forecastHoras > 0 ? (minutosLogados       / 60) / forecastHoras * 100 : 0
-  const absContestado = forecastHoras > 0 ? (minutosLogadosContest / 60) / forecastHoras * 100 : 0
+  // ABS = ausência: (forecast − logado) / forecast × 100. Menor = melhor.
+  const absBruto      = forecastHoras > 0
+    ? Math.max(0, Math.round((1 - (minutosLogados       / 60) / forecastHoras) * 10000) / 100)
+    : 0
+  const absContestado = forecastHoras > 0
+    ? Math.max(0, Math.round((1 - (minutosLogadosContest / 60) / forecastHoras) * 10000) / 100)
+    : 0
 
   // ── Cálculo Indisp ───────────────────────────────────────────────────────────
   const minutosIndispBruto   = minutosLogados > 0 ? indispPercent / 100 * minutosLogados : 0
@@ -323,12 +328,12 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
                   statusContestado={statusAbsContest}
                   metaLabel={fmtMetaLabel(metaAbs)}
                   delta={absContestado - absBruto}
-                  deltaPositivoEhBom={true}
+                  deltaPositivoEhBom={false}
                   breakdown={[
                     `Forecast: ${fmtH(Math.round(forecastHoras * 60))}${colTempoProjetado ? ` (col: ${colTempoProjetado})` : ' (config)'}`,
-                    `Bruto: ${fmtH(minutosLogados)} → ${fmtPct(absBruto)} do forecast`,
+                    `Bruto: ${fmtH(minutosLogados)} → ABS ${fmtPct(absBruto)}`,
                     `+ ${fmtH(minutosAcrescentar)} revertidos (${foraJornada.length}× 6h20 − logado)`,
-                    `= ${fmtH(minutosLogadosContest)} contestado → ${fmtPct(absContestado)}`,
+                    `= ${fmtH(minutosLogadosContest)} contestado → ABS ${fmtPct(absContestado)}`,
                   ]}
                   detalheLabel="Jornadas incompletas justificadas:"
                   detalhes={detalhesFora.map(({ registro: r, diff }) => ({

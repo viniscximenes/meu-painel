@@ -218,8 +218,7 @@ function parsePct(raw: string): number {
   if (!raw) return 0
   const clean = raw.replace(/[%\s]/g, '').replace(',', '.')
   const n = parseFloat(clean)
-  if (isNaN(n)) return 0
-  return n > 0 && n <= 1 ? Math.round(n * 10000) / 100 : n
+  return isNaN(n) ? 0 : n
 }
 
 function parseSeg(raw: string): number {
@@ -442,11 +441,21 @@ export function calcularRV(
     for (const pen of config.penalidades) {
       if (!pen.ativa) continue
       const kpi = kpis.find(k => k.meta?.id === pen.metaId)
+      const isTmaPen = pen.metaLabel.toLowerCase().includes('tma')
+      if (isTmaPen) {
+        // Log sempre para diagnóstico de TMA
+        console.log(
+          `[RV Pen TMA] elegível=${elegivel} | kpi=${kpi
+            ? `col="${kpi.nome_coluna}" raw="${kpi.valor}" val=${kpi.valorNum}s status=${kpi.status}`
+            : `NÃO ENCONTRADO (metaId=${pen.metaId})`
+          } | limite=${config.tmaLimiteSeg}s`
+        )
+      }
       if (!kpi) continue
       if (kpi.status === 'vermelho') {
         const valorDeduzido = Math.round(rvTotal * pen.percentual / 100 * 100) / 100
         penalidadesAplicadas.push({ metaLabel: pen.metaLabel, percentual: pen.percentual, valorDeduzido })
-        if (debug) console.log(`[RV] Penalidade: "${pen.metaLabel}" vermelho → -${pen.percentual}% = -R$${valorDeduzido}`)
+        if (debug || isTmaPen) console.log(`[RV] Penalidade: "${pen.metaLabel}" vermelho → -${pen.percentual}% = -R$${valorDeduzido}`)
       }
     }
   }

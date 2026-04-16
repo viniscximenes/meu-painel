@@ -56,10 +56,13 @@ function parseNum(raw: string | undefined): number {
 
 function parseTempoSeg(raw: string): number {
   if (!raw) return 0
-  const hms = raw.trim().match(/^(\d+):(\d{2}):(\d{2})$/)
+  // Aceita HH:MM:SS ou H:M:S (dígitos variáveis)
+  const hms = raw.trim().match(/^(\d+):(\d{1,2}):(\d{1,2})$/)
   if (hms) return parseInt(hms[1]) * 3600 + parseInt(hms[2]) * 60 + parseInt(hms[3])
-  const ms = raw.trim().match(/^(\d+):(\d{2})$/)
+  // Aceita MM:SS ou M:S
+  const ms = raw.trim().match(/^(\d+):(\d{1,2})$/)
   if (ms) return parseInt(ms[1]) * 60 + parseInt(ms[2])
+  // Número puro (segundos)
   const n = parseFloat(raw.replace(',', '.').replace(/[^\d.]/g, ''))
   return isNaN(n) ? 0 : n
 }
@@ -71,10 +74,24 @@ function isAbsHeader(header: string): boolean {
   return ABS_PALAVRAS.some((kw) => h.includes(normalizarChave(kw)))
 }
 
+function isTmaMeta(meta: Meta): boolean {
+  const col = normalizarChave(meta.nome_coluna)
+  const lbl = normalizarChave(meta.label)
+  return col.includes('tma') || lbl.includes('tma') ||
+    col.includes('tempo medio') || col.includes('tempo médio') ||
+    lbl.includes('tempo medio') || lbl.includes('tempo médio')
+}
+
 function calcStatus(v: number, meta: Meta): Status {
   const { tipo } = meta
   // Usa verde_inicio se configurado; caso contrário, cai de volta para valor_meta
   const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
+
+  // TMA é binário: verde/vermelho sem zona amarela (menor_melhor: verde se ≤ limite)
+  if (isTmaMeta(meta)) {
+    return v <= limite ? 'verde' : 'vermelho'
+  }
+
   // Limiar amarelo automático: 80% do limite
   const limiarAmarelo = limite > 0 ? limite * 0.8 : 0
 
@@ -152,16 +169,13 @@ export function computarKPIs(
       // Correspondência por nome exato da coluna, não por posição
       const meta = metaMap.get(chave)
       const raw  = row[idx] ?? ''
-      const isTempo = meta && ['tempo', 'seg', 's', 'segundos'].includes(meta.unidade.trim().toLowerCase())
+      // Usa parser de tempo quando a unidade é temporal OU a coluna/label indica TMA
+      const unidadeLower = meta?.unidade.trim().toLowerCase() ?? ''
+      const isTempo = meta && (
+        ['tempo', 'seg', 's', 'segundos', 'mm:ss', 'hh:mm', 'hh:mm:ss'].includes(unidadeLower) ||
+        isTmaMeta(meta)
+      )
       let valorNum = isTempo ? parseTempoSeg(raw) : parseNum(raw)
-
-      if (meta && (meta.unidade === 'porcentagem' || meta.unidade === '%')) {
-        const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
-        const escala = Math.abs(limite)
-        if (valorNum > 0 && valorNum <= 1 && escala > 1) {
-          valorNum = Math.round(valorNum * 10000) / 100
-        }
-      }
 
       // ABS: planilha pode armazenar % de presença (ex: 97.8%); exibir como % de ausência (2.2%)
       const valorDisplay = isAbsHeader(header) && valorNum > 50
@@ -208,8 +222,7 @@ export function formatarExibicao(valor: string, unidade: string): string {
     const clean = valor.replace('%', '').replace(',', '.').trim()
     const n = parseFloat(clean)
     if (isNaN(n)) return valor
-    const pct = n > 0 && n <= 1 ? n * 100 : n
-    const rounded = Math.round(pct * 100) / 100
+    const rounded = Math.round(n * 100) / 100
     return `${Number.isInteger(rounded) ? rounded : rounded}%`
   }
 
