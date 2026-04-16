@@ -20,6 +20,7 @@ import {
   parseRVConfig,
   formatBRL,
   segParaMMSS,
+  type DescontoIndividual,
 } from '@/lib/rv-utils'
 import type { KPIItem } from '@/lib/kpi-utils'
 
@@ -255,6 +256,8 @@ export function calcularRV(
   config: RVConfig,
   label = '',
   kpis: KPIItem[] = [],
+  operadorId = 0,
+  mesReferencia = '',
 ): ResultadoRV {
   const debug = !!label
 
@@ -431,9 +434,31 @@ export function calcularRV(
     }
   }
   const totalPenalidade = Math.round(penalidadesAplicadas.reduce((s, p) => s + p.valorDeduzido, 0) * 100) / 100
-  const rvFinal = Math.max(0, Math.round((rvTotal - totalPenalidade) * 100) / 100)
+  let rvFinal = Math.max(0, Math.round((rvTotal - totalPenalidade) * 100) / 100)
 
-  if (debug) console.log(`[RV] Penalidades: -R$${totalPenalidade} → rvFinal: R$${rvFinal}\n`)
+  if (debug) console.log(`[RV] Penalidades: -R$${totalPenalidade} → rvFinal: R$${rvFinal}`)
+
+  // ── Desconto individual para este operador/mês ────────────────────────────────
+  const descontoConf: DescontoIndividual | undefined =
+    (elegivel && operadorId > 0 && mesReferencia)
+      ? config.descontosIndividuais.find(
+          (d) => d.operadorId === operadorId && d.mesReferencia === mesReferencia
+        )
+      : undefined
+
+  let descontoIndividualAplicado: { motivo: string; valor: number } | null = null
+  if (descontoConf) {
+    const valorDesc = descontoConf.tipo === 'fixo'
+      ? descontoConf.valor
+      : Math.round(rvFinal * descontoConf.valor / 100 * 100) / 100
+    if (valorDesc > 0) {
+      rvFinal = Math.max(0, Math.round((rvFinal - valorDesc) * 100) / 100)
+      descontoIndividualAplicado = { motivo: descontoConf.motivo, valor: valorDesc }
+      if (debug) console.log(`[RV] Desconto individual: "${descontoConf.motivo}" → -R$${valorDesc} → rvFinal: R$${rvFinal}`)
+    }
+  }
+
+  if (debug) console.log(`[RV] ★ RV FINAL: R$${rvFinal}\n`)
 
   return {
     elegivel, motivosInelegivel, componentes,
@@ -441,6 +466,7 @@ export function calcularRV(
     multiplicador, rvAposPedidos,
     bonusCriterios, bonus, rvTotal,
     penalidades: penalidadesAplicadas, totalPenalidade, rvFinal,
+    descontoIndividualAplicado,
     semDados, config,
   }
 }

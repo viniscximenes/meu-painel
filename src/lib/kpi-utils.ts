@@ -55,23 +55,25 @@ function parseNum(raw: string | undefined): number {
 }
 
 function calcStatus(v: number, meta: Meta): Status {
-  const { tipo, verde_inicio } = meta
-  // Limiar amarelo automático: 80% do verde_inicio
-  const limiarAmarelo = verde_inicio > 0 ? verde_inicio * 0.8 : 0
+  const { tipo } = meta
+  // Usa verde_inicio se configurado; caso contrário, cai de volta para valor_meta
+  const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
+  // Limiar amarelo automático: 80% do limite
+  const limiarAmarelo = limite > 0 ? limite * 0.8 : 0
 
   if (tipo === 'maior_melhor') {
-    if (v >= verde_inicio) return 'verde'
-    if (verde_inicio > 0 && v >= limiarAmarelo) return 'amarelo'
+    if (v >= limite) return 'verde'
+    if (limite > 0 && v >= limiarAmarelo) return 'amarelo'
     return 'vermelho'
   } else {
-    if (verde_inicio > 0 && v < limiarAmarelo) return 'verde'
-    if (v <= verde_inicio) return 'amarelo'
+    if (limite > 0 && v < limiarAmarelo) return 'verde'
+    if (v <= limite) return 'amarelo'
     return 'vermelho'
   }
 }
 
 function calcProgresso(v: number, meta: Meta): number {
-  const alvo = meta.verde_inicio === 0 ? meta.valor_meta : meta.verde_inicio
+  const alvo = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
   if (alvo === 0) return 0
   let pct: number
   if (meta.tipo === 'maior_melhor') {
@@ -90,40 +92,69 @@ export function computarKPIs(
   metas: Meta[],
   debugLabel?: string
 ): KPIItem[] {
-  const metaMap = new Map(
-    metas.map((m) => [normalizarChave(m.nome_coluna), m])
-  )
+  // Mapa: chave normalizada → meta
+  const metaMap = new Map(metas.map((m) => [normalizarChave(m.nome_coluna), m]))
+
+  // Índice da primeira ocorrência de cada coluna normalizada
+  // Garante que colunas duplicadas sejam processadas apenas uma vez
+  const primeiraOcorrencia = new Map<string, number>()
+  headers.forEach((h, i) => {
+    const key = normalizarChave(h)
+    if (!primeiraOcorrencia.has(key)) primeiraOcorrencia.set(key, i)
+  })
 
   if (debugLabel) {
     console.log(`\n[KPI Debug] ── Operador: ${debugLabel} ──`)
-    console.log(`[KPI Debug] Metas cadastradas (${metas.length}):`)
-    metas.forEach((m) => console.log(`  meta "${m.nome_coluna}" → chave: "${normalizarChave(m.nome_coluna)}"`))
+    console.log(`[KPI Debug] Metas configuradas (${metas.length}):`)
+    metas.forEach((m) => {
+      const chave = normalizarChave(m.nome_coluna)
+      const idx = primeiraOcorrencia.get(chave)
+      console.log(
+        `  meta "${m.nome_coluna}" → chave:"${chave}" → ` +
+        (idx !== undefined ? `col[${idx}] ENCONTRADA` : 'NÃO ENCONTRADA na planilha')
+      )
+    })
     console.log(`[KPI Debug] Cabeçalhos da planilha (${headers.length}):`)
-    headers.forEach((h) => {
+    headers.forEach((h, i) => {
       const chave = normalizarChave(h)
-      const achou = metaMap.has(chave)
-      console.log(`  header "${h}" → chave: "${chave}" → ${achou ? `MATCH com meta "${metaMap.get(chave)!.label}"` : 'sem meta'}`)
+      const meta = metaMap.get(chave)
+      const isDup = primeiraOcorrencia.get(chave) !== i
+      console.log(`  col[${i}] "${h}" → chave:"${chave}" → ${isDup ? 'DUPLICATA (ignorada)' : meta ? `MATCH "${meta.label}"` : 'sem meta'}`)
     })
   }
 
   return headers
     .map((header, idx) => {
-      const raw = row[idx] ?? ''
-      const meta = metaMap.get(normalizarChave(header))
+      if (!header.trim()) return null
+
+      const chave = normalizarChave(header)
+
+      // Processa apenas a primeira ocorrência de cada coluna (pula duplicatas)
+      if (primeiraOcorrencia.get(chave) !== idx) return null
+
+      // Correspondência por nome exato da coluna, não por posição
+      const meta = metaMap.get(chave)
+      const raw  = row[idx] ?? ''
       let valorNum = parseNum(raw)
 
       if (meta && (meta.unidade === 'porcentagem' || meta.unidade === '%')) {
-        const escala = Math.max(Math.abs(meta.verde_inicio), Math.abs(meta.amarelo_inicio))
+        const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
+        const escala = Math.abs(limite)
         if (valorNum > 0 && valorNum <= 1 && escala > 1) {
           valorNum = Math.round(valorNum * 10000) / 100
         }
       }
 
-      const status = meta ? calcStatus(valorNum, meta) : 'neutro'
+      const status   = meta ? calcStatus(valorNum, meta) : 'neutro'
       const progresso = meta ? calcProgresso(valorNum, meta) : 0
 
-      if (debugLabel && meta) {
-        console.log(`  [${meta.label}] raw="${raw}" valorNum=${valorNum} | amarelo≥${meta.amarelo_inicio} verde≥${meta.verde_inicio} | status=${status}`)
+      if (debugLabel) {
+        const limite = meta ? (meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta) : 0
+        const limAm  = meta ? Math.round(limite * 0.8 * 100) / 100 : 0
+        const tag = meta
+          ? `→ "${meta.label}" | col="${header}" raw="${raw}" val=${valorNum} | limite=${limite} amarelo~${limAm} | status=${status}`
+          : `→ sem meta | raw="${raw}"`
+        console.log(`  col[${idx}] ${tag}`)
       }
 
       return {
@@ -139,7 +170,7 @@ export function computarKPIs(
         indice: idx,
       } satisfies KPIItem
     })
-    .filter((item) => item.nome_coluna.trim() !== '')
+    .filter((item): item is NonNullable<typeof item> => item !== null) as KPIItem[]
 }
 
 // ── Formatação de valor para exibição ────────────────────────────────────────

@@ -30,6 +30,16 @@ export interface PenalidadeRV {
   percentual: number  // ex: 10 → desconta 10% do rvTotal
 }
 
+export interface DescontoIndividual {
+  id: string           // timestamp-based ID
+  operadorId: number
+  operadorNome: string
+  motivo: string
+  tipo: 'fixo' | 'percentual'
+  valor: number        // R$ (fixo) ou % do rvFinal
+  mesReferencia: string // YYYY-MM
+}
+
 export interface PenalidadeAplicada {
   metaLabel: string
   percentual: number
@@ -58,6 +68,7 @@ export interface RVConfig {
   bonusRetracaoMinima: number
   bonusIndispMaxima: number
   penalidades: PenalidadeRV[]
+  descontosIndividuais: DescontoIndividual[]
 }
 
 export interface ComponenteRV {
@@ -98,6 +109,7 @@ export interface ResultadoRV {
   penalidades: PenalidadeAplicada[]
   totalPenalidade: number
   rvFinal: number
+  descontoIndividualAplicado: { motivo: string; valor: number } | null
   semDados: boolean
   config: RVConfig
 }
@@ -116,7 +128,8 @@ export const RV_CONFIG_DEFAULTS: RVConfigRaw = {
   churn_meta:            '0',
   bonus_retracao_minima: '66',
   bonus_indisp_maxima:   '14.5',
-  penalidades:           '[]',
+  penalidades:              '[]',
+  descontos_individuais:    '[]',
 }
 
 export function parseRVConfig(raw: RVConfigRaw): RVConfig {
@@ -137,5 +150,6 @@ export function parseRVConfig(raw: RVConfigRaw): RVConfig {
     bonusRetracaoMinima: n('bonus_retracao_minima'),
     bonusIndispMaxima:   n('bonus_indisp_maxima'),
     penalidades:         j<PenalidadeRV[]>('penalidades'),
+    descontosIndividuais: j<DescontoIndividual[]>('descontos_individuais'),
   }
 }

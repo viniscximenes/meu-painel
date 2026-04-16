@@ -100,20 +100,28 @@ function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
               <span style={{ color: '#f87171' }}>−{p.percentual}% = −{formatBRL(p.valorDeduzido)}</span>
             </div>
           ))}
-          <div className="flex items-center justify-between text-xs font-bold pt-1"
-            style={{ borderTop: '1px solid rgba(239,68,68,0.12)' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>RV Final</span>
-            <span style={{ color: rv.elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
-              {formatBRL(rv.rvFinal)}
-            </span>
-          </div>
         </div>
       )}
-      {(!rv.penalidades || rv.penalidades.length === 0) && (
-        <div className="text-xs text-right font-bold" style={{ color: rv.elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
-          RV Final: {formatBRL(rv.rvFinal)}
+
+      {/* Desconto individual */}
+      {rv.descontoIndividualAplicado && (
+        <div className="flex items-center justify-between text-xs rounded-xl border px-3 py-2.5"
+          style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.15)' }}>
+          <span style={{ color: 'var(--text-muted)' }}>
+            Desconto:{' '}
+            <span style={{ color: '#fca5a5' }}>{rv.descontoIndividualAplicado.motivo}</span>
+          </span>
+          <span className="font-bold" style={{ color: '#f87171' }}>
+            −{formatBRL(rv.descontoIndividualAplicado.valor)}
+          </span>
         </div>
       )}
+
+      {/* RV Final — sempre visível */}
+      <div className="flex items-center justify-end text-xs font-bold"
+        style={{ color: rv.elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
+        RV Final: {formatBRL(rv.rvFinal)}
+      </div>
     </div>
   )
 }
@@ -237,7 +245,7 @@ export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
                       {getIniciaisNome(op.nome)}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{op.nome}</p>
+                      <p className="text-sm truncate" style={{ color: 'var(--text-primary)', fontWeight: 400 }}>{op.nome}</p>
                       <p className="text-xs" style={{ color: '#4a90d9' }}>{op.username}</p>
                     </div>
                   </div>

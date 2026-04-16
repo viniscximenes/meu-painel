@@ -45,6 +45,7 @@ export default async function RVEquipePage() {
       const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba)
       const col = encontrarColunaIdent(headers)
       dataAtualizacao = extrairDataAtualizacao(rows)
+      const mesAtual = new Date().toISOString().slice(0, 7) // YYYY-MM
 
       operadores = OPERADORES_DISPLAY.map((op) => {
         const row = rows.find((r) =>
@@ -57,7 +58,7 @@ export default async function RVEquipePage() {
         const motivosVermelhos = kpis.filter((k) => k.status === 'vermelho').map((k) => k.label)
 
         let rv: ResultadoRV | null = null
-        try { rv = calcularRV(headers, row, rvConfig, '', kpis) } catch { /* continua */ }
+        try { rv = calcularRV(headers, row, rvConfig, '', kpis, op.id, mesAtual) } catch { /* continua */ }
 
         return { id: op.id, nome: op.nome, username: op.username, gs, encontrado: true, motivosVermelhos, rv }
       })

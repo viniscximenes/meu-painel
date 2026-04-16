@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Save, Plus, Trash2, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react'
-import type { FaixaRV, RVConfigRaw, PenalidadeRV } from '@/lib/rv-utils'
-import { mmssParaSeg, segParaMMSS } from '@/lib/rv-utils'
+import { Save, Plus, Trash2, CheckCircle, AlertTriangle, ShieldAlert, Check, X } from 'lucide-react'
+import type { FaixaRV, RVConfigRaw, PenalidadeRV, DescontoIndividual } from '@/lib/rv-utils'
+import { mmssParaSeg, segParaMMSS, formatBRL } from '@/lib/rv-utils'
 import type { Meta } from '@/lib/kpi-utils'
+import { OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import { salvarRVConfigAction } from './actions'
 
 // ── Estilos compartilhados ────────────────────────────────────────────────────
@@ -143,6 +144,7 @@ interface Estado {
   bonusRetracaoMinima: string
   bonusIndispMaxima: string
   penalidades: PenalidadeRV[]
+  descontosIndividuais: DescontoIndividual[]
 }
 
 export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: Meta[] }) {
@@ -174,6 +176,7 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
           return found ?? { metaId: m.id, metaLabel: m.label, ativa: false, percentual: 10 }
         })
       })(),
+      descontosIndividuais: j<DescontoIndividual[]>('descontos_individuais', []),
     }
   })
 
@@ -183,6 +186,7 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
   const [saving, startSave] = useTransition()
   const [ok, setOk]         = useState(false)
   const [erro, setErro]     = useState('')
+  const [adicionandoDesconto, setAdicionandoDesconto] = useState(false)
 
   function handleSave() {
     setErro('')
@@ -201,7 +205,8 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
       churn_meta:            e.churnMeta,
       bonus_retracao_minima: e.bonusRetracaoMinima,
       bonus_indisp_maxima:   e.bonusIndispMaxima,
-      penalidades:           JSON.stringify(e.penalidades.filter(p => p.ativa || true)),
+      penalidades:           JSON.stringify(e.penalidades),
+      descontos_individuais: JSON.stringify(e.descontosIndividuais),
     }
     startSave(async () => {
       try {
@@ -443,6 +448,81 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
         )}
       </div>
 
+      {/* ── Descontos Individuais ── */}
+      <div style={SECTION}>
+        {sectionTitle('Descontos Individuais')}
+        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+          Descontos pontuais aplicados a operadores específicos em um determinado mês.
+          Deduzidos do RV após penalidades e bônus.
+        </p>
+
+        {/* Lista de descontos */}
+        {e.descontosIndividuais.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {e.descontosIndividuais.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center gap-3 rounded-xl border px-3 py-2.5"
+                style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.15)' }}
+              >
+                <span
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 border-2"
+                  style={getAvatarStyle(d.operadorId)}
+                >
+                  {getIniciaisNome(d.operadorNome)}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{d.operadorNome}</p>
+                  <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+                    {d.motivo} · {d.mesReferencia}
+                  </p>
+                </div>
+                <span className="text-xs font-bold shrink-0" style={{ color: '#f87171' }}>
+                  −{d.tipo === 'fixo' ? formatBRL(d.valor) : `${d.valor}%`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setE(prev => ({
+                    ...prev,
+                    descontosIndividuais: prev.descontosIndividuais.filter(x => x.id !== d.id),
+                  }))}
+                  className="p-1 rounded transition-colors shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={ev => ((ev.currentTarget as HTMLElement).style.color = '#f87171')}
+                  onMouseLeave={ev => ((ev.currentTarget as HTMLElement).style.color = 'var(--text-muted)')}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Formulário inline */}
+        {adicionandoDesconto ? (
+          <DescontoForm
+            onSalvar={(d) => {
+              setE(prev => ({ ...prev, descontosIndividuais: [...prev.descontosIndividuais, d] }))
+              setAdicionandoDesconto(false)
+            }}
+            onCancelar={() => setAdicionandoDesconto(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdicionandoDesconto(true)}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg"
+            style={{
+              color: 'var(--gold-light)',
+              background: 'rgba(201,168,76,0.06)',
+              border: '1px solid rgba(201,168,76,0.15)',
+            }}
+          >
+            <Plus size={11} /> Adicionar desconto individual
+          </button>
+        )}
+      </div>
+
       {/* ── Botão salvar (sticky) ── */}
       <div
         className="flex items-center justify-between gap-4 flex-wrap"
@@ -480,6 +560,123 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
             {erro}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Formulário de novo desconto individual ────────────────────────────────────
+
+function DescontoForm({
+  onSalvar,
+  onCancelar,
+}: {
+  onSalvar: (d: DescontoIndividual) => void
+  onCancelar: () => void
+}) {
+  const mesAtual = new Date().toISOString().slice(0, 7)
+  const [opId,   setOpId]   = useState<number>(OPERADORES_DISPLAY[0]?.id ?? 0)
+  const [motivo, setMotivo] = useState('')
+  const [tipo,   setTipo]   = useState<'fixo' | 'percentual'>('fixo')
+  const [valor,  setValor]  = useState('')
+  const [mes,    setMes]    = useState(mesAtual)
+
+  function handleAdd() {
+    const op = OPERADORES_DISPLAY.find(o => o.id === opId)
+    if (!op || !motivo.trim() || !valor) return
+    onSalvar({
+      id: Date.now().toString(36),
+      operadorId: opId,
+      operadorNome: op.nome,
+      motivo: motivo.trim(),
+      tipo,
+      valor: parseFloat(valor) || 0,
+      mesReferencia: mes,
+    })
+  }
+
+  return (
+    <div
+      className="rounded-xl border p-4 space-y-3"
+      style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.18)' }}
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Campo label="Operador">
+          <select
+            value={opId}
+            onChange={ev => setOpId(Number(ev.target.value))}
+            style={INPUT}
+          >
+            {OPERADORES_DISPLAY.map(op => (
+              <option key={op.id} value={op.id}>{op.nome}</option>
+            ))}
+          </select>
+        </Campo>
+
+        <Campo label="Mês de referência">
+          <input
+            type="month"
+            value={mes}
+            onChange={ev => setMes(ev.target.value)}
+            style={INPUT}
+          />
+        </Campo>
+
+        <Campo label="Motivo" hint="Aparece no breakdown do operador">
+          <input
+            type="text"
+            placeholder="ex: Feedback negativo, advertência…"
+            value={motivo}
+            onChange={ev => setMotivo(ev.target.value)}
+            style={INPUT}
+          />
+        </Campo>
+
+        <Campo label="Valor do desconto">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTipo(tipo === 'fixo' ? 'percentual' : 'fixo')}
+              className="shrink-0 text-xs px-2 py-1.5 rounded-lg border transition-colors"
+              style={{
+                background: 'rgba(201,168,76,0.06)',
+                borderColor: 'rgba(201,168,76,0.18)',
+                color: 'var(--gold-light)',
+                minWidth: 36,
+              }}
+            >
+              {tipo === 'fixo' ? 'R$' : '%'}
+            </button>
+            <input
+              type="number"
+              min="0"
+              step={tipo === 'fixo' ? 50 : 1}
+              placeholder="0"
+              value={valor}
+              onChange={ev => setValor(ev.target.value)}
+              style={INPUT}
+            />
+          </div>
+        </Campo>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={!motivo.trim() || !valor}
+          className="btn-primary flex items-center gap-1.5 text-xs py-1.5"
+          style={{ opacity: (!motivo.trim() || !valor) ? 0.5 : 1 }}
+        >
+          <Check size={13} /> Adicionar
+        </button>
+        <button
+          type="button"
+          onClick={onCancelar}
+          className="btn-ghost flex items-center gap-1.5 text-xs py-1.5"
+        >
+          <X size={13} /> Cancelar
+        </button>
       </div>
     </div>
   )

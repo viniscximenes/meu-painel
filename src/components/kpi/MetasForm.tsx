@@ -65,10 +65,13 @@ function MetaForm({
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    // Converte HH:MM:SS para segundos nos campos de tempo
+    // verde_inicio é sempre igual à meta (limite); amarelo é auto (80%)
     if (isTempo) {
-      fd.set('valor_meta', String(hhmmssParaSeg(fd.get('valor_meta') as string)))
-      fd.set('verde_inicio', String(hhmmssParaSeg(fd.get('verde_inicio') as string)))
+      const seg = String(hhmmssParaSeg(fd.get('valor_meta') as string))
+      fd.set('valor_meta', seg)
+      fd.set('verde_inicio', seg)
+    } else {
+      fd.set('verde_inicio', fd.get('valor_meta') as string)
     }
     startTransition(async () => {
       await onSalvar(fd)
@@ -175,23 +178,7 @@ function MetaForm({
           )}
         </div>
 
-        {/* Limiar verde */}
-        <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            {tipo === 'maior_melhor' ? 'Início verde (valor mín.)' : 'Início verde (valor máx.)'}
-            {isTempo && <span className="ml-1 opacity-60">(HH:MM:SS)</span>}
-          </label>
-          {isTempo ? (
-            <input type="text" name="verde_inicio" placeholder="00:12:11"
-              defaultValue={inicial?.verde_inicio ? segParaHHMMSS(inicial.verde_inicio) : ''}
-              required className="input" />
-          ) : (
-            <input type="number" name="verde_inicio" step="any"
-              defaultValue={inicial?.verde_inicio ?? 0} required className="input" />
-          )}
-        </div>
-
-        {/* Limiar amarelo — automático (80% do verde), campo oculto */}
+        {/* verde_inicio e amarelo_inicio — calculados automaticamente no submit */}
         <input type="hidden" name="amarelo_inicio" value="0" />
 
         {/* Ordem */}
