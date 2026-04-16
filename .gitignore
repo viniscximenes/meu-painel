@@ -37,3 +37,5 @@ next-env.d.ts
 # google service account key (nunca commitar!)
 google-credentials.json
 service-account.json
+
+.vercel
