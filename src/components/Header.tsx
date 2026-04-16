@@ -51,12 +51,12 @@ export default function Header({ profile, title, onMenuClick }: HeaderProps) {
           <BarChart2 size={14} className="text-[#050508]" />
         </div>
         <h1
-          className="text-sm font-bold tracking-tight"
+          className="font-semibold tracking-tight"
           style={{
-            background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            fontFamily: 'var(--ff-display)',
+            fontSize: '15px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
           }}
         >
           {title}

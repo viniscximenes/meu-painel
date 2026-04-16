@@ -253,8 +253,14 @@ export default function KPICard({ kpi, index }: KPICardProps) {
 
       {/* Valor */}
       <p
-        className="text-2xl font-bold leading-none tracking-tight tabular-nums"
-        style={{ color: st.valorColor, fontVariantNumeric: 'tabular-nums' }}
+        className="leading-none tabular-nums"
+        style={{
+          fontFamily: 'var(--ff-display)',
+          fontSize: '22px',
+          fontWeight: 700,
+          color: st.valorColor,
+          fontVariantNumeric: 'tabular-nums',
+        }}
       >
         {valorFmt}
         {valorFmt !== '—' && sufixo && (
@@ -274,7 +280,7 @@ export default function KPICard({ kpi, index }: KPICardProps) {
       {/* Barra de progresso */}
       {kpi.status !== 'neutro' && (
         <div className="mt-auto pt-1">
-          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+          <div className="rounded-full overflow-hidden" style={{ height: '3px', background: 'rgba(255,255,255,0.06)' }}>
             <div
               ref={barRef}
               className={clsx('h-full rounded-full bg-gradient-to-r transition-all duration-700', st.bar)}

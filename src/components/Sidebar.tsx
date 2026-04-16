@@ -59,7 +59,10 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
             <BarChart2 size={18} className="text-[#050508]" />
           </div>
           <div>
-            <span className="text-gold-gradient font-bold text-sm tracking-wide">
+            <span
+              className="text-gold-gradient font-bold text-sm tracking-wide"
+              style={{ fontFamily: 'var(--ff-display)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
+            >
               Meu Painel
             </span>
             <p

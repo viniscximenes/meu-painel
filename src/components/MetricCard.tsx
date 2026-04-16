@@ -71,8 +71,11 @@ export default function MetricCard({
       <div>
         {useGradientValue ? (
           <p
-            className="text-3xl font-extrabold tracking-tight tabular-nums leading-none"
+            className="tabular-nums leading-none animate-countUp"
             style={{
+              fontFamily: 'var(--ff-display)',
+              fontSize: '26px',
+              fontWeight: 700,
               background: 'linear-gradient(135deg, var(--gold-bright) 0%, var(--gold-light) 50%, #fbbf24 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -83,8 +86,13 @@ export default function MetricCard({
           </p>
         ) : (
           <p
-            className="text-3xl font-extrabold tracking-tight tabular-nums leading-none"
-            style={{ color: valorColor }}
+            className="tabular-nums leading-none animate-countUp"
+            style={{
+              fontFamily: 'var(--ff-display)',
+              fontSize: '26px',
+              fontWeight: 700,
+              color: valorColor,
+            }}
           >
             {valor}
           </p>
