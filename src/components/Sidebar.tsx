@@ -139,7 +139,8 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
 /* ── Gestor nav ──────────────────────────────────────────────────────────────── */
 
 function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
-  const [opsExpandidas, setOpsExpandidas] = useState(false)
+  const [opsExpandidas,    setOpsExpandidas]    = useState(false)
+  const [configExpandida,  setConfigExpandida]  = useState(false)
 
   return (
     <div className="space-y-0.5">
@@ -239,21 +240,36 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         </div>
       </div>
 
-      {/* ── Configurações ── */}
-      <NavLabel>Configurações</NavLabel>
+      {/* ── Configurações — recolhível (fechado por padrão) ── */}
+      <NavLabelCollapsible
+        expanded={configExpandida}
+        onToggle={() => setConfigExpandida((v) => !v)}
+      >
+        Configurações
+      </NavLabelCollapsible>
 
-      <Link href="/painel/metas" onClick={onClose}
-        className={pathname === '/painel/metas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Target size={15} /> Metas KPI
-      </Link>
-      <Link href="/painel/rv-config" onClick={onClose}
-        className={pathname === '/painel/rv-config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <SlidersHorizontal size={15} /> Config. RV
-      </Link>
-      <Link href="/painel/config" onClick={onClose}
-        className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Database size={15} /> Planilhas
-      </Link>
+      <div
+        style={{
+          maxHeight: configExpandida ? '200px' : '0px',
+          overflow: 'hidden',
+          transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)',
+        }}
+      >
+        <div className="space-y-0.5">
+          <Link href="/painel/metas" onClick={onClose}
+            className={pathname === '/painel/metas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Target size={15} /> Metas KPI
+          </Link>
+          <Link href="/painel/rv-config" onClick={onClose}
+            className={pathname === '/painel/rv-config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <SlidersHorizontal size={15} /> Config. RV
+          </Link>
+          <Link href="/painel/config" onClick={onClose}
+            className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Database size={15} /> Planilhas
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
