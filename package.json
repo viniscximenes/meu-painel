@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "build": "next build"
+  "scripts": {
+  "build": "npm install --legacy-peer-deps && next build"
 }
     "dev": "next dev",
     "build": "next build",
