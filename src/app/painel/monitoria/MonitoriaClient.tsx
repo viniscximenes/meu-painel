@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ClipboardList, Plus, Search, Pencil, Trash2, Check, Clock, AlertTriangle } from 'lucide-react'
 import type { Monitoria, StatusMonitoria } from '@/lib/monitoria-utils'
@@ -51,6 +51,8 @@ export default function MonitoriaClient({
 }: Props) {
   const [monitorias,        setMonitorias]        = useState<Monitoria[]>(initialMonitorias)
   const [filtroMes,         setFiltroMes]         = useState(mesAtual)
+
+  useEffect(() => { setMonitorias(initialMonitorias) }, [initialMonitorias])
   const [filtroColaborador, setFiltroColaborador] = useState('')
   const [filtroStatus,      setFiltroStatus]      = useState<'' | StatusMonitoria>('')
   const [busca,             setBusca]             = useState('')

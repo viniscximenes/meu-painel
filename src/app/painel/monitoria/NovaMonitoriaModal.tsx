@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { X, ClipboardList, Save, AlertTriangle, CheckCircle } from 'lucide-react'
+import { criarMonitoriaAction } from './actions'
 
 interface Operador { id: number; nome: string; username: string }
 
@@ -9,7 +10,7 @@ interface Props {
   aberto:    boolean
   operadores: Operador[]
   onFechar:  () => void
-  onSalvo:   () => Promise<void>
+  onSalvo:   () => void
 }
 
 function hojeFormatado(): string {
@@ -34,6 +35,7 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
   const [idChamada,       setIdChamada]       = useState('')
   const [contratoCliente, setContratoCliente] = useState('')
   const [dataAtendimento, setDataAtendimento] = useState(hojeFormatado())
+  const [anexo,           setAnexo]           = useState('')
   const [erros,           setErros]           = useState<Record<string, string>>({})
   const [saving,          startSave]          = useTransition()
   const [sucesso,         setSucesso]         = useState(false)
@@ -71,29 +73,21 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
     if (!validar()) return
     setErroGlobal('')
     startSave(async () => {
-      try {
-        const res = await fetch('/api/monitoria', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ colaborador, idChamada, contratoCliente, dataAtendimento }),
-        })
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setErroGlobal(data.error ?? 'Erro ao salvar.')
-          return
-        }
-        setSucesso(true)
-        setTimeout(async () => {
-          await onSalvo()
-          setColaborador('')
-          setIdChamada('')
-          setContratoCliente('')
-          setDataAtendimento(hojeFormatado())
-          setSucesso(false)
-        }, 800)
-      } catch {
-        setErroGlobal('Erro de rede.')
+      const result = await criarMonitoriaAction({ colaborador, idChamada, contratoCliente, dataAtendimento, anexo: anexo.trim() || undefined })
+      if (!result.ok) {
+        setErroGlobal(result.erro ?? 'Erro ao salvar.')
+        return
       }
+      setSucesso(true)
+      setTimeout(() => {
+        onSalvo()
+        setColaborador('')
+        setIdChamada('')
+        setContratoCliente('')
+        setDataAtendimento(hojeFormatado())
+        setAnexo('')
+        setSucesso(false)
+      }, 800)
     })
   }
 
@@ -213,6 +207,22 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
               onBlur={(e)  => { e.currentTarget.style.borderColor = erros.contratoCliente ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
             />
             {erros.contratoCliente && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.contratoCliente}</p>}
+          </div>
+
+          {/* Link do Anexo */}
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              Link do Anexo
+            </label>
+            <input
+              type="text"
+              value={anexo}
+              onChange={(e) => setAnexo(e.target.value)}
+              placeholder="https://…"
+              style={INPUT_STYLE}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
+              onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+            />
           </div>
 
           {erroGlobal && (

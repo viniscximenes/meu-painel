@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { X, ClipboardList, Save, AlertTriangle, CheckCircle } from 'lucide-react'
+import { X, ClipboardList, Save, AlertTriangle, CheckCircle, Copy, Check } from 'lucide-react'
 import { SINALIZACOES, NOTAS, STATUS_INFO } from '@/lib/monitoria-utils'
 import type { Monitoria } from '@/lib/monitoria-utils'
 import { atualizarMonitoriaAction } from './actions'
@@ -28,6 +28,28 @@ const INPUT_STYLE: React.CSSProperties = {
 }
 
 const SIM_NAO = ['', 'Sim', 'Não'] as const
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title="Copiar"
+      className="p-1.5 rounded-lg transition-colors shrink-0 self-center"
+      style={{ color: copied ? '#4ade80' : 'var(--text-muted)' }}
+      onMouseEnter={(e) => { if (!copied) (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)' }}
+      onMouseLeave={(e) => { if (!copied) (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
+    >
+      {copied ? <Check size={13} /> : <Copy size={13} />}
+    </button>
+  )
+}
 
 export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, onSalvo }: Props) {
   const [colaborador,        setColaborador]        = useState(monitoria.colaborador)
@@ -176,36 +198,45 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                   <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
                     ID Chamada <span style={{ color: '#f87171' }}>*</span>
                   </label>
-                  <input type="text" value={idChamada} onChange={(e) => setIdChamada(e.target.value)}
-                    placeholder="000123456"
-                    style={{ ...INPUT_STYLE, borderColor: erros.idChamada ? 'rgba(239,68,68,0.5)' : undefined }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = erros.idChamada ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
-                  />
+                  <div className="flex items-center gap-1">
+                    <input type="text" value={idChamada} onChange={(e) => setIdChamada(e.target.value)}
+                      placeholder="000123456"
+                      style={{ ...INPUT_STYLE, flex: 1, borderColor: erros.idChamada ? 'rgba(239,68,68,0.5)' : undefined }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
+                      onBlur={(e)  => { e.currentTarget.style.borderColor = erros.idChamada ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                    />
+                    <CopyButton value={idChamada} />
+                  </div>
                   {erros.idChamada && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.idChamada}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
                     Data <span style={{ color: '#f87171' }}>*</span>
                   </label>
-                  <input type="text" value={dataAtendimento} onChange={(e) => setDataAtendimento(e.target.value)}
-                    placeholder="DD/MM/AAAA"
-                    style={{ ...INPUT_STYLE, borderColor: erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : undefined }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
-                  />
+                  <div className="flex items-center gap-1">
+                    <input type="text" value={dataAtendimento} onChange={(e) => setDataAtendimento(e.target.value)}
+                      placeholder="DD/MM/AAAA"
+                      style={{ ...INPUT_STYLE, flex: 1, borderColor: erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : undefined }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
+                      onBlur={(e)  => { e.currentTarget.style.borderColor = erros.dataAtendimento ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                    />
+                    <CopyButton value={dataAtendimento} />
+                  </div>
                   {erros.dataAtendimento && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.dataAtendimento}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
                     Contrato <span style={{ color: '#f87171' }}>*</span>
                   </label>
-                  <input type="text" value={contratoCliente} onChange={(e) => setContratoCliente(e.target.value)}
-                    placeholder="123456789"
-                    style={{ ...INPUT_STYLE, borderColor: erros.contratoCliente ? 'rgba(239,68,68,0.5)' : undefined }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = erros.contratoCliente ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
-                  />
+                  <div className="flex items-center gap-1">
+                    <input type="text" value={contratoCliente} onChange={(e) => setContratoCliente(e.target.value)}
+                      placeholder="123456789"
+                      style={{ ...INPUT_STYLE, flex: 1, borderColor: erros.contratoCliente ? 'rgba(239,68,68,0.5)' : undefined }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
+                      onBlur={(e)  => { e.currentTarget.style.borderColor = erros.contratoCliente ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                    />
+                    <CopyButton value={contratoCliente} />
+                  </div>
                   {erros.contratoCliente && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.contratoCliente}</p>}
                 </div>
               </div>
@@ -267,15 +298,18 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                 <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
                   Resumo / Observações
                 </label>
-                <textarea
-                  value={resumo}
-                  onChange={(e) => setResumo(e.target.value)}
-                  rows={3}
-                  placeholder="Descreva pontos relevantes da monitoria..."
-                  style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: '72px' }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                  onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
-                />
+                <div className="flex items-start gap-1">
+                  <textarea
+                    value={resumo}
+                    onChange={(e) => setResumo(e.target.value)}
+                    rows={3}
+                    placeholder="Descreva pontos relevantes da monitoria..."
+                    style={{ ...INPUT_STYLE, flex: 1, resize: 'vertical', minHeight: '72px' }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
+                    onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                  />
+                  <CopyButton value={resumo} />
+                </div>
               </div>
 
               {/* Anexo + Enviado Forms */}
@@ -284,15 +318,18 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
                   <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
                     Anexo (link)
                   </label>
-                  <input
-                    type="text"
-                    value={anexo}
-                    onChange={(e) => setAnexo(e.target.value)}
-                    placeholder="https://…"
-                    style={INPUT_STYLE}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
-                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={anexo}
+                      onChange={(e) => setAnexo(e.target.value)}
+                      placeholder="https://…"
+                      style={{ ...INPUT_STYLE, flex: 1 }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.10)' }}
+                      onBlur={(e)  => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)'; e.currentTarget.style.boxShadow = 'none' }}
+                    />
+                    <CopyButton value={anexo} />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
