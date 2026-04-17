@@ -92,6 +92,47 @@ function metaTexto(kpi: KPIItem): string | null {
   return `meta ${sinal} ${formatarExibicao(String(kpi.meta.verde_inicio), kpi.meta.unidade)}`
 }
 
+// ── Barra de progresso ────────────────────────────────────────────────────────
+
+const FILL_COR: Record<Status, string> = {
+  verde:    'var(--verde)',
+  amarelo:  'var(--amarelo)',
+  vermelho: 'var(--vermelho)',
+  neutro:   'rgba(255,255,255,0.15)',
+}
+
+function KPIProgressBar({ kpi }: { kpi: KPIItem }) {
+  if (!kpi.meta) return null
+  const pct  = Math.min(kpi.progresso, 100)
+  const fill = FILL_COR[kpi.status]
+  return (
+    <div style={{ marginTop: 8 }}>
+      {/* Track */}
+      <div style={{
+        height: 4, borderRadius: 2,
+        background: 'rgba(255,255,255,0.06)',
+        overflow: 'hidden', position: 'relative',
+      }}>
+        {/* Fill com animação via CSS custom property */}
+        <div
+          className="kpi-bar-fill"
+          style={{
+            height: '100%',
+            borderRadius: 2,
+            background: fill,
+            boxShadow: kpi.status !== 'neutro' ? `0 0 6px ${fill}` : 'none',
+            ['--fill-pct' as string]: `${pct}%`,
+          } as React.CSSProperties}
+        />
+      </div>
+      {/* Label */}
+      <p style={{ fontSize: 9, marginTop: 3, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+        {pct}% da meta
+      </p>
+    </div>
+  )
+}
+
 // ── Componente ────────────────────────────────────────────────────────────────
 
 interface KPIBasicoProps {
@@ -107,6 +148,15 @@ export default function KPIBasico({ kpis, nomeOperador, linkCompleto }: KPIBasic
 
   return (
     <div className="space-y-4">
+      <style>{`
+        @keyframes kpiFill {
+          from { width: 0; }
+          to   { width: var(--fill-pct); }
+        }
+        .kpi-bar-fill {
+          animation: kpiFill 0.6s ease-out forwards;
+        }
+      `}</style>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -242,6 +292,7 @@ export default function KPIBasico({ kpis, nomeOperador, linkCompleto }: KPIBasic
                     <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
                       {metaTexto(kpi) ?? '—'}
                     </p>
+                    <KPIProgressBar kpi={kpi} />
                   </div>
                 )
               })}
