@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "criar-usuarios": "node scripts/criar-usuarios.mjs"
+    "criar-usuarios": "node scripts/criar-usuarios.mjs",
+    "dev:restart": "powershell -ExecutionPolicy Bypass -File kill-and-dev.ps1"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
