@@ -192,29 +192,24 @@ export function calcularRVGestor(
   if (indispVal > config.indispMeta) {
     const valorDeduzido = Math.round(rvComBonus * config.indispDeflatorPerda / 100 * 100) / 100
     deflatores.push({
-      motivo: `Indisponibilidade ${absVal}% > ${config.indispMeta}%`,
+      motivo: `Indisponibilidade ${indispVal.toFixed(1)}% > ${config.indispMeta}%`,
       perda: config.indispDeflatorPerda,
       valorDeduzido,
     })
   }
 
   // ABS deflator
-  const absDefl = [...config.absDeflatorFaixas].reverse().find(f => absVal > f.limite)
-              ?? config.absDeflatorFaixas.find(f => absVal <= f.limite)
-              ?? null
-
-  // Find the correct ABS faixa: find the highest limite that's still < absVal
-  // Faixas sorted asc: [5,0],[6,10],[8,20],[10,30],[999,50]
-  // If absVal=7: above 6, so perda=20; if absVal=12: above 10, so perda=50
+  // Faixas sorted asc: [{limite:5,perda:0},{limite:6,perda:10},{limite:8,perda:20},{limite:10,perda:30},{limite:999,perda:50}]
+  // Each entry means: if absVal <= limite, apply this perda.
+  // Find the FIRST faixa where absVal <= limite.
+  // e.g. absVal=8.8: 8.8<=5? No, 8.8<=6? No, 8.8<=8? No, 8.8<=10? Yes → perda=30 ✓
   let absDeflPerda = 0
   for (const f of config.absDeflatorFaixas) {
-    if (absVal > f.limite) {
+    if (absVal <= f.limite) {
       absDeflPerda = f.perda
+      break
     }
   }
-  // Actually re-reading: "5-6%: -10%, 6-8%: -20%, 8-10%: -30%, >10%: -50%"
-  // The faixas are: limite=5 → perda=0 (0-5%), limite=6 → perda=10 (5-6%), etc.
-  // So if absVal=5.5: absVal > 5 → perda=10% (we entered 5-6% bracket)
   if (absDeflPerda > 0) {
     const valorDeduzido = Math.round(rvComBonus * absDeflPerda / 100 * 100) / 100
     deflatores.push({
