@@ -8,7 +8,8 @@ import {
   buscarLinhasPlanilha,
   encontrarColunaIdent,
   matchCelulaOperador,
-  lerCelula,
+  lerRangeCelulas,
+  listarAbas,
 } from '@/lib/sheets'
 import { upsertNomeFantasia, upsertSnapshot, existeSnapshotParaData } from '@/lib/snapshots'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
@@ -52,11 +53,27 @@ function ultimaSegundaISO(iso: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-/** Lê A2 da aba "KPI CONSOLIDADO" e retorna a data no formato YYYY-MM-DD. */
+/** Lê as células A1:A5 da aba KPI CONSOLIDADO, loga todas, retorna a primeira que pareça uma data. */
 async function lerDataKpi(spreadsheet_id: string): Promise<string | null> {
-  const raw = await lerCelula(spreadsheet_id, 'KPI CONSOLIDADO', 'A2')
-  if (!raw) return null
-  return parseDataKpi(raw)
+  const abas = await listarAbas(spreadsheet_id)
+  console.log('[lerDataKpi] abas disponíveis:', abas)
+
+  const abaKpi = abas.find((a) => /kpi/i.test(a) && /consolidado/i.test(a)) ?? 'KPI CONSOLIDADO'
+  console.log('[lerDataKpi] usando aba:', abaKpi)
+
+  const valores = await lerRangeCelulas(spreadsheet_id, abaKpi, 'A1:A5')
+  console.log('[lerDataKpi] A1:A5 valores:', valores)
+
+  for (let i = 0; i < valores.length; i++) {
+    const parsed = parseDataKpi(valores[i])
+    if (parsed) {
+      console.log(`[lerDataKpi] data encontrada em A${i + 1}:`, parsed)
+      return parsed
+    }
+  }
+
+  console.warn('[lerDataKpi] nenhuma data encontrada em A1:A5')
+  return null
 }
 
 // ── Salvar snapshots de todos os operadores para uma data ─────────────────────

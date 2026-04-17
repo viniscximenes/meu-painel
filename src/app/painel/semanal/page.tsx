@@ -189,8 +189,13 @@ function getMesReferencia(): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function SemanalPage() {
+export default async function SemanalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ de?: string; ate?: string }>
+}) {
   const profile = await requireGestor()
+  const sp = await searchParams
 
   const mesReferencia = getMesReferencia()
 
@@ -201,23 +206,25 @@ export default async function SemanalPage() {
 
   const hoje = new Date().toISOString().slice(0, 10)
 
-  const [datas, nomesFantasia, existeSnapshotHoje] = await Promise.all([
-    getSnapshotsDatasRecentes(2),
+  const [todasDatas, nomesFantasia, existeSnapshotHoje] = await Promise.all([
+    getSnapshotsDatasRecentes(50),
     getNomesFantasia(mesReferencia),
     existeSnapshotParaData(hoje),
   ])
 
-  const snapshots = datas.length > 0 ? await getSnapshotsByDatas(datas) : []
+  // dataPara = mais recente (snap2), dataDe = mais antigo (snap1)
+  const dataPara = (sp.ate && todasDatas.includes(sp.ate)) ? sp.ate : (todasDatas[0] ?? null)
+  const dataDe   = (sp.de  && todasDatas.includes(sp.de))  ? sp.de  : (todasDatas[1] ?? null)
 
-  const data2 = datas[0] ?? null
-  const data1 = datas[1] ?? null
+  const datasParaBusca = [dataDe, dataPara].filter(Boolean) as string[]
+  const snapshots = datasParaBusca.length > 0 ? await getSnapshotsByDatas(datasParaBusca) : []
 
   const snapMap2 = new Map<number, Record<string, number>>()
   const snapMap1 = new Map<number, Record<string, number>>()
 
   for (const s of snapshots) {
-    if (s.data_ref === data2) snapMap2.set(s.operador_id, s.dados)
-    if (s.data_ref === data1) snapMap1.set(s.operador_id, s.dados)
+    if (s.data_ref === dataPara) snapMap2.set(s.operador_id, s.dados)
+    if (s.data_ref === dataDe)   snapMap1.set(s.operador_id, s.dados)
   }
 
   const nomeMap = new Map(nomesFantasia.map((n) => [Number(n.operador_id), n.nome_fantasia]))
@@ -247,7 +254,9 @@ export default async function SemanalPage() {
   return (
     <PainelShell profile={profile} title="Acompanhamento Semanal">
       <SemanalClient
-        datas={datas}
+        todasDatas={todasDatas}
+        dataDe={dataDe}
+        dataPara={dataPara}
         rows={rows}
         metas={metas}
         mesReferencia={mesReferencia}

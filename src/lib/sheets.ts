@@ -305,10 +305,33 @@ export async function lerCelula(
       })
     )
     const val = (res.data.values?.[0]?.[0] ?? '').toString().trim()
+    console.log(`[lerCelula] aba="${aba}" celula="${celula}" raw="${val}"`)
     return val || null
   } catch (e) {
     console.error('[lerCelula]', e)
     return null
+  }
+}
+
+// ── Ler faixa de células (coluna única) ───────────────────────────────────────
+
+export async function lerRangeCelulas(
+  spreadsheet_id: string,
+  aba: string,
+  range: string
+): Promise<string[]> {
+  if (!spreadsheet_id) return []
+  try {
+    const res = await withTimeout(
+      sheetsAPI().spreadsheets.values.get({
+        spreadsheetId: spreadsheet_id,
+        range: `'${aba}'!${range}`,
+      })
+    )
+    return (res.data.values ?? []).flat().map((v) => (v ?? '').toString().trim())
+  } catch (e) {
+    console.error('[lerRangeCelulas]', e)
+    return []
   }
 }
 

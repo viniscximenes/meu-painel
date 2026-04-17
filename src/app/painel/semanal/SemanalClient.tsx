@@ -21,7 +21,9 @@ export interface OperadorRow {
 }
 
 export interface SemanalClientProps {
-  datas: string[]
+  todasDatas: string[]
+  dataDe: string | null
+  dataPara: string | null
   rows: OperadorRow[]
   metas: Meta[]
   mesReferencia: string
@@ -494,7 +496,7 @@ function PodiumMelhores({
 // ── Componente principal ───────────────────────────────────────────────────────
 
 export default function SemanalClient({
-  datas, rows, metas, mesReferencia, melhores, piores, existeSnapshotHoje,
+  todasDatas, dataDe, dataPara, rows, metas, mesReferencia, melhores, piores, existeSnapshotHoje,
 }: SemanalClientProps) {
   const router = useRouter()
   const [infoAberta,   setInfoAberta]   = useState(false)
@@ -554,11 +556,32 @@ export default function SemanalClient({
     })
   }
 
-  const data2 = datas[0] ?? null
-  const data1 = datas[1] ?? null
-
   const rowsMelhores = melhores.map((id) => rows.find((r) => r.opId === id)).filter(Boolean) as OperadorRow[]
   const rowsPiores   = piores.map((id)   => rows.find((r) => r.opId === id)).filter(Boolean) as OperadorRow[]
+
+  function handleDataDeChange(val: string) {
+    const params = new URLSearchParams()
+    if (val) params.set('de', val)
+    if (dataPara) params.set('ate', dataPara)
+    router.push(`/painel/semanal?${params.toString()}`)
+  }
+
+  function handleDataParaChange(val: string) {
+    const params = new URLSearchParams()
+    if (dataDe) params.set('de', dataDe)
+    if (val) params.set('ate', val)
+    router.push(`/painel/semanal?${params.toString()}`)
+  }
+
+  const selectStyle: React.CSSProperties = {
+    padding: '3px 6px',
+    fontSize: '12px',
+    background: 'var(--bg-elevated)',
+    border: '1px solid rgba(201,168,76,0.2)',
+    borderRadius: '6px',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+  }
 
   return (
     <div className="space-y-6">
@@ -572,26 +595,38 @@ export default function SemanalClient({
           >
             Acompanhamento Semanal
           </h1>
-          <p className="text-sm mt-0.5 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+          <div className="mt-1.5 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
             <span style={{ textTransform: 'capitalize' }}>{fmtMes(mesReferencia)}</span>
-            {data1 && data2 && (
+            {todasDatas.length > 0 && (
               <>
                 <span style={{ color: 'var(--border)' }}>·</span>
-                <span>
-                  Comparando{' '}
-                  <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data1)}</strong>
-                  {' → '}
-                  <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data2)}</strong>
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  <span>De</span>
+                  <select
+                    value={dataDe ?? ''}
+                    onChange={(e) => handleDataDeChange(e.target.value)}
+                    style={selectStyle}
+                  >
+                    <option value="">—</option>
+                    {todasDatas.map((d) => (
+                      <option key={d} value={d}>{fmtData(d)}</option>
+                    ))}
+                  </select>
+                  <span>→</span>
+                  <select
+                    value={dataPara ?? ''}
+                    onChange={(e) => handleDataParaChange(e.target.value)}
+                    style={selectStyle}
+                  >
+                    <option value="">—</option>
+                    {todasDatas.map((d) => (
+                      <option key={d} value={d}>{fmtData(d)}</option>
+                    ))}
+                  </select>
                 </span>
               </>
             )}
-            {data2 && !data1 && (
-              <>
-                <span style={{ color: 'var(--border)' }}>·</span>
-                <span>Snapshot de <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data2)}</strong></span>
-              </>
-            )}
-          </p>
+          </div>
         </div>
 
         {/* Ações do header */}
@@ -708,7 +743,7 @@ export default function SemanalClient({
       </div>
 
       {/* ── Sem dados ── */}
-      {datas.length === 0 && (
+      {todasDatas.length === 0 && (
         <div className="card flex flex-col items-center justify-center text-center" style={{ padding: '4rem 2rem' }}>
           <Trophy size={32} style={{ color: 'var(--text-muted)', opacity: 0.3 }} />
           <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
