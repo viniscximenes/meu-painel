@@ -3,10 +3,25 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
+import { getIniciaisNome } from '@/lib/operadores'
 import type { KPIItem, Status, Meta } from '@/lib/kpi-utils'
 import { formatarExibicao, normalizarChave } from '@/lib/kpi-utils'
 import type { DadosOperador } from './page'
+
+// ── Avatares dourados padronizados ─────────────────────────────────────────────
+
+function avatarDourado(id: number): { background: string; border: string; color: string } {
+  const impar = id % 2 !== 0
+  return {
+    background: impar
+      ? 'linear-gradient(135deg, #2a1f08, #3d2e0d)'
+      : 'linear-gradient(135deg, #1a1308, #261c08)',
+    border: impar
+      ? '1px solid rgba(201,168,76,0.3)'
+      : '1px solid rgba(201,168,76,0.15)',
+    color: impar ? '#c9a84c' : '#a07830',
+  }
+}
 
 // ── Helpers de status ──────────────────────────────────────────────────────────
 
@@ -48,6 +63,14 @@ const FILTROS: { key: Filtro; label: string }[] = [
   { key: 'vermelho', label: 'CRÍTICOS' },
 ]
 
+// ── Hover state ────────────────────────────────────────────────────────────────
+
+interface HoverState {
+  opId: number
+  x: number
+  y: number
+}
+
 // ── Props ──────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -56,7 +79,8 @@ interface Props {
 }
 
 export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
-  const [filtro, setFiltro] = useState<Filtro>('todos')
+  const [filtro,  setFiltro]  = useState<Filtro>('todos')
+  const [hovered, setHovered] = useState<HoverState | null>(null)
 
   const counts: Record<Filtro, number> = {
     todos:    dadosEquipe.length,
@@ -71,14 +95,36 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
     return globalStatus(kpis) === filtro
   })
 
+  function handleOpEnter(e: React.MouseEvent<HTMLTableCellElement>, opId: number) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const POPUP_H = 255
+    const above = rect.bottom + POPUP_H > window.innerHeight
+    setHovered({
+      opId,
+      x: Math.min(rect.left, window.innerWidth - 276),
+      y: above ? rect.top - POPUP_H - 4 : rect.bottom + 4,
+    })
+  }
+
   const cssVars = {
     '--void3': '#0d0d1a',
     '--gold2': '#e8c96d',
     '--gold4': 'rgba(201,168,76,0.15)',
   } as React.CSSProperties
 
+  // Dados do operador em hover (para o popup)
+  const hovData = hovered ? dadosEquipe.find((d) => d.op.id === hovered.opId) : null
+
   return (
     <div style={cssVars} className="space-y-4">
+
+      {/* Keyframe para o popup */}
+      <style>{`
+        @keyframes tooltipIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
       {/* ── Filtros pill ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -107,16 +153,14 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
               }}
               onMouseEnter={(e) => {
                 if (!ativo) {
-                  const el = e.currentTarget
-                  el.style.borderColor = 'rgba(201,168,76,0.2)'
-                  el.style.color = 'var(--text-secondary)'
+                  e.currentTarget.style.borderColor = 'rgba(201,168,76,0.2)'
+                  e.currentTarget.style.color = 'var(--text-secondary)'
                 }
               }}
               onMouseLeave={(e) => {
                 if (!ativo) {
-                  const el = e.currentTarget
-                  el.style.borderColor = 'rgba(255,255,255,0.06)'
-                  el.style.color = 'var(--text-muted)'
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+                  e.currentTarget.style.color = 'var(--text-muted)'
                 }
               }}
             >
@@ -163,8 +207,8 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
 
             <tbody>
               {filtered.map(({ op, kpis, encontrado }, idx) => {
-                const gs = globalStatus(kpis)
-                const av = getAvatarStyle(op.id)
+                const gs  = globalStatus(kpis)
+                const av  = avatarDourado(op.id)
 
                 return (
                   <tr
@@ -182,15 +226,19 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                       (e.currentTarget as HTMLElement).style.background = 'transparent'
                     }}
                   >
-                    {/* Operador */}
-                    <td style={{ padding: '10px 20px' }}>
+                    {/* ── Operador — com hover card ── */}
+                    <td
+                      style={{ padding: '10px 20px' }}
+                      onMouseEnter={(e) => handleOpEnter(e, op.id)}
+                      onMouseLeave={() => setHovered(null)}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{
                           width: '30px', height: '30px', borderRadius: '8px',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: '10px', fontWeight: 700, flexShrink: 0,
-                          background: av.background, color: av.color,
-                          border: `2px solid ${av.borderColor}`,
+                          fontFamily: 'var(--ff-display)',
+                          ...av,
                         }}>
                           {getIniciaisNome(op.nome)}
                         </div>
@@ -207,11 +255,11 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
 
                     {/* KPIs */}
                     {basicos.map((m) => {
-                      const kpi = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
+                      const kpi    = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
                       const isTxRet = isTxRetMeta(m)
-                      const cor = kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)'
-                      const rgb = kpi ? STATUS_RGB[kpi.status] : '255,255,255'
-                      const val = kpi ? formatarExibicao(kpi.valor, kpi.unidade) : '—'
+                      const cor    = kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)'
+                      const rgb    = kpi ? STATUS_RGB[kpi.status] : '255,255,255'
+                      const val    = kpi ? formatarExibicao(kpi.valor, kpi.unidade) : '—'
 
                       return (
                         <td key={m.id} style={{ padding: '10px 12px', textAlign: 'center' }}>
@@ -300,7 +348,7 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
       <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filtered.map(({ op, kpis, encontrado }) => {
           const gs = globalStatus(kpis)
-          const av = getAvatarStyle(op.id)
+          const av = avatarDourado(op.id)
 
           return (
             <Link
@@ -327,8 +375,8 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                   width: '32px', height: '32px', borderRadius: '8px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '10px', fontWeight: 700, flexShrink: 0,
-                  background: av.background, color: av.color,
-                  border: `2px solid ${av.borderColor}`,
+                  fontFamily: 'var(--ff-display)',
+                  ...av,
                 }}>
                   {getIniciaisNome(op.nome)}
                 </div>
@@ -374,6 +422,98 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
           )
         })}
       </div>
+
+      {/* ── Popup hover card ── */}
+      {hovered && hovData && (() => {
+        const { op, kpis } = hovData
+        const gs       = globalStatus(kpis)
+        const av       = avatarDourado(op.id)
+        const verde    = kpis.filter((k) => k.status === 'verde').length
+        const amarelo  = kpis.filter((k) => k.status === 'amarelo').length
+        const vermelho = kpis.filter((k) => k.status === 'vermelho').length
+
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              top: `${hovered.y}px`,
+              left: `${hovered.x}px`,
+              width: '260px',
+              background: '#0d0d1a',
+              border: '1px solid rgba(201,168,76,0.25)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.1)',
+              borderRadius: '14px',
+              padding: '16px',
+              zIndex: 9999,
+              pointerEvents: 'none',
+              animation: 'tooltipIn 150ms ease forwards',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '10px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '13px', fontWeight: 700, flexShrink: 0,
+                fontFamily: 'var(--ff-display)',
+                ...av,
+              }}>
+                {getIniciaisNome(op.nome)}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {op.nome}
+                </p>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {op.username}
+                </p>
+              </div>
+            </div>
+
+            {/* Separador dourado */}
+            <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(201,168,76,0.35) 0%, transparent 100%)', marginBottom: '12px' }} />
+
+            {/* Grid 2×3 KPIs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              {basicos.slice(0, 6).map((m) => {
+                const kpi      = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
+                const cor      = kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)'
+                const progresso = kpi?.progresso ?? 0
+
+                return (
+                  <div key={m.id}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {m.label}
+                    </p>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: cor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {kpi ? formatarExibicao(kpi.valor, kpi.unidade) : '—'}
+                    </p>
+                    <div style={{ width: '100%', height: '3px', background: 'rgba(255,255,255,0.07)', borderRadius: '2px', marginTop: '5px', overflow: 'hidden' }}>
+                      <div style={{ width: `${progresso}%`, height: '100%', background: cor, borderRadius: '2px' }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Separador rodapé */}
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', marginBottom: '10px' }} />
+
+            {/* Rodapé status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: STATUS_COR[gs], boxShadow: `0 0 5px ${STATUS_COR[gs]}`, flexShrink: 0 }} />
+              {verde    > 0 && <span style={{ fontSize: '10px', color: '#10b981' }}>{verde} verde{verde    !== 1 ? 's' : ''}</span>}
+              {verde    > 0 && (amarelo > 0 || vermelho > 0) && <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px' }}>·</span>}
+              {amarelo  > 0 && <span style={{ fontSize: '10px', color: '#f59e0b' }}>{amarelo} amarelo{amarelo !== 1 ? 's' : ''}</span>}
+              {amarelo  > 0 && vermelho > 0 && <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px' }}>·</span>}
+              {vermelho > 0 && <span style={{ fontSize: '10px', color: '#ef4444' }}>{vermelho} vermelho{vermelho !== 1 ? 's' : ''}</span>}
+              {verde === 0 && amarelo === 0 && vermelho === 0 && (
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>sem dados</span>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
