@@ -1,9 +1,11 @@
 import { requireGestor } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
-import { getPlanilhaAtiva, buscarLinhasPlanilha, formatarDataCurta } from '@/lib/sheets'
-import { getRVGestorConfig, calcularRVGestor, segParaMMSSGestor, formatBRLGestor } from '@/lib/rv-gestor'
-import type { ResultadoRVGestor, RVGestorConfig } from '@/lib/rv-gestor-utils'
-import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { getPlanilhaAtiva, buscarLinhasPlanilha, formatarDataCurta, encontrarColunaIdent, matchCelulaOperador } from '@/lib/sheets'
+import { getRVGestorConfig, calcularRVGestor, segParaMMSSGestor } from '@/lib/rv-gestor'
+import type { ResultadoRVGestor } from '@/lib/rv-gestor-utils'
+import { AlertTriangle } from 'lucide-react'
+import { OPERADORES_DISPLAY } from '@/lib/operadores'
+import GestorRVSection, { type OpKpiData } from './GestorRVSection'
 
 // ── Detecção de colunas por keyword ───────────────────────────────────────────
 
@@ -104,205 +106,6 @@ function KPICard({
   )
 }
 
-// ── Card de RV ────────────────────────────────────────────────────────────────
-
-function RVCard({ rv, config, inelegivel = false }: { rv: ResultadoRVGestor; config: RVGestorConfig; inelegivel?: boolean }) {
-  if (rv.semDados) {
-    return (
-      <div style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)', borderRadius: '16px', padding: '24px', textAlign: 'center' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Sem dados na planilha.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{
-      background: '#0d0d1a',
-      border: '1px solid rgba(201,168,76,0.08)',
-      borderRadius: '16px',
-      overflow: 'hidden',
-    }}>
-      {/* Header do card */}
-      <div style={{
-        background: 'rgba(201,168,76,0.04)',
-        borderBottom: '1px solid rgba(201,168,76,0.08)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '12px',
-        flexWrap: 'wrap',
-      }}>
-        <span style={{
-          fontFamily: 'var(--ff-display)',
-          fontSize: '13px',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-        }}>
-          RV Calculada
-        </span>
-
-        {/* Elegibilidade / estimativa badge */}
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '5px',
-          fontSize: '10px',
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          padding: '4px 12px',
-          borderRadius: '99px',
-          background: rv.elegivel ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.08)',
-          border: rv.elegivel ? '1px solid rgba(34,197,94,0.30)' : '1px solid rgba(239,68,68,0.20)',
-          color: rv.elegivel ? '#34d399' : '#f87171',
-        }}>
-          {rv.elegivel ? <CheckCircle size={11} /> : <AlertTriangle size={11} />}
-          {rv.elegivel ? 'Elegível' : 'Estimativa (inelegível)'}
-        </span>
-      </div>
-
-      <div className="p-5 space-y-3">
-        {/* Linhas do breakdown */}
-        {[
-          {
-            label: 'TX Retenção',
-            detail: rv.retencaoFaixa ? `≥${rv.retencaoFaixa.min}%` : '<58%',
-            valor: formatBRLGestor(rv.retencaoBase),
-            cor: rv.retencaoBase > 0 ? '#34d399' : 'var(--text-muted)',
-          },
-          {
-            label: 'Indisponibilidade',
-            detail: rv.indispBonus > 0 ? `≤${config.indispMeta}%` : `>${config.indispMeta}%`,
-            valor: formatBRLGestor(rv.indispBonus),
-            cor: rv.indispBonus > 0 ? '#34d399' : 'var(--text-muted)',
-          },
-          {
-            label: 'TMA',
-            detail: rv.tmaBonus > 0 ? `≤${segParaMMSSGestor(config.tmaMetaSeg)}` : `>${segParaMMSSGestor(config.tmaMetaSeg)}`,
-            valor: formatBRLGestor(rv.tmaBonus),
-            cor: rv.tmaBonus > 0 ? '#34d399' : 'var(--text-muted)',
-          },
-          ...(rv.ticketAplicavel ? [{
-            label: 'Variação Ticket',
-            detail: rv.ticketFaixa ? `≥${rv.ticketFaixa.min}%` : '<-18%',
-            valor: formatBRLGestor(rv.ticketBonus),
-            cor: rv.ticketBonus > 0 ? '#34d399' : 'var(--text-muted)' as string,
-          }] : []),
-        ].map(({ label, detail, valor, cor }) => (
-          <div key={label} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 12px',
-            borderRadius: '10px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.04)',
-          }}>
-            <div>
-              <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</p>
-              <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{detail}</p>
-            </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: cor }}>
-              {valor}
-            </span>
-          </div>
-        ))}
-
-        {/* RV Base subtotal */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Subtotal (RV Base)</span>
-          <span style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--text-secondary)' }}>
-            {formatBRLGestor(rv.rvBase)}
-          </span>
-        </div>
-
-        {/* Bônus */}
-        {rv.bonusAplicado && (
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '8px 12px', borderRadius: '10px',
-            background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)',
-          }}>
-            <span style={{ fontSize: '11px', color: 'var(--gold-light)' }}>
-              Bônus {config.bonusPercentual}% (Retenção ≥{config.bonusRetencaoMin}% e ABS ≤{config.bonusAbsMax}%)
-            </span>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--gold-light)', fontVariantNumeric: 'tabular-nums' }}>
-              +{formatBRLGestor(rv.bonusValor)}
-            </span>
-          </div>
-        )}
-
-        {/* Deflatores */}
-        {rv.deflatores.length > 0 && (
-          <div className="space-y-2">
-            <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#f87171' }}>
-              Deflatores
-            </p>
-            {rv.deflatores.map((d, i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '7px 12px', borderRadius: '10px',
-                background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.12)',
-              }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {d.motivo} (−{d.perda}%)
-                </span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
-                  −{formatBRLGestor(d.valorDeduzido)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* RV FINAL */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '14px 16px', borderRadius: '12px',
-          background: rv.elegivel ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.03)',
-          border: rv.elegivel ? '1px solid rgba(201,168,76,0.25)' : '1px solid rgba(255,255,255,0.06)',
-          marginTop: '4px',
-        }}>
-          <span style={{
-            fontFamily: 'var(--ff-display)',
-            fontSize: '13px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            color: rv.elegivel ? 'var(--gold)' : 'var(--text-muted)',
-          }}>
-            RV Final
-          </span>
-          <span style={{
-            fontFamily: 'var(--ff-display)',
-            fontSize: '22px',
-            fontWeight: 700,
-            fontVariantNumeric: 'tabular-nums',
-            background: rv.elegivel
-              ? 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)'
-              : 'none',
-            WebkitBackgroundClip: rv.elegivel ? 'text' : undefined,
-            WebkitTextFillColor: rv.elegivel ? 'transparent' : undefined,
-            backgroundClip: rv.elegivel ? 'text' : undefined,
-            color: rv.elegivel ? undefined : 'var(--text-muted)',
-          }}>
-            {formatBRLGestor(rv.rvFinal)}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Colunas complementares ────────────────────────────────────────────────────
 
 const COLS_COMP = [
@@ -325,14 +128,16 @@ export default async function GestorPage() {
   let totalMonitorias         = 0
   let monitoriasCompletas     = 0
   let erroSheets: string | null = null
+  let opKpis: OpKpiData[]     = []
 
   const config = await getRVGestorConfig()
 
   if (planilha) {
     try {
-      const [gestorData, monitoriaData] = await Promise.all([
+      const [gestorData, monitoriaData, opData] = await Promise.all([
         buscarLinhasPlanilha(planilha.spreadsheet_id, 'KPI GESTOR', 5),
         buscarLinhasPlanilha(planilha.spreadsheet_id, 'MONITORIA').catch(() => ({ headers: [], rows: [] })),
+        buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba).catch(() => ({ headers: [], rows: [] })),
       ])
 
       headers  = gestorData.headers
@@ -348,6 +153,30 @@ export default async function GestorPage() {
         if (col) porColaborador.set(col, (porColaborador.get(col) ?? 0) + 1)
       }
       monitoriasCompletas = Array.from(porColaborador.values()).filter(v => v >= 4).length
+
+      // Dados de KPI por operador (para popup de hover)
+      if (opData.headers.length > 0) {
+        const colIdent = encontrarColunaIdent(opData.headers)
+        const idxRet  = detectIdx(opData.headers, 'retracao')
+        const idxInd  = detectIdx(opData.headers, 'indisp')
+        const idxTma  = detectIdx(opData.headers, 'tma')
+        const idxTkt  = detectIdx(opData.headers, 'ticket')
+        const idxAbs  = detectIdx(opData.headers, 'abs')
+
+        opKpis = OPERADORES_DISPLAY.map(op => {
+          const row = opData.rows.find(r => matchCelulaOperador(r[colIdent] ?? '', op.username, op.nome))
+          if (!row) return null
+          return {
+            id: op.id,
+            nome: op.nome,
+            retencaoVal: parsePct(row[idxRet] ?? ''),
+            indispVal:   parsePct(row[idxInd] ?? ''),
+            tmaValSeg:   parseSeg(row[idxTma] ?? ''),
+            ticketVal:   parsePct(row[idxTkt] ?? ''),
+            absVal:      parsePct(row[idxAbs] ?? ''),
+          } satisfies OpKpiData
+        }).filter((o): o is OpKpiData => o !== null)
+      }
     } catch (e) {
       erroSheets = e instanceof Error ? e.message : 'Erro ao ler planilha'
     }
@@ -555,7 +384,7 @@ export default async function GestorPage() {
                 <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(201,168,76,0.12) 0%, transparent 100%)' }} />
               </div>
 
-              <div className="max-w-lg space-y-3">
+              <div className="space-y-3">
                 {/* Banner de inelegibilidade */}
                 {!rv.elegivel && !rv.semDados && (
                   <div style={{
@@ -566,6 +395,7 @@ export default async function GestorPage() {
                     border: '1px solid rgba(239,68,68,0.30)',
                     borderRadius: '10px',
                     padding: '12px 16px',
+                    maxWidth: '480px',
                   }}>
                     <AlertTriangle size={15} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
                     <div>
@@ -579,7 +409,7 @@ export default async function GestorPage() {
                   </div>
                 )}
                 <div style={{ opacity: rv.elegivel ? 1 : 0.6 }}>
-                  <RVCard rv={rv} config={config} inelegivel={!rv.elegivel && !rv.semDados} />
+                  <GestorRVSection rv={rv} config={config} opKpis={opKpis} absVal={absVal} />
                 </div>
               </div>
             </div>
