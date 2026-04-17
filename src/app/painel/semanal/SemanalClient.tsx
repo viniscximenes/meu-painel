@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff } from 'lucide-react'
+import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff, XCircle } from 'lucide-react'
 import type { Meta } from '@/lib/kpi-utils'
 import { normalizarChave } from '@/lib/kpi-utils'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
@@ -325,11 +325,25 @@ function OperadorCard({
   mostrarNomes: boolean
 }) {
   const isMelhor = tipo === 'melhor'
-  const posEmoji = isMelhor ? (['🥇','🥈','🥉'][pos - 1] ?? `#${pos}`) : '💀'
+  const posEmoji = isMelhor ? (['🥇','🥈','🥉'][pos - 1] ?? `#${pos}`) : null
   const pts = row.score
-  const ptsColor  = pts > 0 ? 'var(--verde)' : pts < 0 ? 'var(--vermelho)' : 'var(--text-muted)'
-  const ptsBg     = pts > 0 ? 'rgba(16,185,129,0.08)'  : pts < 0 ? 'rgba(239,68,68,0.08)'  : 'rgba(255,255,255,0.04)'
-  const ptsBorder = pts > 0 ? 'rgba(16,185,129,0.18)'  : pts < 0 ? 'rgba(239,68,68,0.18)'  : 'rgba(255,255,255,0.08)'
+
+  let ptsColor: string
+  let ptsBg: string
+  let ptsBorder: string
+  if (!isMelhor) {
+    ptsColor  = 'var(--amarelo)'
+    ptsBg     = 'rgba(234,179,8,0.15)'
+    ptsBorder = 'rgba(234,179,8,0.3)'
+  } else if (pts > 0) {
+    ptsColor  = 'var(--verde)'
+    ptsBg     = 'rgba(16,185,129,0.08)'
+    ptsBorder = 'rgba(16,185,129,0.18)'
+  } else {
+    ptsColor  = 'var(--amarelo)'
+    ptsBg     = 'rgba(234,179,8,0.10)'
+    ptsBorder = 'rgba(234,179,8,0.25)'
+  }
 
   const txRetMeta   = metas.find((m) => isTxRet(m))
   const outrasMetas = metas.filter((m) => !isTxRet(m))
@@ -338,8 +352,11 @@ function OperadorCard({
     ? row.nomeReal.split(' ').slice(0, 2).join(' ')
     : (row.nomeFantasia ?? row.nomeReal.split(' ')[0])
 
-  const borderColor = isMelhor ? PODIUM_BORDER[pos] ?? 'var(--border)' : 'var(--border)'
+  const borderColor = isMelhor ? PODIUM_BORDER[pos] ?? 'var(--border)' : 'var(--vermelho)'
   const shadow      = isMelhor ? PODIUM_SHADOW[pos]  ?? 'none'          : 'none'
+  const cardBg      = !isMelhor
+    ? 'linear-gradient(135deg, rgba(239,68,68,0.08) 0%, transparent 60%)'
+    : undefined
 
   return (
     <div
@@ -349,6 +366,7 @@ function OperadorCard({
         overflow: 'hidden',
         border: `2px solid ${borderColor}`,
         boxShadow: shadow,
+        ...(cardBg ? { background: cardBg } : {}),
       }}
     >
       {/* Header */}
@@ -356,7 +374,10 @@ function OperadorCard({
         className="flex items-center gap-3 px-4 pt-4 pb-3"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
-        <span className="text-2xl leading-none shrink-0">{posEmoji}</span>
+        {isMelhor
+          ? <span className="text-2xl leading-none shrink-0">{posEmoji}</span>
+          : <XCircle size={24} style={{ color: 'var(--vermelho)', flexShrink: 0 }} />
+        }
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 border-2"
           style={getAvatarStyle(row.opId)}
