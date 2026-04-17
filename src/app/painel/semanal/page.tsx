@@ -199,9 +199,12 @@ export default async function SemanalPage() {
 
   await tentarAutoSnapshot(metas)
 
-  const [datas, nomesFantasia] = await Promise.all([
+  const hoje = new Date().toISOString().slice(0, 10)
+
+  const [datas, nomesFantasia, existeSnapshotHoje] = await Promise.all([
     getSnapshotsDatasRecentes(2),
     getNomesFantasia(mesReferencia),
+    existeSnapshotParaData(hoje),
   ])
 
   const snapshots = datas.length > 0 ? await getSnapshotsByDatas(datas) : []
@@ -250,6 +253,7 @@ export default async function SemanalPage() {
         mesReferencia={mesReferencia}
         melhores={melhores}
         piores={piores}
+        existeSnapshotHoje={existeSnapshotHoje}
       />
     </PainelShell>
   )

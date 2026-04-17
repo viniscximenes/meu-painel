@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff, XCircle } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff, XCircle, Save } from 'lucide-react'
+import { salvarSnapshotHojeAction } from './actions'
 import type { Meta } from '@/lib/kpi-utils'
 import { normalizarChave } from '@/lib/kpi-utils'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
@@ -25,6 +27,7 @@ export interface SemanalClientProps {
   mesReferencia: string
   melhores: number[]
   piores: number[]
+  existeSnapshotHoje: boolean
 }
 
 // ── Sistema de pontos ─────────────────────────────────────────────────────────
@@ -491,10 +494,37 @@ function PodiumMelhores({
 // ── Componente principal ───────────────────────────────────────────────────────
 
 export default function SemanalClient({
-  datas, rows, metas, mesReferencia, melhores, piores,
+  datas, rows, metas, mesReferencia, melhores, piores, existeSnapshotHoje,
 }: SemanalClientProps) {
+  const router = useRouter()
   const [infoAberta,   setInfoAberta]   = useState(false)
   const [mostrarNomes, setMostrarNomes] = useState(false)
+  const [toast,        setToast]        = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null)
+  const [isPending,    startTransition] = useTransition()
+
+  function mostrarToast(tipo: 'ok' | 'erro', msg: string) {
+    setToast({ tipo, msg })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  async function handleSalvarSnapshot() {
+    if (existeSnapshotHoje) {
+      const ok = window.confirm(
+        'Já existe snapshot de hoje.\nDeseja atualizar?'
+      )
+      if (!ok) return
+    }
+    startTransition(async () => {
+      const res = await salvarSnapshotHojeAction()
+      if (res.ok) {
+        const [y, m, d] = res.data.split('-')
+        mostrarToast('ok', `Snapshot salvo — ${d}/${m}/${y}`)
+        router.refresh()
+      } else {
+        mostrarToast('erro', res.erro)
+      }
+    })
+  }
 
   const data2 = datas[0] ?? null
   const data1 = datas[1] ?? null
@@ -536,16 +566,48 @@ export default function SemanalClient({
           </p>
         </div>
 
-        {/* Toggle nomes */}
-        <button
-          type="button"
-          onClick={() => setMostrarNomes((v) => !v)}
-          className="btn-secondary flex items-center gap-1.5 text-xs shrink-0"
-        >
-          {mostrarNomes ? <EyeOff size={12} /> : <Eye size={12} />}
-          {mostrarNomes ? 'Ver nomes fantasia' : 'Ver nomes reais'}
-        </button>
+        {/* Ações do header */}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          {/* Salvar snapshot */}
+          <button
+            type="button"
+            onClick={handleSalvarSnapshot}
+            disabled={isPending}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+            style={isPending ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+          >
+            <Save size={12} />
+            {isPending ? 'Salvando…' : 'Salvar snapshot hoje'}
+          </button>
+
+          {/* Toggle nomes */}
+          <button
+            type="button"
+            onClick={() => setMostrarNomes((v) => !v)}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+          >
+            {mostrarNomes ? <EyeOff size={12} /> : <Eye size={12} />}
+            {mostrarNomes ? 'Ver nomes fantasia' : 'Ver nomes reais'}
+          </button>
+        </div>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium"
+          style={{
+            background: toast.tipo === 'ok'
+              ? 'rgba(16,185,129,0.10)'
+              : 'rgba(239,68,68,0.10)',
+            border: `1px solid ${toast.tipo === 'ok' ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+            color: toast.tipo === 'ok' ? 'var(--verde)' : 'var(--vermelho)',
+          }}
+        >
+          {toast.tipo === 'ok' ? <Save size={14} /> : <XCircle size={14} />}
+          {toast.msg}
+        </div>
+      )}
 
       {/* ── Como funciona ── */}
       <div className="card" style={{ padding: 0 }}>
