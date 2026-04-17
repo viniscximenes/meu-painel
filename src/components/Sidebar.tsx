@@ -8,6 +8,7 @@ import { OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/opera
 import {
   LayoutDashboard, Users, ChevronRight, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
+  CalendarDays,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -170,6 +171,10 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
       <Link href="/painel/monitoria" onClick={onClose}
         className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <ClipboardList size={15} /> Monitoria
+      </Link>
+      <Link href="/painel/abs" onClick={onClose}
+        className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <CalendarDays size={15} /> ABS
       </Link>
 
       {/* ── Operadores — recolhível (fechado por padrão) ── */}

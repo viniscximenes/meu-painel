@@ -11,6 +11,8 @@ import {
   matchCelulaOperador,
 } from '@/lib/sheets'
 import { getRVConfig, calcularRV, formatBRL, type ResultadoRV } from '@/lib/rv'
+import { lerAbaABS } from '@/lib/abs-sheets'
+import { contarFaltasPorOperador } from '@/lib/abs-utils'
 import RVEquipeTabela, { type OpRV } from './RVEquipeTabela'
 
 function globalStatus(kpis: KPIItem[]): Status {
@@ -40,10 +42,14 @@ export default async function RVEquipePage() {
 
   if (planilha) {
     try {
-      const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba)
+      const [{ headers, rows }, absData] = await Promise.all([
+        buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba),
+        lerAbaABS(planilha.spreadsheet_id).catch(() => null),
+      ])
       const col = encontrarColunaIdent(headers)
       dataAtualizacao = extrairDataAtualizacao(rows)
       const mesAtual = new Date().toISOString().slice(0, 7)
+      const faltasPorOp = absData ? contarFaltasPorOperador(absData) : {}
 
       operadores = OPERADORES_DISPLAY.map((op) => {
         const row = rows.find((r) =>
@@ -54,9 +60,10 @@ export default async function RVEquipePage() {
         const kpis = metas.length > 0 ? computarKPIs(headers, row, metas) : []
         const gs   = globalStatus(kpis)
         const motivosVermelhos = kpis.filter((k) => k.status === 'vermelho').map((k) => k.label)
+        const faltasNoMes = faltasPorOp[op.username] ?? 0
 
         let rv: ResultadoRV | null = null
-        try { rv = calcularRV(headers, row, rvConfig, '', kpis, op.id, mesAtual) } catch { /* continua */ }
+        try { rv = calcularRV(headers, row, rvConfig, '', kpis, op.id, mesAtual, faltasNoMes) } catch { /* continua */ }
 
         return { id: op.id, nome: op.nome, username: op.username, gs, encontrado: true, motivosVermelhos, rv }
       })

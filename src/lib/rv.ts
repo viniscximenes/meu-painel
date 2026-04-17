@@ -261,6 +261,7 @@ export function calcularRV(
   kpis: KPIItem[] = [],
   operadorId = 0,
   mesReferencia = '',
+  faltasNoMes = 0,
 ): ResultadoRV {
   const debug = !!label
 
@@ -331,6 +332,9 @@ export function calcularRV(
   const motivosInelegivel: string[] = []
   if (!semDados && absValFinal > config.absMaximo) {
     motivosInelegivel.push(`ABS ${fmtPct(absVal)} — máximo ${fmtPct(config.absMaximo)}`)
+  }
+  if (!semDados && faltasNoMes >= 2) {
+    motivosInelegivel.push(`${faltasNoMes} falta(s) no mês — limite 1`)
   }
   const elegivel = !semDados && motivosInelegivel.length === 0
 
