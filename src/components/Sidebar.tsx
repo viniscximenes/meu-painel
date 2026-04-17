@@ -146,7 +146,7 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
   return (
     <div className="space-y-0.5">
       {/* ── Geral ── */}
-      <NavLabel>Geral</NavLabel>
+      <NavLabel>Dados Gerais</NavLabel>
 
       <Link href="/painel" onClick={onClose}
         className={pathname === '/painel' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
