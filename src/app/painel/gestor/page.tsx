@@ -293,11 +293,6 @@ export default async function GestorPage() {
             )}
           </div>
 
-          {planilha && (
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-              {planilha.nome}
-            </span>
-          )}
         </div>
 
         {/* ── Erro de planilha ── */}

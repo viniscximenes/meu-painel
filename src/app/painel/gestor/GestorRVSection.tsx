@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { ResultadoRVGestor, RVGestorConfig } from '@/lib/rv-gestor-utils'
 import { formatBRLGestor, segParaMMSSGestor } from '@/lib/rv-gestor-utils'
 import { AlertTriangle, CheckCircle, Users, Info } from 'lucide-react'
-import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
+import { getIniciaisNome } from '@/lib/operadores'
 
 export type OpKpiData = {
   id: number
@@ -107,7 +107,6 @@ function OpPopup({ line, config, opKpis }: { line: HoverLine; config: RVGestorCo
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                 <div
                   style={{
-                    ...getAvatarStyle(op.id),
                     width: '20px',
                     height: '20px',
                     borderRadius: '5px',
@@ -117,6 +116,13 @@ function OpPopup({ line, config, opKpis }: { line: HoverLine; config: RVGestorCo
                     fontSize: '7px',
                     fontWeight: 700,
                     flexShrink: 0,
+                    color: '#ffffff',
+                    background: op.id % 2 !== 0
+                      ? 'linear-gradient(135deg, #0f1729, #1a2540)'
+                      : 'linear-gradient(135deg, #0a1020, #111830)',
+                    border: op.id % 2 !== 0
+                      ? '1px solid rgba(66,139,255,0.25)'
+                      : '1px solid rgba(66,139,255,0.15)',
                   }}
                 >
                   {getIniciaisNome(op.nome)}
@@ -259,10 +265,11 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
       {/* ── RV Card ── */}
       <div style={{ flex: '0 0 auto', maxWidth: '480px', width: '100%' }}>
         <div style={{
-          background: '#111827',
-          border: '1px solid rgba(201,168,76,0.20)',
+          background: '#1a2235',
+          border: '1px solid rgba(201,168,76,0.35)',
           borderRadius: '16px',
           overflow: 'hidden',
+          boxShadow: '0 0 0 1px rgba(201,168,76,0.08)',
         }}>
           {/* Header do card */}
           <div style={{
@@ -325,7 +332,7 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
                     padding: '8px 12px',
                     borderRadius: '10px',
                     background: isZero ? 'rgba(239,68,68,0.04)' : isHovered ? 'rgba(201,168,76,0.04)' : 'rgba(255,255,255,0.02)',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid rgba(255,255,255,0.08)',
                     borderTop: '1px solid transparent',
                     borderRight: '1px solid transparent',
                     borderLeft: isZero ? '3px solid #ef4444' : isHovered ? '3px solid rgba(201,168,76,0.4)' : '3px solid transparent',
