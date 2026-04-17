@@ -53,7 +53,7 @@ function ultimaSegundaISO(iso: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-/** Lê as células A1:A5 da aba KPI CONSOLIDADO, loga todas, retorna a primeira que pareça uma data. */
+/** Lê A1:A10, procura "ATUALIZADO" e retorna a célula imediatamente abaixo. */
 async function lerDataKpi(spreadsheet_id: string): Promise<string | null> {
   const abas = await listarAbas(spreadsheet_id)
   console.log('[lerDataKpi] abas disponíveis:', abas)
@@ -61,18 +61,23 @@ async function lerDataKpi(spreadsheet_id: string): Promise<string | null> {
   const abaKpi = abas.find((a) => /kpi/i.test(a) && /consolidado/i.test(a)) ?? 'KPI CONSOLIDADO'
   console.log('[lerDataKpi] usando aba:', abaKpi)
 
-  const valores = await lerRangeCelulas(spreadsheet_id, abaKpi, 'A1:A5')
-  console.log('[lerDataKpi] A1:A5 valores:', valores)
+  const valores = await lerRangeCelulas(spreadsheet_id, abaKpi, 'A1:A10')
+  console.log('[lerDataKpi] A1:A10 valores:', valores)
 
-  for (let i = 0; i < valores.length; i++) {
-    const parsed = parseDataKpi(valores[i])
-    if (parsed) {
-      console.log(`[lerDataKpi] data encontrada em A${i + 1}:`, parsed)
-      return parsed
+  for (let i = 0; i < valores.length - 1; i++) {
+    if (/atualizado/i.test(valores[i])) {
+      const candidata = valores[i + 1]
+      console.log(`[lerDataKpi] "ATUALIZADO" em A${i + 1}, data candidata em A${i + 2}: "${candidata}"`)
+      const parsed = parseDataKpi(candidata)
+      if (parsed) {
+        console.log('[lerDataKpi] data parseada:', parsed)
+        return parsed
+      }
+      console.warn('[lerDataKpi] célula abaixo de "ATUALIZADO" não é uma data válida:', candidata)
     }
   }
 
-  console.warn('[lerDataKpi] nenhuma data encontrada em A1:A5')
+  console.warn('[lerDataKpi] "ATUALIZADO" não encontrado em A1:A10, valores:', valores)
   return null
 }
 
