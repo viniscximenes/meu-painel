@@ -11,8 +11,6 @@ import {
   matchCelulaOperador,
 } from '@/lib/sheets'
 import { getRVConfig, calcularRV, formatBRL, type ResultadoRV } from '@/lib/rv'
-import Link from 'next/link'
-import { SlidersHorizontal } from 'lucide-react'
 import RVEquipeTabela, { type OpRV } from './RVEquipeTabela'
 
 function globalStatus(kpis: KPIItem[]): Status {
@@ -80,7 +78,7 @@ export default async function RVEquipePage() {
   } as React.CSSProperties
 
   return (
-    <PainelShell profile={profile} title="RV da Equipe" iconName="Users">
+    <PainelShell profile={profile} title="RV da Equipe" iconName="Banknote">
       <div style={cssVars} className="space-y-4">
 
         {/* ── Linha dourada ── */}
@@ -138,12 +136,6 @@ export default async function RVEquipePage() {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Link href="/painel/rv-config" className="btn-secondary flex items-center gap-2 text-xs">
-              <SlidersHorizontal size={13} />
-              Configurar Regras
-            </Link>
-          </div>
         </div>
 
         {/* ── Cards de resumo ── */}
