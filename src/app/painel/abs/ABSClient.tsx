@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useTransition } from 'react'
 import type { ABSSheetData, ABSStatus } from '@/lib/abs-utils'
 import { ABS_STATUS_OPTIONS } from '@/lib/abs-utils'
-import { atualizarStatusABSAction } from './actions'
+import { atualizarStatusABSAction, aplicarStatusTodosAction } from './actions'
 import { getIniciaisNome } from '@/lib/operadores'
 
 interface OperadorInfo {
@@ -42,12 +42,14 @@ function ABSCell({
   colIndex,
   onUpdate,
   isHoje,
+  openUp,
 }: {
   status: ABSStatus
   rowIndex: number
   colIndex: number
   onUpdate: (rowIndex: number, colIndex: number, status: ABSStatus) => void
   isHoje: boolean
+  openUp?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -89,7 +91,9 @@ function ABSCell({
       {open && (
         <div style={{
           position: 'absolute',
-          top: '100%',
+          ...(openUp
+            ? { bottom: '100%', marginBottom: '3px' }
+            : { top: '100%', marginTop: '3px' }),
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 100,
@@ -102,7 +106,6 @@ function ABSCell({
           display: 'flex',
           flexDirection: 'column',
           gap: '2px',
-          marginTop: '3px',
         }}>
           {ABS_STATUS_OPTIONS.map((opt) => (
             <button
@@ -154,12 +157,133 @@ function ABSCell({
   )
 }
 
+// ── Célula "Aplicar a todos" ──────────────────────────────────────────────────
+
+function AllDayCell({
+  colIndex,
+  isHoje,
+  onApplyAll,
+}: {
+  colIndex: number
+  isHoje: boolean
+  onApplyAll: (colIndex: number, status: ABSStatus) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Aplicar a todos"
+        style={{
+          width: '34px',
+          height: '26px',
+          borderRadius: '5px',
+          border: isHoje
+            ? '1px solid rgba(201,168,76,0.7)'
+            : '1px solid rgba(201,168,76,0.3)',
+          background: 'rgba(201,168,76,0.06)',
+          color: '#c9a84c',
+          fontSize: '10px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'monospace',
+        }}
+      >
+        ···
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100%',
+          marginBottom: '3px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 100,
+          background: '#0f1729',
+          border: '1px solid rgba(201,168,76,0.35)',
+          borderRadius: '10px',
+          padding: '6px',
+          minWidth: '130px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+        }}>
+          <div style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#c9a84c', padding: '3px 8px 5px', borderBottom: '1px solid rgba(201,168,76,0.15)', marginBottom: '2px' }}>
+            Aplicar a todos
+          </div>
+          {ABS_STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                setOpen(false)
+                onApplyAll(colIndex, opt.value)
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '5px 8px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                width: '100%',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+            >
+              <span style={{
+                width: '22px',
+                height: '18px',
+                borderRadius: '4px',
+                background: STATUS_STYLE[opt.value]?.bg ?? 'transparent',
+                color: STATUS_STYLE[opt.value]?.color ?? '#fff',
+                fontSize: '8px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'monospace',
+                flexShrink: 0,
+              }}>
+                {STATUS_STYLE[opt.value]?.label ?? opt.value}
+              </span>
+              <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                {opt.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function ABSClient({ data: initialData, operadores, hoje }: Props) {
   const [data, setData] = useState<ABSSheetData>(initialData)
   const [, startTransition] = useTransition()
   const [saving, setSaving] = useState<string | null>(null) // "rowIndex-colIndex"
+  const [savingAll, setSavingAll] = useState<number | null>(null) // colIndex
 
   const opMap = new Map(operadores.map((o) => [o.username, o]))
 
@@ -167,15 +291,11 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
     const key = `${rowIndex}-${colIndex}`
     setSaving(key)
 
-    // Optimistic update
     setData((prev) => ({
       ...prev,
       operadores: prev.operadores.map((op) =>
         op.rowIndex === rowIndex
-          ? {
-              ...op,
-              status: op.status.map((s, i) => (i === colIndex ? status : s)),
-            }
+          ? { ...op, status: op.status.map((s, i) => (i === colIndex ? status : s)) }
           : op
       ),
     }))
@@ -183,11 +303,39 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
     startTransition(async () => {
       const res = await atualizarStatusABSAction(rowIndex, colIndex, status)
       if (!res.ok) {
-        // Rollback on error
         setData(initialData)
         alert(`Erro ao salvar: ${res.erro}`)
       }
       setSaving(null)
+    })
+  }
+
+  function handleApplyAll(colIndex: number, status: ABSStatus) {
+    const label = ABS_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status
+    const confirmed = window.confirm(
+      `Aplicar "${label}" para TODOS os operadores neste dia?`
+    )
+    if (!confirmed) return
+
+    setSavingAll(colIndex)
+
+    const rowIndexes = data.operadores.map((op) => op.rowIndex)
+
+    setData((prev) => ({
+      ...prev,
+      operadores: prev.operadores.map((op) => ({
+        ...op,
+        status: op.status.map((s, i) => (i === colIndex ? status : s)),
+      })),
+    }))
+
+    startTransition(async () => {
+      const res = await aplicarStatusTodosAction(colIndex, status, rowIndexes)
+      if (!res.ok) {
+        setData(initialData)
+        alert(`Erro ao salvar: ${res.erro}`)
+      }
+      setSavingAll(null)
     })
   }
 
@@ -201,6 +349,8 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
         return s && s !== '-' && (s as string) !== ''
       }).length
     : 0
+
+  const totalOps = data.operadores.length
 
   return (
     <div className="space-y-6">
@@ -297,6 +447,7 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                 const ausencias = op.status.filter((s) => ['F', 'SC', 'CT', 'FE', 'LI', 'AT'].includes(s)).length
                 const risco = faltas >= 2
                 const zebra = opIdx % 2 === 0
+                const openUp = opIdx >= totalOps - 2
 
                 return (
                   <tr key={op.username} style={{ background: zebra ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
@@ -344,6 +495,7 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                             colIndex={dateIdx}
                             onUpdate={handleUpdate}
                             isHoje={isHoje}
+                            openUp={openUp}
                           />
                         </td>
                       )
@@ -376,6 +528,55 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                   </tr>
                 )
               })}
+
+              {/* Linha "Aplicar a todos" */}
+              <tr style={{
+                borderTop: '2px solid rgba(201,168,76,0.4)',
+                background: 'rgba(201,168,76,0.03)',
+              }}>
+                <td style={{
+                  position: 'sticky', left: 0, zIndex: 5,
+                  background: '#0a0d15',
+                  padding: '6px 14px',
+                  borderRight: '1px solid rgba(255,255,255,0.06)',
+                  minWidth: '120px',
+                }}>
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: '#c9a84c',
+                    letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    Aplicar a todos →
+                  </span>
+                </td>
+
+                {data.datas.map((data_str, dateIdx) => {
+                  const isHoje = data_str === hoje
+                  const isSavingCol = savingAll === dateIdx
+                  return (
+                    <td key={dateIdx} style={{
+                      padding: '3px 2px',
+                      textAlign: 'center',
+                      borderRight: '1px solid rgba(255,255,255,0.03)',
+                      background: isHoje ? 'rgba(201,168,76,0.05)' : undefined,
+                      opacity: isSavingCol ? 0.5 : 1,
+                    }}>
+                      <AllDayCell
+                        colIndex={dateIdx}
+                        isHoje={isHoje}
+                        onApplyAll={handleApplyAll}
+                      />
+                    </td>
+                  )
+                })}
+
+                <td style={{
+                  padding: '6px 10px',
+                  borderLeft: '1px solid rgba(255,255,255,0.06)',
+                }} />
+              </tr>
             </tbody>
           </table>
         </div>

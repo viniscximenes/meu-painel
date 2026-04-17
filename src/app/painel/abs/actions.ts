@@ -21,6 +21,27 @@ export async function inicializarABSAction(mes: number, ano: number): Promise<{ 
   }
 }
 
+export async function aplicarStatusTodosAction(
+  colIndex: number,
+  status: ABSStatus,
+  rowIndexes: number[],
+): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    await requireGestor()
+    const planilha = await getPlanilhaAtiva()
+    if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
+    await Promise.all(
+      rowIndexes.map((rowIndex) =>
+        atualizarCelulaABS(planilha.spreadsheet_id, rowIndex, colIndex, status)
+      )
+    )
+    revalidatePath('/painel/abs')
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : 'Erro ao salvar.' }
+  }
+}
+
 export async function atualizarStatusABSAction(
   rowIndex: number,
   colIndex: number,
