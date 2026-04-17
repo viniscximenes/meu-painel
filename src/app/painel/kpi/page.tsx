@@ -6,7 +6,7 @@ import { getPlanilhaAtiva, buscarLinhaOperador } from '@/lib/sheets'
 import PainelShell from '@/components/PainelShell'
 import KPIBasico from '@/components/kpi/KPIBasico'
 import KPICompleto from '@/components/kpi/KPICompleto'
-import { AlertTriangle, Settings, UserCircle } from 'lucide-react'
+import { AlertTriangle, Settings } from 'lucide-react'
 import Link from 'next/link'
 
 const COLUNAS_COMPLEMENTARES = [
@@ -46,7 +46,7 @@ export default async function KPIPage({ searchParams }: PageProps) {
 
   if (!planilha) {
     return (
-      <PainelShell profile={profile} title="Meus KPIs" icon={UserCircle}>
+      <PainelShell profile={profile} title="Meus KPIs" iconName="UserCircle">
         <AvisoSemPlanilha />
       </PainelShell>
     )
@@ -56,7 +56,7 @@ export default async function KPIPage({ searchParams }: PageProps) {
 
   if (!resultado) {
     return (
-      <PainelShell profile={profile} title="Meus KPIs" icon={UserCircle}>
+      <PainelShell profile={profile} title="Meus KPIs" iconName="UserCircle">
         <AvisoSemDados username={profile.username} planilhaNome={planilha.nome} />
       </PainelShell>
     )
@@ -71,7 +71,7 @@ export default async function KPIPage({ searchParams }: PageProps) {
   }).filter((d) => d.valor !== '—' && d.valor !== '')
 
   return (
-    <PainelShell profile={profile} title={completo ? 'KPI Completo' : 'Meus KPIs'} icon={UserCircle}>
+    <PainelShell profile={profile} title={completo ? 'KPI Completo' : 'Meus KPIs'} iconName="UserCircle">
       {completo ? (
         <KPICompleto kpis={kpis} nomeOperador={profile.nome} linkVoltar="/painel/kpi" podeOrdenar={false} />
       ) : (

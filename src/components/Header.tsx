@@ -2,17 +2,24 @@
 
 import { logout } from '@/app/login/actions'
 import { Profile } from '@/types'
-import { Menu, LogOut, BarChart2, type LucideIcon } from 'lucide-react'
+import { Menu, LogOut, BarChart2, UserCircle } from 'lucide-react'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ICON_MAP: Record<string, React.ElementType> = {
+  UserCircle,
+  BarChart2,
+}
 
 interface HeaderProps {
   profile: Profile
   title: string
   onMenuClick: () => void
-  icon?: LucideIcon
+  iconName?: string
 }
 
-export default function Header({ profile, title, onMenuClick, icon: Icon = BarChart2 }: HeaderProps) {
+export default function Header({ profile, title, onMenuClick, iconName }: HeaderProps) {
+  const Icon = (iconName && ICON_MAP[iconName]) ? ICON_MAP[iconName] : BarChart2
   return (
     <header
       className="header-border-shimmer h-14 flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-10"
