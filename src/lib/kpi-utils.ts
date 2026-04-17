@@ -89,6 +89,12 @@ function isTxRetencao(meta: Meta): boolean {
     lbl.includes('retenc') || lbl.includes('retenç')
 }
 
+function isPedidos(meta: Meta): boolean {
+  const col = normalizarChave(meta.nome_coluna)
+  const lbl = normalizarChave(meta.label)
+  return col.includes('pedido') || lbl.includes('pedido')
+}
+
 function calcStatus(v: number, meta: Meta): Status {
   // Tx. Retenção: regra fixa independente do configurado nas metas
   if (isTxRetencao(meta)) {
@@ -97,9 +103,14 @@ function calcStatus(v: number, meta: Meta): Status {
     return 'vermelho'
   }
 
-  const { tipo } = meta
-  // Usa verde_inicio se configurado; caso contrário, cai de volta para valor_meta
   const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
+
+  // Pedidos: binário — sem zona amarela
+  if (isPedidos(meta)) {
+    return v >= limite ? 'verde' : 'vermelho'
+  }
+
+  const { tipo } = meta
 
   // TMA é binário: verde/vermelho sem zona amarela (menor_melhor: verde se ≤ limite)
   if (isTmaMeta(meta)) {

@@ -229,12 +229,25 @@ export function formatarDataPtBR(raw: string): string {
   return raw
 }
 
-/** Versão curta: "12/04/2026" → "12/04/2026" (já curta); "12 de abril..." → mantém */
+const MESES_IDX: Record<string, string> = {
+  janeiro:'01', fevereiro:'02', março:'03', marco:'03',
+  abril:'04', maio:'05', junho:'06', julho:'07',
+  agosto:'08', setembro:'09', outubro:'10',
+  novembro:'11', dezembro:'12',
+}
+
+/** Versão curta: qualquer formato → DD/MM/YYYY */
 export function formatarDataCurta(raw: string): string {
   const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
   if (dmy) return `${dmy[1].padStart(2,'0')}/${dmy[2].padStart(2,'0')}/${dmy[3]}`
   const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (ymd) return `${ymd[3]}/${ymd[2]}/${ymd[1]}`
+  // "12 de abril de 2026" ou "12 de abril 2026"
+  const ext = raw.trim().toLowerCase().match(/^(\d{1,2})\s+de\s+([a-zç]+)(?:\s+de)?\s+(\d{4})$/)
+  if (ext) {
+    const mes = MESES_IDX[ext[2]]
+    if (mes) return `${ext[1].padStart(2,'0')}/${mes}/${ext[3]}`
+  }
   return raw
 }
 

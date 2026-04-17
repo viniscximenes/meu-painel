@@ -41,10 +41,11 @@ const STATUS_RGB: Record<Status, string> = {
 
 function globalStatus(kpis: KPIItem[]): Status {
   const com = kpis.filter((k) => k.status !== 'neutro')
-  if (com.some((k) => k.status === 'vermelho')) return 'vermelho'
-  if (com.some((k) => k.status === 'amarelo'))  return 'amarelo'
-  if (com.some((k) => k.status === 'verde'))    return 'verde'
-  return 'neutro'
+  if (com.length === 0) return 'neutro'
+  const nVermelho = com.filter((k) => k.status === 'vermelho').length
+  if (nVermelho === 0) return 'verde'
+  if (nVermelho < com.length / 2) return 'amarelo'
+  return 'vermelho'
 }
 
 function isTxRetMeta(m: Meta) {
