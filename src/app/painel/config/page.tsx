@@ -1,28 +1,18 @@
 import { requireGestor } from '@/lib/auth'
 import { listarPlanilhas } from '@/lib/sheets'
-import { getNomesFantasia } from '@/lib/snapshots'
 import { getAppConfig } from '@/lib/app-config'
 import { getRVGestorConfigRaw } from '@/lib/rv-gestor'
 import PainelShell from '@/components/PainelShell'
 import PlanilhasClient from './PlanilhasClient'
-import NomesFantasiaClient from './NomesFantasiaClient'
 import KPIConsolidadoConfigClient from './KPIConsolidadoConfigClient'
 import RVGestorConfigClient from './RVGestorConfigClient'
 import { Database, TrendingUp } from 'lucide-react'
 
-function getMesReferencia(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
 export default async function ConfigPage() {
   const profile = await requireGestor()
 
-  const mesReferencia = getMesReferencia()
-
-  const [planilhas, nomesFantasia, limiteRaw, gestorConfigRaw] = await Promise.all([
+  const [planilhas, limiteRaw, gestorConfigRaw] = await Promise.all([
     listarPlanilhas(),
-    getNomesFantasia(mesReferencia),
     getAppConfig('kpi_consolidado_limite_linhas'),
     getRVGestorConfigRaw(),
   ])
@@ -52,15 +42,6 @@ export default async function ConfigPage() {
 
         {/* ── KPI CONSOLIDADO ── */}
         <KPIConsolidadoConfigClient limiteInicial={limiteLinhas} />
-
-        {/* Divisor */}
-        <div className="divider" />
-
-        {/* ── Nomes Fantasia ── */}
-        <NomesFantasiaClient
-          mesReferencia={mesReferencia}
-          nomesIniciais={nomesFantasia}
-        />
 
         {/* Divisor */}
         <div className="divider" />

@@ -2,7 +2,6 @@
 
 import { requireGestor } from '@/lib/auth'
 import { addPlanilha, ativarPlanilha, deletarPlanilha, atualizarPlanilha } from '@/lib/sheets'
-import { getNomesFantasia, upsertNomeFantasia } from '@/lib/snapshots'
 import { setAppConfig } from '@/lib/app-config'
 import { revalidatePath } from 'next/cache'
 
@@ -45,37 +44,6 @@ export async function editarPlanilha(formData: FormData) {
   if (!id || !nome || !spreadsheet_id) throw new Error('Campos obrigatórios ausentes')
   await atualizarPlanilha(id, { nome, spreadsheet_id, aba })
   revalidatePath('/painel/config')
-}
-
-export async function copiarNomesDoMesAnteriorAction(mesAtual: string): Promise<
-  | { ok: true; copiados: number; nomes: Record<number, string> }
-  | { ok: false; erro: string }
-> {
-  try {
-    await requireGestor()
-    const [y, m] = mesAtual.split('-').map(Number)
-    const prev   = new Date(y, m - 2, 1)
-    const mesPrev = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`
-
-    const nomesPrev = await getNomesFantasia(mesPrev)
-    if (!nomesPrev.length) return { ok: false, erro: `Nenhum nome encontrado em ${mesPrev}.` }
-
-    await Promise.all(
-      nomesPrev.map((n) =>
-        upsertNomeFantasia(Number(n.operador_id), mesAtual, n.nome_fantasia)
-      )
-    )
-
-    const nomes: Record<number, string> = {}
-    nomesPrev.forEach((n) => { nomes[Number(n.operador_id)] = n.nome_fantasia })
-
-    revalidatePath('/painel/config')
-    revalidatePath('/painel/semanal')
-    return { ok: true, copiados: nomesPrev.length, nomes }
-  } catch (e) {
-    console.error('[copiarNomesDoMesAnteriorAction]', e)
-    return { ok: false, erro: 'Erro ao copiar nomes.' }
-  }
 }
 
 export async function salvarKPIConsolidadoConfig(limiteLinhas: number): Promise<void> {
