@@ -67,7 +67,7 @@ export default async function KPIsEquipePage() {
   } as React.CSSProperties
 
   return (
-    <PainelShell profile={profile} title="KPIs da Equipe">
+    <PainelShell profile={profile} title="KPIs da Equipe" iconName="Users">
       <div style={cssVars} className="space-y-4">
 
         {/* ── Linha dourada ── */}
