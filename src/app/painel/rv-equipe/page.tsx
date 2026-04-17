@@ -78,7 +78,7 @@ export default async function RVEquipePage() {
   } as React.CSSProperties
 
   return (
-    <PainelShell profile={profile} title="RV da Equipe" iconName="Banknote">
+    <PainelShell profile={profile} title="RV da Equipe" iconName="CircleDollarSign">
       <div style={cssVars} className="space-y-4">
 
         {/* ── Linha dourada ── */}
