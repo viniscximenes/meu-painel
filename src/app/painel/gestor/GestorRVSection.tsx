@@ -265,22 +265,19 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
       {/* ── RV Card ── */}
       <div style={{ flex: '0 0 auto', maxWidth: '480px', width: '100%' }}>
         <div style={{
-          background: '#1a2235',
-          border: '1px solid rgba(201,168,76,0.35)',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          boxShadow: '0 0 0 1px rgba(201,168,76,0.08)',
+          background: '#1e2d45',
+          border: '1px solid rgba(201,168,76,0.5)',
+          borderRadius: '14px',
+          padding: '20px 24px',
         }}>
           {/* Header do card */}
           <div style={{
-            background: 'rgba(201,168,76,0.04)',
-            borderBottom: '1px solid rgba(201,168,76,0.08)',
-            padding: '14px 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '12px',
             flexWrap: 'wrap',
+            marginBottom: '16px',
           }}>
             <span style={{
               fontFamily: 'var(--ff-display)',
@@ -315,7 +312,7 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
             </span>
           </div>
 
-          <div className="p-5 space-y-3">
+          <div className="space-y-3">
             {/* Breakdown lines */}
             {breakdownLines.map(({ key, label, detail, valor }) => {
               const isZero = valor === 0
@@ -331,7 +328,7 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
                     justifyContent: 'space-between',
                     padding: '8px 12px',
                     borderRadius: '10px',
-                    background: isZero ? 'rgba(239,68,68,0.04)' : isHovered ? 'rgba(201,168,76,0.04)' : 'rgba(255,255,255,0.02)',
+                    background: isZero ? 'rgba(239,68,68,0.06)' : isHovered ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.04)',
                     borderBottom: '1px solid rgba(255,255,255,0.08)',
                     borderTop: '1px solid transparent',
                     borderRight: '1px solid transparent',
@@ -341,8 +338,8 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
                   }}
                 >
                   <div>
-                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</p>
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{detail}</p>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: '#cbd5e1' }}>{label}</p>
+                    <p style={{ fontSize: '10px', color: '#64748b', marginTop: '1px' }}>{detail}</p>
                   </div>
                   <span style={{
                     fontSize: '13px',
@@ -361,8 +358,8 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.06)',
             }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)' }}>Subtotal (RV Base)</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0' }}>Subtotal (RV Base)</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#e2e8f0' }}>
                 {formatBRLGestor(rv.rvBase)}
               </span>
             </div>
@@ -421,9 +418,9 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
             {/* RV FINAL — sempre gold */}
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '14px 16px', borderRadius: '12px',
-              background: 'rgba(201,168,76,0.08)',
-              border: '1px solid rgba(201,168,76,0.25)',
+              padding: '14px 16px', borderRadius: '10px',
+              background: 'rgba(201,168,76,0.12)',
+              border: '1px solid rgba(201,168,76,0.4)',
               marginTop: '4px',
             }}>
               <span style={{
