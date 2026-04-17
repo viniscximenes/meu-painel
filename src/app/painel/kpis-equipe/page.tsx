@@ -6,7 +6,6 @@ import PainelShell from '@/components/PainelShell'
 import Link from 'next/link'
 import { Settings, AlertTriangle } from 'lucide-react'
 import EquipeTabela from './EquipeTabela'
-import DeflatoresModal from './DeflatoresModal'
 
 export type DadosOperador = {
   op: typeof OPERADORES_DISPLAY[0]
@@ -132,9 +131,6 @@ export default async function KPIsEquipePage() {
 
           {/* Ações */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {metas.length > 0 && (
-              <DeflatoresModal metas={metas} dadosEquipe={dadosEquipe} />
-            )}
             {!planilha && (
               <Link href="/painel/config" className="btn-secondary text-xs flex items-center gap-1.5">
                 <Settings size={13} />

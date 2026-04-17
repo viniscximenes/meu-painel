@@ -82,7 +82,21 @@ function isTmaMeta(meta: Meta): boolean {
     lbl.includes('tempo medio') || lbl.includes('tempo médio')
 }
 
+function isTxRetencao(meta: Meta): boolean {
+  const col = normalizarChave(meta.nome_coluna)
+  const lbl = normalizarChave(meta.label)
+  return col.includes('retenc') || col.includes('retenç') ||
+    lbl.includes('retenc') || lbl.includes('retenç')
+}
+
 function calcStatus(v: number, meta: Meta): Status {
+  // Tx. Retenção: regra fixa independente do configurado nas metas
+  if (isTxRetencao(meta)) {
+    if (v >= 66) return 'verde'
+    if (v >= 60) return 'amarelo'
+    return 'vermelho'
+  }
+
   const { tipo } = meta
   // Usa verde_inicio se configurado; caso contrário, cai de volta para valor_meta
   const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta

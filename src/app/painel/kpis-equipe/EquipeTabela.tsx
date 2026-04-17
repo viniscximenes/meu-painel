@@ -216,12 +216,17 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 const av      = avatarEstilo(op.id)
                 const isHov   = hoveredOpId === op.id
 
-                // Opacidade por filtro KPI
-                let rowOpacity = 1
+                // Opacidade e filtro visual por KPI selecionado
+                let isCritico = false
                 if (kpiFiltro !== null) {
                   const kpiAtivo = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(kpiFiltro))
-                  rowOpacity = kpiAtivo?.status === 'vermelho' ? 1 : 0.4
+                  isCritico = kpiAtivo?.status === 'vermelho'
                 }
+                const rowOpacity  = kpiFiltro === null ? 1 : isCritico ? 1 : 0.2
+                const rowFilter   = kpiFiltro === null ? 'none' : isCritico ? 'none' : 'grayscale(60%)'
+                const rowShadow   = kpiFiltro !== null && isCritico
+                  ? 'inset 3px 0 0 #ff3b3b'
+                  : `inset 3px 0 0 ${STATUS_COR[gs]}`
 
                 const nVerde    = kpis.filter((k) => k.status === 'verde').length
                 const nAmarelo  = kpis.filter((k) => k.status === 'amarelo').length
@@ -232,10 +237,11 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                     key={op.id}
                     style={{
                       borderBottom: idx < dadosEquipe.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-                      boxShadow: `inset 3px 0 0 ${STATUS_COR[gs]}`,
+                      boxShadow: rowShadow,
                       cursor: 'pointer',
-                      transition: 'background 0.15s, opacity 0.2s',
+                      transition: 'background 0.15s, opacity 0.2s, filter 0.2s',
                       opacity: rowOpacity,
+                      filter: rowFilter,
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'
@@ -415,12 +421,17 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
           const gs = globalStatus(kpis)
           const av = avatarEstilo(op.id)
 
-          // Opacidade por filtro KPI (mobile)
-          let cardOpacity = 1
+          // Opacidade e filtro visual por KPI selecionado (mobile)
+          let isCriticoMobile = false
           if (kpiFiltro !== null) {
             const kpiAtivo = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(kpiFiltro))
-            cardOpacity = kpiAtivo?.status === 'vermelho' ? 1 : 0.4
+            isCriticoMobile = kpiAtivo?.status === 'vermelho'
           }
+          const cardOpacity = kpiFiltro === null ? 1 : isCriticoMobile ? 1 : 0.2
+          const cardFilter  = kpiFiltro === null ? 'none' : isCriticoMobile ? 'none' : 'grayscale(60%)'
+          const cardBorderLeft = kpiFiltro !== null && isCriticoMobile
+            ? `3px solid #ff3b3b`
+            : `3px solid ${STATUS_COR[gs]}`
 
           // KPIs visíveis no mobile: apenas selecionado ou todos
           const kpisVisiveis = kpiFiltro !== null
@@ -435,11 +446,12 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 display: 'block',
                 background: 'var(--void3)',
                 border: '1px solid rgba(201,168,76,0.08)',
-                borderLeft: `3px solid ${STATUS_COR[gs]}`,
+                borderLeft: cardBorderLeft,
                 borderRadius: '12px',
                 padding: '14px 16px',
-                transition: 'background 0.15s, opacity 0.2s',
+                transition: 'background 0.15s, opacity 0.2s, filter 0.2s',
                 opacity: cardOpacity,
+                filter: cardFilter,
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'
