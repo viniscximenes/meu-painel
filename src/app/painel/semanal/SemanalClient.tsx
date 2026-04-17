@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff, XCircle, Save } from 'lucide-react'
-import { salvarSnapshotHojeAction } from './actions'
+import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff, XCircle, Save, RotateCcw } from 'lucide-react'
+import { salvarSnapshotHojeAction, salvarSnapshotSemanaAnteriorAction } from './actions'
 import type { Meta } from '@/lib/kpi-utils'
 import { normalizarChave } from '@/lib/kpi-utils'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
@@ -507,22 +507,50 @@ export default function SemanalClient({
     setTimeout(() => setToast(null), 4000)
   }
 
+  function fmtDataISO(iso: string): string {
+    const [y, m, d] = iso.split('-')
+    return `${d}/${m}/${y}`
+  }
+
   async function handleSalvarSnapshot() {
     if (existeSnapshotHoje) {
-      const ok = window.confirm(
-        'Já existe snapshot de hoje.\nDeseja atualizar?'
-      )
+      const ok = window.confirm('Já existe snapshot de hoje.\nDeseja atualizar?')
       if (!ok) return
     }
     startTransition(async () => {
       const res = await salvarSnapshotHojeAction()
       if (res.ok) {
-        const [y, m, d] = res.data.split('-')
-        mostrarToast('ok', `Snapshot salvo — ${d}/${m}/${y}`)
+        mostrarToast('ok', `Snapshot salvo — ${fmtDataISO(res.data)}`)
         router.refresh()
       } else {
         mostrarToast('erro', res.erro)
       }
+    })
+  }
+
+  async function handleSalvarSemanaAnterior() {
+    startTransition(async () => {
+      const res = await salvarSnapshotSemanaAnteriorAction()
+      if (res.ok === false) {
+        mostrarToast('erro', res.erro)
+        return
+      }
+      if (res.ok === 'confirmar') {
+        const confirmado = window.confirm(
+          `Já existe snapshot de ${fmtDataISO(res.data)}.\nDeseja atualizar?`
+        )
+        if (!confirmado) return
+        const res2 = await salvarSnapshotSemanaAnteriorAction(true)
+        if (res2.ok === true) {
+          mostrarToast('ok', `Snapshot salvo — ${fmtDataISO(res2.data)}`)
+          router.refresh()
+        } else if (res2.ok === false) {
+          mostrarToast('erro', res2.erro)
+        }
+        return
+      }
+      mostrarToast('ok', `Snapshot salvo — ${fmtDataISO(res.data)}`)
+      router.refresh()
     })
   }
 
@@ -578,6 +606,18 @@ export default function SemanalClient({
           >
             <Save size={12} />
             {isPending ? 'Salvando…' : 'Salvar snapshot hoje'}
+          </button>
+
+          {/* Salvar semana anterior */}
+          <button
+            type="button"
+            onClick={handleSalvarSemanaAnterior}
+            disabled={isPending}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+            style={isPending ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+          >
+            <RotateCcw size={12} />
+            {isPending ? 'Salvando…' : 'Salvar semana anterior'}
           </button>
 
           {/* Toggle nomes */}

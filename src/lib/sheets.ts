@@ -289,6 +289,29 @@ export function matchCelulaOperador(
   return false
 }
 
+// ── Ler célula única ─────────────────────────────────────────────────────────
+
+export async function lerCelula(
+  spreadsheet_id: string,
+  aba: string,
+  celula: string
+): Promise<string | null> {
+  if (!spreadsheet_id) return null
+  try {
+    const res = await withTimeout(
+      sheetsAPI().spreadsheets.values.get({
+        spreadsheetId: spreadsheet_id,
+        range: `'${aba}'!${celula}`,
+      })
+    )
+    const val = (res.data.values?.[0]?.[0] ?? '').toString().trim()
+    return val || null
+  } catch (e) {
+    console.error('[lerCelula]', e)
+    return null
+  }
+}
+
 // ── Buscar linha de um operador ───────────────────────────────────────────────
 
 export async function buscarLinhaOperador(

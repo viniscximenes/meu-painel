@@ -220,7 +220,7 @@ export default async function SemanalPage() {
     if (s.data_ref === data1) snapMap1.set(s.operador_id, s.dados)
   }
 
-  const nomeMap = new Map(nomesFantasia.map((n) => [n.operador_id, n.nome_fantasia]))
+  const nomeMap = new Map(nomesFantasia.map((n) => [Number(n.operador_id), n.nome_fantasia]))
 
   const rows: OperadorRow[] = OPERADORES_DISPLAY.map((op) => {
     const snap2 = snapMap2.has(op.id) ? normalizarDados(snapMap2.get(op.id)!, metas) : null
