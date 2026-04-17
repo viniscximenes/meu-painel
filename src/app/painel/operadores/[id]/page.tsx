@@ -106,7 +106,6 @@ export default async function OperadorDetalhe({ params }: PageProps) {
           <KPIBasico
             kpis={kpis}
             nomeOperador={operador.nome}
-            linkCompleto={`/painel/kpi/${operador.username}?view=completo`}
           />
         )}
 

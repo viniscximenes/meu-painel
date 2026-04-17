@@ -138,10 +138,9 @@ function KPIProgressBar({ kpi }: { kpi: KPIItem }) {
 interface KPIBasicoProps {
   kpis: KPIItem[]
   nomeOperador: string
-  linkCompleto: string
 }
 
-export default function KPIBasico({ kpis, nomeOperador, linkCompleto }: KPIBasicoProps) {
+export default function KPIBasico({ kpis, nomeOperador }: KPIBasicoProps) {
   const basicos = kpis
     .filter((k) => k.basico)
     .sort((a, b) => (a.meta?.ordem ?? 99) - (b.meta?.ordem ?? 99))
@@ -158,41 +157,11 @@ export default function KPIBasico({ kpis, nomeOperador, linkCompleto }: KPIBasic
         }
       `}</style>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Seus KPIs
-          </h2>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{nomeOperador}</p>
-        </div>
-        <Link
-          href={linkCompleto}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all"
-          style={{
-            color: 'var(--gold-light)',
-            background: 'rgba(201,168,76,0.08)',
-            border: '1px solid rgba(201,168,76,0.22)',
-            boxShadow: '0 2px 12px rgba(201,168,76,0.06)',
-            transition: 'all 200ms cubic-bezier(0.4,0,0.2,1)',
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLElement
-            el.style.background = 'rgba(201,168,76,0.14)'
-            el.style.borderColor = 'rgba(201,168,76,0.40)'
-            el.style.boxShadow = '0 4px 20px rgba(201,168,76,0.14)'
-            el.style.transform = 'translateY(-1px)'
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLElement
-            el.style.background = 'rgba(201,168,76,0.08)'
-            el.style.borderColor = 'rgba(201,168,76,0.22)'
-            el.style.boxShadow = '0 2px 12px rgba(201,168,76,0.06)'
-            el.style.transform = 'translateY(0)'
-          }}
-        >
-          <ExternalLink size={12} />
-          KPI Completo
-        </Link>
+      <div>
+        <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Seus KPIs
+        </h2>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{nomeOperador}</p>
       </div>
 
       {basicos.length === 0 ? (

@@ -82,7 +82,6 @@ export default async function PainelOperador({ profile }: PainelOperadorProps) {
         <KPIBasico
           kpis={kpis}
           nomeOperador={profile.nome}
-          linkCompleto="/painel/kpi?view=completo"
         />
       )}
 
