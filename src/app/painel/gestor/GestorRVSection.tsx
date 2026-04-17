@@ -265,8 +265,8 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
       {/* ── RV Card ── */}
       <div style={{ flex: '0 0 auto', maxWidth: '480px', width: '100%' }}>
         <div style={{
-          background: '#1e2d45',
-          border: '1px solid rgba(201,168,76,0.5)',
+          background: '#0d1117',
+          border: '1px solid rgba(201,168,76,0.25)',
           borderRadius: '14px',
           padding: '20px 24px',
         }}>
