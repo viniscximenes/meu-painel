@@ -148,6 +148,10 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
       {/* ── Geral ── */}
       <NavLabel>Dados Gerais</NavLabel>
 
+      <Link href="/painel/gestor" onClick={onClose}
+        className={pathname === '/painel/gestor' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <LayoutDashboard size={15} /> KPI Gestor & RV
+      </Link>
       <Link href="/painel/kpis-equipe" onClick={onClose}
         className={pathname === '/painel/kpis-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <TableProperties size={15} /> KPIs da Equipe
