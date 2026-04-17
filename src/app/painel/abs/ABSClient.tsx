@@ -20,6 +20,20 @@ interface Props {
 
 // ── Estilo de cada status ─────────────────────────────────────────────────────
 
+const STATUS_TITLE: Record<string, string> = {
+  P:   'Presente',
+  F:   'Falta',
+  FO:  'Folga',
+  SC:  'Saiu Cedo',
+  CT:  'Chegou Tarde',
+  FE:  'Férias',
+  LI:  'Licença',
+  DS:  'Desligado',
+  AT:  'Atestado',
+  '-': 'Não registrado',
+  '':  'Não registrado',
+}
+
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   P:   { bg: 'rgba(34,197,94,0.15)',   color: '#4ade80', label: 'P' },
   F:   { bg: 'rgba(239,68,68,0.18)',   color: '#f87171', label: 'F' },
@@ -68,6 +82,7 @@ function ABSCell({
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen((v) => !v)}
+        title={STATUS_TITLE[status] ?? status}
         style={{
           width: '34px',
           height: '26px',
