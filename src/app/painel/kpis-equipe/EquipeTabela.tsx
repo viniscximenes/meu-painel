@@ -52,17 +52,6 @@ function isTxRetMeta(m: Meta) {
   return k.includes('retenc') || k.includes('retenç')
 }
 
-// ── Filtros ────────────────────────────────────────────────────────────────────
-
-type Filtro = 'todos' | 'verde' | 'amarelo' | 'vermelho'
-
-const FILTROS: { key: Filtro; label: string }[] = [
-  { key: 'todos',    label: 'TODOS' },
-  { key: 'verde',    label: 'VERDES' },
-  { key: 'amarelo',  label: 'ATENÇÃO' },
-  { key: 'vermelho', label: 'CRÍTICOS' },
-]
-
 // ── Props ──────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -71,21 +60,9 @@ interface Props {
 }
 
 export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
-  const [filtro,      setFiltro]      = useState<Filtro>('todos')
+  // null = TODOS, string = nome_coluna do KPI selecionado
+  const [kpiFiltro,   setKpiFiltro]   = useState<string | null>(null)
   const [hoveredOpId, setHoveredOpId] = useState<number | null>(null)
-
-  const counts: Record<Filtro, number> = {
-    todos:    dadosEquipe.length,
-    verde:    dadosEquipe.filter(({ kpis, encontrado }) => encontrado && globalStatus(kpis) === 'verde').length,
-    amarelo:  dadosEquipe.filter(({ kpis, encontrado }) => encontrado && globalStatus(kpis) === 'amarelo').length,
-    vermelho: dadosEquipe.filter(({ kpis, encontrado }) => encontrado && globalStatus(kpis) === 'vermelho').length,
-  }
-
-  const filtered = dadosEquipe.filter(({ kpis, encontrado }) => {
-    if (filtro === 'todos') return true
-    if (!encontrado) return false
-    return globalStatus(kpis) === filtro
-  })
 
   const cssVars = {
     '--void3': '#0d0d1a',
@@ -93,18 +70,30 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
     '--gold4': 'rgba(201,168,76,0.15)',
   } as React.CSSProperties
 
+  // Meta do KPI selecionado
+  const metaSelecionada = kpiFiltro
+    ? basicos.find((m) => normalizarChave(m.nome_coluna) === normalizarChave(kpiFiltro)) ?? null
+    : null
+
+  function toggleKpi(nomeColuna: string) {
+    setKpiFiltro((prev) =>
+      prev !== null && normalizarChave(prev) === normalizarChave(nomeColuna) ? null : nomeColuna
+    )
+  }
+
   return (
     <div style={cssVars} className="space-y-4">
 
-      {/* ── Filtros pill ── */}
+      {/* ── Pills de KPI ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {FILTROS.map(({ key, label }) => {
-          const ativo = filtro === key
+
+        {/* TODOS */}
+        {(() => {
+          const ativo = kpiFiltro === null
           return (
             <button
-              key={key}
               type="button"
-              onClick={() => setFiltro(key)}
+              onClick={() => setKpiFiltro(null)}
               style={{
                 padding: '5px 14px',
                 borderRadius: '20px',
@@ -117,9 +106,33 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 color: ativo ? 'var(--gold2)' : 'var(--text-muted)',
                 cursor: 'pointer',
                 transition: 'all 0.15s',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
+              }}
+            >
+              TODOS
+            </button>
+          )
+        })()}
+
+        {/* Um pill por KPI básico */}
+        {basicos.map((m) => {
+          const ativo = kpiFiltro !== null && normalizarChave(kpiFiltro) === normalizarChave(m.nome_coluna)
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => toggleKpi(m.nome_coluna)}
+              style={{
+                padding: '5px 14px',
+                borderRadius: '20px',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                border: ativo ? '1px solid #c9a84c' : '1px solid rgba(255,255,255,0.06)',
+                background: ativo ? 'var(--gold4)' : 'var(--void3)',
+                color: ativo ? 'var(--gold2)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
               }}
               onMouseEnter={(e) => {
                 if (!ativo) {
@@ -134,10 +147,7 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 }
               }}
             >
-              {label}
-              <span style={{ opacity: ativo ? 0.7 : 0.45, fontWeight: 400, fontSize: '10px' }}>
-                {counts[key]}
-              </span>
+              {m.label}
             </button>
           )
         })}
@@ -163,11 +173,36 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 <th style={{ textAlign: 'left', padding: '12px 20px', width: '220px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                   Operador
                 </th>
-                {basicos.map((m) => (
-                  <th key={m.id} style={{ textAlign: 'center', padding: '12px 12px', whiteSpace: 'nowrap', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: isTxRetMeta(m) ? '#c9a84c' : 'var(--text-muted)' }}>
-                    {m.label}
-                  </th>
-                ))}
+
+                {basicos.map((m) => {
+                  const isSelected = kpiFiltro !== null && normalizarChave(kpiFiltro) === normalizarChave(m.nome_coluna)
+                  // Oculta colunas não selecionadas quando há filtro ativo
+                  if (kpiFiltro !== null && !isSelected) return null
+                  return (
+                    <th
+                      key={m.id}
+                      style={{
+                        textAlign: 'center',
+                        padding: isSelected ? '10px 16px 6px' : '12px 12px',
+                        whiteSpace: 'nowrap',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.14em',
+                        color: isSelected ? '#c9a84c' : isTxRetMeta(m) ? '#c9a84c' : 'var(--text-muted)',
+                        minWidth: isSelected ? '140px' : undefined,
+                      }}
+                    >
+                      {m.label}
+                      {isSelected && metaSelecionada && (
+                        <div style={{ fontSize: '9px', fontWeight: 400, color: 'var(--text-muted)', marginTop: '3px', letterSpacing: '0.04em', textTransform: 'none' }}>
+                          Meta: {formatarExibicao(String(metaSelecionada.valor_meta), metaSelecionada.unidade)}
+                        </div>
+                      )}
+                    </th>
+                  )
+                })}
+
                 <th style={{ textAlign: 'center', padding: '12px 16px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-muted)', minWidth: '60px', whiteSpace: 'nowrap' }}>
                   Status
                 </th>
@@ -176,10 +211,18 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
             </thead>
 
             <tbody>
-              {filtered.map(({ op, kpis, encontrado }, idx) => {
+              {dadosEquipe.map(({ op, kpis, encontrado }, idx) => {
                 const gs      = globalStatus(kpis)
                 const av      = avatarEstilo(op.id)
                 const isHov   = hoveredOpId === op.id
+
+                // Opacidade por filtro KPI
+                let rowOpacity = 1
+                if (kpiFiltro !== null) {
+                  const kpiAtivo = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(kpiFiltro))
+                  rowOpacity = kpiAtivo?.status === 'vermelho' ? 1 : 0.4
+                }
+
                 const nVerde    = kpis.filter((k) => k.status === 'verde').length
                 const nAmarelo  = kpis.filter((k) => k.status === 'amarelo').length
                 const nVermelho = kpis.filter((k) => k.status === 'vermelho').length
@@ -188,10 +231,11 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                   <tr
                     key={op.id}
                     style={{
-                      borderBottom: idx < filtered.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+                      borderBottom: idx < dadosEquipe.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
                       boxShadow: `inset 3px 0 0 ${STATUS_COR[gs]}`,
                       cursor: 'pointer',
-                      transition: 'background 0.15s',
+                      transition: 'background 0.15s, opacity 0.2s',
+                      opacity: rowOpacity,
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'
@@ -211,7 +255,6 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                         transition: 'width 0.25s ease',
                         overflow: 'hidden',
                       }}>
-                        {/* Linha nome + avatar */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{
                             width:  isHov ? '42px' : '30px',
@@ -236,12 +279,9 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                           </div>
                         </div>
 
-                        {/* Conteúdo expandido */}
                         {isHov && (
                           <>
-                            <div style={{ height: '1px', background: 'rgba(66,139,255,0.15)', margin: '8px 0 8px' }} />
-
-                            {/* Grid 2 col KPIs */}
+                            <div style={{ height: '1px', background: 'rgba(66,139,255,0.15)', margin: '8px 0' }} />
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 10px', marginBottom: '8px' }}>
                               {basicos.slice(0, 6).map((m) => {
                                 const kpi = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
@@ -258,8 +298,6 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                                 )
                               })}
                             </div>
-
-                            {/* Rodapé status */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                               <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: STATUS_COR[gs], boxShadow: `0 0 4px ${STATUS_COR[gs]}`, flexShrink: 0 }} />
                               {nVerde    > 0 && <span style={{ fontSize: '10px', color: '#10b981' }}>{nVerde}v</span>}
@@ -276,13 +314,17 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                       </div>
                     </td>
 
-                    {/* KPIs */}
+                    {/* ── KPIs — oculta os não selecionados quando há filtro ── */}
                     {basicos.map((m) => {
+                      const isSelected = kpiFiltro !== null && normalizarChave(kpiFiltro) === normalizarChave(m.nome_coluna)
+                      if (kpiFiltro !== null && !isSelected) return null
+
                       const kpi     = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
                       const isTxRet = isTxRetMeta(m)
                       const cor     = kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)'
                       const rgb     = kpi ? STATUS_RGB[kpi.status] : '255,255,255'
                       const val     = kpi ? formatarExibicao(kpi.valor, kpi.unidade) : '—'
+                      const fontSize = isSelected ? '14px' : '12px'
 
                       return (
                         <td key={m.id} style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'top' }}>
@@ -291,7 +333,7 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                               display: 'inline-block',
                               padding: '3px 10px',
                               borderRadius: '20px',
-                              fontSize: '12px',
+                              fontSize,
                               fontWeight: 700,
                               fontVariantNumeric: 'tabular-nums',
                               background: `rgba(${rgb},0.1)`,
@@ -301,7 +343,7 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                               {val}
                             </span>
                           ) : (
-                            <span style={{ fontSize: '12px', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: cor }}>
+                            <span style={{ fontSize, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: cor }}>
                               {val}
                             </span>
                           )}
@@ -355,10 +397,10 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 )
               })}
 
-              {filtered.length === 0 && (
+              {dadosEquipe.length === 0 && (
                 <tr>
                   <td colSpan={basicos.length + 3} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    Nenhum operador neste filtro.
+                    Nenhum operador encontrado.
                   </td>
                 </tr>
               )}
@@ -369,9 +411,21 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
 
       {/* ── Cards mobile ── */}
       <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {filtered.map(({ op, kpis, encontrado }) => {
+        {dadosEquipe.map(({ op, kpis, encontrado }) => {
           const gs = globalStatus(kpis)
           const av = avatarEstilo(op.id)
+
+          // Opacidade por filtro KPI (mobile)
+          let cardOpacity = 1
+          if (kpiFiltro !== null) {
+            const kpiAtivo = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(kpiFiltro))
+            cardOpacity = kpiAtivo?.status === 'vermelho' ? 1 : 0.4
+          }
+
+          // KPIs visíveis no mobile: apenas selecionado ou todos
+          const kpisVisiveis = kpiFiltro !== null
+            ? basicos.filter((m) => normalizarChave(m.nome_coluna) === normalizarChave(kpiFiltro))
+            : basicos.slice(0, 6)
 
           return (
             <Link
@@ -384,7 +438,8 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 borderLeft: `3px solid ${STATUS_COR[gs]}`,
                 borderRadius: '12px',
                 padding: '14px 16px',
-                transition: 'background 0.15s',
+                transition: 'background 0.15s, opacity 0.2s',
+                opacity: cardOpacity,
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'
@@ -419,9 +474,9 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                 }} />
               </div>
 
-              {encontrado && basicos.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                  {basicos.slice(0, 6).map((m) => {
+              {encontrado && kpisVisiveis.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: kpiFiltro ? '1fr' : 'repeat(3, 1fr)', gap: '6px' }}>
+                  {kpisVisiveis.map((m) => {
                     const kpi = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
                     const cor = kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)'
                     return (
@@ -429,9 +484,14 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                         <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {m.label}
                         </p>
-                        <p style={{ fontSize: '13px', fontWeight: 700, marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: cor }}>
+                        <p style={{ fontSize: kpiFiltro ? '16px' : '13px', fontWeight: 700, marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: cor }}>
                           {kpi ? formatarExibicao(kpi.valor, kpi.unidade) : '—'}
                         </p>
+                        {kpiFiltro && metaSelecionada && (
+                          <p style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Meta: {formatarExibicao(String(metaSelecionada.valor_meta), metaSelecionada.unidade)}
+                          </p>
+                        )}
                       </div>
                     )
                   })}
