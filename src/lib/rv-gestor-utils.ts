@@ -131,7 +131,7 @@ export function calcularRVGestor(
 
   const semDados = retencaoVal === 0 && indispVal === 0 && tmaValSeg === 0
 
-  // Elegibilidade
+  // Elegibilidade — não interrompe o cálculo; RV é sempre computada
   const elegivel = !semDados && monitoriasCompletas >= 13
   const motivoInelegivel = semDados
     ? 'Sem dados na planilha'
@@ -139,9 +139,9 @@ export function calcularRVGestor(
       ? `Monitorias incompletas: ${monitoriasCompletas}/13 operadores com 4+ monitorias`
       : null
 
-  if (!elegivel) {
+  if (semDados) {
     return {
-      elegivel, motivoInelegivel, semDados,
+      elegivel: false, motivoInelegivel, semDados,
       retencaoVal, retencaoFaixa: null, retencaoBase: 0,
       indispVal, indispBonus: 0,
       tmaValSeg, tmaBonus: 0,

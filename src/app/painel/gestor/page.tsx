@@ -106,7 +106,7 @@ function KPICard({
 
 // ── Card de RV ────────────────────────────────────────────────────────────────
 
-function RVCard({ rv, config }: { rv: ResultadoRVGestor; config: RVGestorConfig }) {
+function RVCard({ rv, config, inelegivel = false }: { rv: ResultadoRVGestor; config: RVGestorConfig; inelegivel?: boolean }) {
   if (rv.semDados) {
     return (
       <div style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)', borderRadius: '16px', padding: '24px', textAlign: 'center' }}>
@@ -147,7 +147,7 @@ function RVCard({ rv, config }: { rv: ResultadoRVGestor; config: RVGestorConfig 
           RV Calculada
         </span>
 
-        {/* Elegibilidade badge */}
+        {/* Elegibilidade / estimativa badge */}
         <span style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -158,25 +158,16 @@ function RVCard({ rv, config }: { rv: ResultadoRVGestor; config: RVGestorConfig 
           textTransform: 'uppercase',
           padding: '4px 12px',
           borderRadius: '99px',
-          background: rv.elegivel ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.10)',
-          border: rv.elegivel ? '1px solid rgba(34,197,94,0.30)' : '1px solid rgba(239,68,68,0.30)',
+          background: rv.elegivel ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.08)',
+          border: rv.elegivel ? '1px solid rgba(34,197,94,0.30)' : '1px solid rgba(239,68,68,0.20)',
           color: rv.elegivel ? '#34d399' : '#f87171',
         }}>
-          {rv.elegivel ? <CheckCircle size={11} /> : <XCircle size={11} />}
-          {rv.elegivel ? 'Elegível' : 'Inelegível'}
+          {rv.elegivel ? <CheckCircle size={11} /> : <AlertTriangle size={11} />}
+          {rv.elegivel ? 'Elegível' : 'Estimativa (inelegível)'}
         </span>
       </div>
 
       <div className="p-5 space-y-3">
-        {/* Motivo de inelegibilidade */}
-        {!rv.elegivel && rv.motivoInelegivel && (
-          <div className="flex items-start gap-2 rounded-xl px-3 py-2.5"
-            style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
-            <AlertTriangle size={13} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: '12px', color: '#f87171' }}>{rv.motivoInelegivel}</p>
-          </div>
-        )}
-
         {/* Linhas do breakdown */}
         {[
           {
@@ -564,8 +555,32 @@ export default async function GestorPage() {
                 <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(201,168,76,0.12) 0%, transparent 100%)' }} />
               </div>
 
-              <div className="max-w-lg">
-                <RVCard rv={rv} config={config} />
+              <div className="max-w-lg space-y-3">
+                {/* Banner de inelegibilidade */}
+                {!rv.elegivel && !rv.semDados && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    background: 'rgba(239,68,68,0.10)',
+                    border: '1px solid rgba(239,68,68,0.30)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                  }}>
+                    <AlertTriangle size={15} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#f87171' }}>
+                        Inelegível ao RV
+                      </p>
+                      <p style={{ fontSize: '11px', color: 'rgba(248,113,113,0.8)', marginTop: '2px' }}>
+                        {`Motivo: ${monitoriasCompletas} de 13 operadores com 4 monitorias completas. Faltam ${Math.max(0, 52 - totalMonitorias)} monitorias.`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div style={{ opacity: rv.elegivel ? 1 : 0.6 }}>
+                  <RVCard rv={rv} config={config} inelegivel={!rv.elegivel && !rv.semDados} />
+                </div>
               </div>
             </div>
 
