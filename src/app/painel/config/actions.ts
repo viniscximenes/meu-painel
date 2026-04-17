@@ -3,6 +3,7 @@
 import { requireGestor } from '@/lib/auth'
 import { addPlanilha, ativarPlanilha, deletarPlanilha, atualizarPlanilha } from '@/lib/sheets'
 import { getNomesFantasia, upsertNomeFantasia } from '@/lib/snapshots'
+import { setAppConfig } from '@/lib/app-config'
 import { revalidatePath } from 'next/cache'
 
 export async function adicionarPlanilha(formData: FormData) {
@@ -75,4 +76,12 @@ export async function copiarNomesDoMesAnteriorAction(mesAtual: string): Promise<
     console.error('[copiarNomesDoMesAnteriorAction]', e)
     return { ok: false, erro: 'Erro ao copiar nomes.' }
   }
+}
+
+export async function salvarKPIConsolidadoConfig(limiteLinhas: number): Promise<void> {
+  await requireGestor()
+  const valor = Math.max(10, Math.min(500, limiteLinhas))
+  await setAppConfig('kpi_consolidado_limite_linhas', String(valor))
+  revalidatePath('/painel/config')
+  revalidatePath('/painel/kpis-equipe')
 }

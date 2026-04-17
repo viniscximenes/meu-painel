@@ -1,6 +1,7 @@
 import { requireGestor } from '@/lib/auth'
 import { getMetas, computarKPIs, type KPIItem } from '@/lib/kpi'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, extrairDataAtualizacao, formatarDataCurta } from '@/lib/sheets'
+import { getAppConfig } from '@/lib/app-config'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import PainelShell from '@/components/PainelShell'
 import Link from 'next/link'
@@ -16,10 +17,12 @@ export type DadosOperador = {
 export default async function KPIsEquipePage() {
   const profile = await requireGestor()
 
-  const [planilha, metas] = await Promise.all([
+  const [planilha, metas, limiteRaw] = await Promise.all([
     getPlanilhaAtiva().catch(() => null),
     getMetas().catch(() => []),
+    getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
   ])
+  const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
 
   const basicos = metas.filter((m) => m.basico).sort((a, b) => a.ordem - b.ordem)
 
@@ -29,7 +32,7 @@ export default async function KPIsEquipePage() {
 
   if (planilha) {
     try {
-      const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba)
+      const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba, limiteLinhas)
       const col = encontrarColunaIdent(headers)
       dataAtualizacao = extrairDataAtualizacao(rows)
 

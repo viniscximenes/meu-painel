@@ -133,7 +133,8 @@ export async function listarAbas(spreadsheet_id: string): Promise<string[]> {
 
 export async function buscarLinhasPlanilha(
   spreadsheet_id: string,
-  aba: string
+  aba: string,
+  limiteLinhas?: number
 ): Promise<LinhasPlanilha> {
   if (!spreadsheet_id) return { headers: [], rows: [] }
   try {
@@ -145,10 +146,14 @@ export async function buscarLinhasPlanilha(
     }
     if (!tabName) return { headers: [], rows: [] }
 
+    const range = limiteLinhas
+      ? `${tabName}!A1:ZZ${limiteLinhas}`
+      : `${tabName}!A:ZZ`
+
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId: spreadsheet_id,
-        range: `${tabName}!A:ZZ`,
+        range,
       })
     )
     const values = (res.data.values ?? []) as string[][]

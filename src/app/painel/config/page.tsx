@@ -1,9 +1,11 @@
 import { requireGestor } from '@/lib/auth'
 import { listarPlanilhas } from '@/lib/sheets'
 import { getNomesFantasia } from '@/lib/snapshots'
+import { getAppConfig } from '@/lib/app-config'
 import PainelShell from '@/components/PainelShell'
 import PlanilhasClient from './PlanilhasClient'
 import NomesFantasiaClient from './NomesFantasiaClient'
+import KPIConsolidadoConfigClient from './KPIConsolidadoConfigClient'
 import { Database } from 'lucide-react'
 
 function getMesReferencia(): string {
@@ -16,10 +18,12 @@ export default async function ConfigPage() {
 
   const mesReferencia = getMesReferencia()
 
-  const [planilhas, nomesFantasia] = await Promise.all([
+  const [planilhas, nomesFantasia, limiteRaw] = await Promise.all([
     listarPlanilhas(),
     getNomesFantasia(mesReferencia),
+    getAppConfig('kpi_consolidado_limite_linhas'),
   ])
+  const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
 
   return (
     <PainelShell profile={profile} title="Planilhas">
@@ -39,6 +43,12 @@ export default async function ConfigPage() {
 
           <PlanilhasClient planilhas={planilhas} />
         </div>
+
+        {/* Divisor */}
+        <div className="divider" />
+
+        {/* ── KPI CONSOLIDADO ── */}
+        <KPIConsolidadoConfigClient limiteInicial={limiteLinhas} />
 
         {/* Divisor */}
         <div className="divider" />
