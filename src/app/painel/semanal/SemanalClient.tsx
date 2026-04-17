@@ -623,6 +623,17 @@ export default function SemanalClient({
                       <option key={d} value={d}>{fmtData(d)}</option>
                     ))}
                   </select>
+                  {dataDe && dataPara && (() => {
+                    const dias = Math.round(
+                      Math.abs(new Date(dataPara).getTime() - new Date(dataDe).getTime())
+                      / 86_400_000
+                    )
+                    return dias > 0 ? (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                        · {dias} dia{dias !== 1 ? 's' : ''}
+                      </span>
+                    ) : null
+                  })()}
                 </span>
               </>
             )}

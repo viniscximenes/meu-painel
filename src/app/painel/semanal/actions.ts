@@ -162,10 +162,8 @@ export async function salvarSnapshotSemanaAnteriorAction(forcar = false): Promis
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa configurada.' }
 
-    const dataKpi = await lerDataKpi(planilha.spreadsheet_id)
-    if (!dataKpi) return { ok: false, erro: 'Não foi possível ler a data na aba "KPI CONSOLIDADO" (A2).' }
-
-    const dataRef = ultimaSegundaISO(dataKpi)
+    const dataRef = await lerDataKpi(planilha.spreadsheet_id)
+    if (!dataRef) return { ok: false, erro: 'Não foi possível ler a data na aba "KPI CONSOLIDADO".' }
 
     if (!forcar && (await existeSnapshotParaData(dataRef))) {
       return { ok: 'confirmar', data: dataRef }
