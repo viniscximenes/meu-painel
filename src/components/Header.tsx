@@ -2,16 +2,17 @@
 
 import { logout } from '@/app/login/actions'
 import { Profile } from '@/types'
-import { Menu, LogOut, BarChart2 } from 'lucide-react'
+import { Menu, LogOut, BarChart2, type LucideIcon } from 'lucide-react'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 
 interface HeaderProps {
   profile: Profile
   title: string
   onMenuClick: () => void
+  icon?: LucideIcon
 }
 
-export default function Header({ profile, title, onMenuClick }: HeaderProps) {
+export default function Header({ profile, title, onMenuClick, icon: Icon = BarChart2 }: HeaderProps) {
   return (
     <header
       className="header-border-shimmer h-14 flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-10"
@@ -48,7 +49,7 @@ export default function Header({ profile, title, onMenuClick }: HeaderProps) {
           className="logo-shimmer w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
           style={{ boxShadow: '0 4px 16px rgba(201,168,76,0.30)' }}
         >
-          <BarChart2 size={14} className="text-[#050508]" />
+          <Icon size={14} className="text-[#050508]" />
         </div>
         <h1
           className="font-semibold tracking-tight"

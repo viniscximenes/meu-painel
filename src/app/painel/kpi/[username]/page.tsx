@@ -7,7 +7,7 @@ import { OPERADORES } from '@/lib/operadores'
 import PainelShell from '@/components/PainelShell'
 import KPIBasico from '@/components/kpi/KPIBasico'
 import KPICompleto from '@/components/kpi/KPICompleto'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, UserCircle } from 'lucide-react'
 
 const COLUNAS_COMPLEMENTARES = [
   '% Variação Ticket',
@@ -48,7 +48,7 @@ export default async function KPIOperadorPage({ params, searchParams }: PageProp
 
   if (!planilha) {
     return (
-      <PainelShell profile={profile} title={`KPI — ${operador.nome}`}>
+      <PainelShell profile={profile} title={`KPI — ${operador.nome}`} icon={UserCircle}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-center">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Nenhuma planilha ativa configurada.
@@ -62,7 +62,7 @@ export default async function KPIOperadorPage({ params, searchParams }: PageProp
 
   if (!resultado) {
     return (
-      <PainelShell profile={profile} title={`KPI — ${operador.nome}`}>
+      <PainelShell profile={profile} title={`KPI — ${operador.nome}`} icon={UserCircle}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -94,7 +94,7 @@ export default async function KPIOperadorPage({ params, searchParams }: PageProp
   }).filter((d) => d.valor !== '—' && d.valor !== '')
 
   return (
-    <PainelShell profile={profile} title={`KPI — ${operador.nome}`}>
+    <PainelShell profile={profile} title={`KPI — ${operador.nome}`} icon={UserCircle}>
       {completo ? (
         <KPICompleto kpis={kpis} nomeOperador={operador.nome} linkVoltar={linkBase} podeOrdenar={true} />
       ) : (
