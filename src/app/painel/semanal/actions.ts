@@ -61,8 +61,8 @@ async function lerDataKpi(spreadsheet_id: string): Promise<string | null> {
   const abaKpi = abas.find((a) => /kpi/i.test(a) && /consolidado/i.test(a)) ?? 'KPI CONSOLIDADO'
   console.log('[lerDataKpi] usando aba:', abaKpi)
 
-  const valores = await lerRangeCelulas(spreadsheet_id, abaKpi, 'A1:A10')
-  console.log('[lerDataKpi] A1:A10 valores:', valores)
+  const valores = await lerRangeCelulas(spreadsheet_id, abaKpi, 'A1:A20')
+  console.log('[lerDataKpi] A1:A20 valores:', valores)
 
   for (let i = 0; i < valores.length - 1; i++) {
     if (/atualizado/i.test(valores[i])) {
@@ -77,7 +77,7 @@ async function lerDataKpi(spreadsheet_id: string): Promise<string | null> {
     }
   }
 
-  console.warn('[lerDataKpi] "ATUALIZADO" não encontrado em A1:A10, valores:', valores)
+  console.warn('[lerDataKpi] "ATUALIZADO" não encontrado em A1:A20, valores:', valores)
   return null
 }
 
