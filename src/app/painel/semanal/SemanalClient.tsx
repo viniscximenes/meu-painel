@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff, XCircle, Save, RotateCcw } from 'lucide-react'
-import { salvarSnapshotHojeAction, salvarSnapshotSemanaAnteriorAction } from './actions'
+import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff, XCircle, Save, RotateCcw, Trash2 } from 'lucide-react'
+import { salvarSnapshotHojeAction, salvarSnapshotSemanaAnteriorAction, deletarSnapshotAction } from './actions'
 import type { Meta } from '@/lib/kpi-utils'
 import { normalizarChave } from '@/lib/kpi-utils'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
@@ -321,14 +321,16 @@ function KpiRow({
 // ── Card de operador ───────────────────────────────────────────────────────────
 
 function OperadorCard({
-  row, metas, pos, tipo, mostrarNomes,
+  row, metas, pos, tipo, mostrarNomes, onClick,
 }: {
   row: OperadorRow
   metas: Meta[]
   pos: number
   tipo: 'melhor' | 'pior'
   mostrarNomes: boolean
+  onClick?: () => void
 }) {
+  const [hov, setHov] = useState(false)
   const isMelhor = tipo === 'melhor'
   const posEmoji = isMelhor ? (['🥇','🥈','🥉'][pos - 1] ?? `#${pos}`) : null
   const pts = row.score
@@ -366,11 +368,17 @@ function OperadorCard({
   return (
     <div
       className="card flex flex-col"
+      onClick={onClick}
+      onMouseEnter={onClick ? () => setHov(true) : undefined}
+      onMouseLeave={onClick ? () => setHov(false) : undefined}
       style={{
         padding: 0,
         overflow: 'hidden',
         border: `2px solid ${borderColor}`,
-        boxShadow: shadow,
+        boxShadow: hov ? `${shadow !== 'none' ? shadow + ', ' : ''}0 6px 28px rgba(0,0,0,0.35)` : shadow,
+        transform: hov && onClick ? 'translateY(-3px)' : undefined,
+        transition: 'box-shadow 0.18s, transform 0.15s',
+        cursor: onClick ? 'pointer' : undefined,
         ...(cardBg ? { background: cardBg } : {}),
       }}
     >
@@ -456,13 +464,13 @@ function OperadorCard({
 // ── Pódio dos melhores ────────────────────────────────────────────────────────
 
 function PodiumMelhores({
-  rows, metas, mostrarNomes,
+  rows, metas, mostrarNomes, onClickRow,
 }: {
   rows: OperadorRow[]
   metas: Meta[]
   mostrarNomes: boolean
+  onClickRow: (opId: number) => void
 }) {
-  // Reordena para exibição: [2º, 1º, 3º]
   const ordered =
     rows.length === 3
       ? [
@@ -474,18 +482,17 @@ function PodiumMelhores({
 
   return (
     <>
-      {/* Mobile: ordem normal, empilhados */}
       <div className="flex flex-col gap-4 md:hidden">
         {rows.map((row, i) => (
-          <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="melhor" mostrarNomes={mostrarNomes} />
+          <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="melhor"
+            mostrarNomes={mostrarNomes} onClick={() => onClickRow(row.opId)} />
         ))}
       </div>
-
-      {/* Desktop: pódio com reordenação e margens */}
       <div className="hidden md:flex items-start gap-4">
         {ordered.map(({ row, pos }) => (
           <div key={row.opId} style={{ flex: 1, marginTop: PODIUM_MARGIN_TOP[pos] ?? '0' }}>
-            <OperadorCard row={row} metas={metas} pos={pos} tipo="melhor" mostrarNomes={mostrarNomes} />
+            <OperadorCard row={row} metas={metas} pos={pos} tipo="melhor"
+              mostrarNomes={mostrarNomes} onClick={() => onClickRow(row.opId)} />
           </div>
         ))}
       </div>
@@ -503,6 +510,7 @@ export default function SemanalClient({
   const [mostrarNomes, setMostrarNomes] = useState(false)
   const [toast,        setToast]        = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null)
   const [isPending,    startTransition] = useTransition()
+  const [deletando,    startDeletar]    = useTransition()
 
   function mostrarToast(tipo: 'ok' | 'erro', msg: string) {
     setToast({ tipo, msg })
@@ -559,6 +567,18 @@ export default function SemanalClient({
   const rowsMelhores = melhores.map((id) => rows.find((r) => r.opId === id)).filter(Boolean) as OperadorRow[]
   const rowsPiores   = piores.map((id)   => rows.find((r) => r.opId === id)).filter(Boolean) as OperadorRow[]
 
+  function handleDeletar(data: string) {
+    if (!window.confirm(`Deletar snapshot de ${fmtData(data)}?`)) return
+    startDeletar(async () => {
+      const res = await deletarSnapshotAction(data)
+      if (res.ok) {
+        router.push('/painel/semanal')
+      } else {
+        mostrarToast('erro', res.erro)
+      }
+    })
+  }
+
   function handleDataDeChange(val: string) {
     const params = new URLSearchParams()
     if (val) params.set('de', val)
@@ -612,6 +632,17 @@ export default function SemanalClient({
                       <option key={d} value={d}>{fmtData(d)}</option>
                     ))}
                   </select>
+                  {dataDe && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeletar(dataDe)}
+                      disabled={deletando}
+                      title={`Deletar snapshot de ${fmtData(dataDe)}`}
+                      style={{ color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1, padding: '2px' }}
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  )}
                   <span>→</span>
                   <select
                     value={dataPara ?? ''}
@@ -623,6 +654,17 @@ export default function SemanalClient({
                       <option key={d} value={d}>{fmtData(d)}</option>
                     ))}
                   </select>
+                  {dataPara && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeletar(dataPara)}
+                      disabled={deletando}
+                      title={`Deletar snapshot de ${fmtData(dataPara)}`}
+                      style={{ color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1, padding: '2px' }}
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  )}
                   {dataDe && dataPara && (() => {
                     const dias = Math.round(
                       Math.abs(new Date(dataPara).getTime() - new Date(dataDe).getTime())
@@ -773,7 +815,8 @@ export default function SemanalClient({
             <Trophy size={15} style={{ color: 'var(--gold)' }} />
             <span className="label-uppercase" style={{ color: 'var(--gold)' }}>Melhores da semana</span>
           </div>
-          <PodiumMelhores rows={rowsMelhores} metas={metas} mostrarNomes={mostrarNomes} />
+          <PodiumMelhores rows={rowsMelhores} metas={metas} mostrarNomes={mostrarNomes}
+            onClickRow={(id) => router.push(`/painel/semanal/${id}`)} />
         </div>
       )}
 
@@ -795,7 +838,8 @@ export default function SemanalClient({
       {rowsPiores.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {rowsPiores.map((row, i) => (
-            <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="pior" mostrarNomes={mostrarNomes} />
+            <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="pior"
+              mostrarNomes={mostrarNomes} onClick={() => router.push(`/painel/semanal/${row.opId}`)} />
           ))}
         </div>
       )}

@@ -253,3 +253,67 @@ export function getLabelStatus(status: Status, tipo?: 'maior_melhor' | 'menor_me
   if (status === 'amarelo')  return tipo === 'menor_melhor' ? 'Atenção' : 'Quase na meta'
   return ''
 }
+
+// ── Pontuação de evolução semanal ─────────────────────────────────────────────
+
+export function calcKpiPts(nomeColuna: string, v1: number, v2: number): number {
+  const key = normalizarChave(nomeColuna)
+  if (key.includes('retenc') || key.includes('retenç')) {
+    const d = v2 - v1
+    if (d >= 2) return 3; if (d > 0) return 1
+    if (d < 0 && d > -2) return -1; if (d <= -2) return -3; return 0
+  }
+  if (key === 'pedidos') {
+    const d = v2 - v1
+    if (d >= 5) return 3; if (d >= 1) return 1
+    if (d <= -1 && d >= -4) return -1; if (d <= -5) return -3; return 0
+  }
+  if (key === 'churn') {
+    const r = v1 - v2
+    if (r >= 3) return 3; if (r >= 1) return 1
+    if (r <= -1 && r >= -2) return -1; if (r <= -3) return -3; return 0
+  }
+  if (key.startsWith('abs')) {
+    const r = v1 - v2
+    if (r >= 0.5) return 3; if (r > 0) return 1
+    if (r < 0 && r > -0.5) return -1; if (r <= -0.5) return -3; return 0
+  }
+  if (key.includes('indisp')) {
+    const r = v1 - v2
+    if (r >= 1) return 3; if (r > 0) return 1
+    if (r < 0 && r > -1) return -1; if (r <= -1) return -3; return 0
+  }
+  if (key === 'tma') {
+    const r = v1 - v2
+    if (r >= 30) return 3; if (r >= 1) return 1
+    if (r <= -1 && r >= -29) return -1; if (r <= -30) return -3; return 0
+  }
+  return 0
+}
+
+export function calcTotalPts(
+  snap1: Record<string, number>,
+  snap2: Record<string, number>,
+  metas: Meta[]
+): number {
+  let total = 0
+  for (const meta of metas) {
+    const v1 = snap1[meta.nome_coluna]
+    const v2 = snap2[meta.nome_coluna]
+    if (v1 !== undefined && v2 !== undefined) total += calcKpiPts(meta.nome_coluna, v1, v2)
+  }
+  return total
+}
+
+export function normalizarDados(
+  dados: Record<string, number>,
+  metas: Meta[]
+): Record<string, number> {
+  const metaMap = new Map(metas.map((m) => [normalizarChave(m.nome_coluna), m]))
+  const out: Record<string, number> = {}
+  for (const [key, val] of Object.entries(dados)) {
+    const meta = metaMap.get(normalizarChave(key))
+    if (meta) out[meta.nome_coluna] = val
+  }
+  return out
+}

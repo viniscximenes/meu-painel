@@ -11,7 +11,7 @@ import {
   lerRangeCelulas,
   listarAbas,
 } from '@/lib/sheets'
-import { upsertNomeFantasia, upsertSnapshot, existeSnapshotParaData } from '@/lib/snapshots'
+import { upsertNomeFantasia, upsertSnapshot, existeSnapshotParaData, deletarSnapshot } from '@/lib/snapshots'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { normalizarChave } from '@/lib/kpi-utils'
 
@@ -177,5 +177,19 @@ export async function salvarSnapshotSemanaAnteriorAction(forcar = false): Promis
   } catch (e) {
     console.error('[salvarSnapshotSemanaAnteriorAction]', e)
     return { ok: false, erro: 'Erro ao salvar snapshot.' }
+  }
+}
+
+export async function deletarSnapshotAction(data_ref: string): Promise<
+  { ok: true; deletados: number } | { ok: false; erro: string }
+> {
+  try {
+    await requireGestor()
+    const deletados = await deletarSnapshot(data_ref)
+    revalidatePath('/painel/semanal')
+    return { ok: true, deletados }
+  } catch (e) {
+    console.error('[deletarSnapshotAction]', e)
+    return { ok: false, erro: 'Erro ao deletar snapshot.' }
   }
 }

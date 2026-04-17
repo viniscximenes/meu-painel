@@ -97,6 +97,31 @@ export async function getNomesFantasia(mes_referencia: string): Promise<NomeFant
   }
 }
 
+/** Retorna todos os snapshots de um operador, ordenados por data asc. */
+export async function getSnapshotsByOperador(operador_id: number): Promise<KpiSnapshot[]> {
+  try {
+    const db = createAdminClient()
+    const { data } = await db
+      .from('kpi_snapshots')
+      .select('*')
+      .eq('operador_id', operador_id)
+      .order('data_ref', { ascending: true })
+    return (data ?? []) as KpiSnapshot[]
+  } catch {
+    return []
+  }
+}
+
+/** Deleta todos os snapshots de uma data. Retorna a contagem deletada. */
+export async function deletarSnapshot(data_ref: string): Promise<number> {
+  const db = createAdminClient()
+  const { count } = await db
+    .from('kpi_snapshots')
+    .delete({ count: 'exact' })
+    .eq('data_ref', data_ref)
+  return count ?? 0
+}
+
 /** Insere ou atualiza nome fantasia. */
 export async function upsertNomeFantasia(
   operador_id: number,
