@@ -12,7 +12,7 @@ import {
 } from '@/lib/sheets'
 import { getRVConfig, calcularRV, formatBRL, type ResultadoRV } from '@/lib/rv'
 import Link from 'next/link'
-import { SlidersHorizontal, Users, CheckCircle, XCircle, Trophy, Database, CalendarCheck } from 'lucide-react'
+import { SlidersHorizontal } from 'lucide-react'
 import RVEquipeTabela, { type OpRV } from './RVEquipeTabela'
 
 function globalStatus(kpis: KPIItem[]): Status {
@@ -45,7 +45,7 @@ export default async function RVEquipePage() {
       const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba)
       const col = encontrarColunaIdent(headers)
       dataAtualizacao = extrairDataAtualizacao(rows)
-      const mesAtual = new Date().toISOString().slice(0, 7) // YYYY-MM
+      const mesAtual = new Date().toISOString().slice(0, 7)
 
       operadores = OPERADORES_DISPLAY.map((op) => {
         const row = rows.find((r) =>
@@ -65,125 +65,119 @@ export default async function RVEquipePage() {
     } catch { /* planilha indisponível */ }
   }
 
-  // Cards de resumo
-  const elegiveis   = operadores.filter(o => o.rv?.elegivel === true).length
-  const inelegiveis = operadores.filter(o => o.rv?.elegivel === false && !o.rv?.semDados).length
+  const elegiveis     = operadores.filter(o => o.rv?.elegivel === true).length
+  const inelegiveis   = operadores.filter(o => o.rv?.elegivel === false && !o.rv?.semDados).length
   const rvTotalEquipe = operadores.reduce((s, o) => s + (o.rv?.rvFinal ?? 0), 0)
   const maiorRV       = Math.max(0, ...operadores.map(o => o.rv?.rvFinal ?? 0))
 
-  return (
-    <PainelShell profile={profile} title="RV da Equipe">
-      <div className="space-y-8">
+  const mesAno = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
 
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h2
-              className="text-2xl font-extrabold"
-              style={{
-                background: 'linear-gradient(135deg, var(--gold-bright) 0%, var(--gold-light) 100%)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text', letterSpacing: '-0.02em',
-              }}
-            >
+  const cssVars = {
+    '--void2': '#07070f',
+    '--void3': '#0d0d1a',
+    '--gold2': '#e8c96d',
+    '--gold4': 'rgba(201,168,76,0.15)',
+  } as React.CSSProperties
+
+  return (
+    <PainelShell profile={profile} title="RV da Equipe" iconName="Users">
+      <div style={cssVars} className="space-y-4">
+
+        {/* ── Linha dourada ── */}
+        <div style={{
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
+        }} />
+
+        {/* ── Header ── */}
+        <div style={{
+          background: 'var(--void2)',
+          border: '1px solid rgba(201,168,76,0.1)',
+          borderRadius: '14px',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <span style={{
+              fontFamily: 'var(--ff-display)',
+              fontSize: '16px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
               RV da Equipe
-            </h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-              {dataAtualizacao
-                ? `Dados até ${formatarDataCurta(dataAtualizacao)}`
-                : 'Cálculo com base na planilha ativa'}
-            </p>
+            </span>
+
+            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
+
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+              {mesAno}
+            </span>
+
+            {dataAtualizacao && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div
+                  className="animate-pulse"
+                  style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Atualizado até{' '}
+                  <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    {formatarDataCurta(dataAtualizacao)}
+                  </strong>
+                </span>
+              </div>
+            )}
           </div>
-          <Link href="/painel/rv-config" className="btn-secondary flex items-center gap-2 text-sm">
-            <SlidersHorizontal size={14} />
-            Configurar Regras de RV
-          </Link>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link href="/painel/rv-config" className="btn-secondary flex items-center gap-2 text-xs">
+              <SlidersHorizontal size={13} />
+              Configurar Regras
+            </Link>
+          </div>
         </div>
 
-        {/* 4 cards de resumo */}
+        {/* ── Cards de resumo ── */}
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           {[
-            {
-              label: 'Total Elegíveis',
-              valor: String(elegiveis),
-              icone: <CheckCircle size={16} />,
-              iconeBg: 'rgba(16,185,129,0.10)',
-              iconeColor: '#10b981',
-              valorColor: '#34d399',
-            },
-            {
-              label: 'Não Elegíveis',
-              valor: String(inelegiveis),
-              icone: <XCircle size={16} />,
-              iconeBg: 'rgba(239,68,68,0.10)',
-              iconeColor: '#ef4444',
-              valorColor: '#f87171',
-            },
-            {
-              label: 'RV Total Equipe',
-              valor: formatBRL(rvTotalEquipe),
-              icone: <Users size={16} />,
-              iconeBg: 'rgba(201,168,76,0.10)',
-              iconeColor: 'var(--gold)',
-              valorColor: 'var(--gold-light)',
-            },
-            {
-              label: 'Maior RV Individual',
-              valor: formatBRL(maiorRV),
-              icone: <Trophy size={16} />,
-              iconeBg: 'rgba(201,168,76,0.12)',
-              iconeColor: 'var(--gold)',
-              valorColor: 'var(--gold-light)',
-            },
+            { label: 'Total Elegíveis',      valor: String(elegiveis),       dotColor: '#22c55e',           valorColor: '#34d399' },
+            { label: 'Não Elegíveis',        valor: String(inelegiveis),     dotColor: '#ef4444',           valorColor: '#f87171' },
+            { label: 'RV Total Equipe',      valor: formatBRL(rvTotalEquipe), dotColor: '#c9a84c',          valorColor: 'var(--gold-light)' },
+            { label: 'Maior RV Individual',  valor: formatBRL(maiorRV),      dotColor: '#c9a84c',           valorColor: 'var(--gold-light)' },
           ].map((card) => (
-            <div key={card.label} className="card flex flex-col gap-3 relative overflow-hidden" style={{ minHeight: '120px' }}>
-              {/* Accent top */}
-              <div
-                className="absolute top-0 left-0 right-0 h-[2px]"
-                style={{ background: `linear-gradient(90deg, ${card.iconeBg} 0%, transparent 100%)` }}
-              />
-              <div className="flex items-start justify-between">
-                <p className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                  {card.label}
-                </p>
-                <div
-                  className="p-2.5 rounded-xl shrink-0"
-                  style={{
-                    background: card.iconeBg,
-                    color: card.iconeColor,
-                    boxShadow: `0 4px 16px ${card.iconeBg}88`,
-                  }}
-                >
-                  {card.icone}
-                </div>
+            <div
+              key={card.label}
+              style={{
+                background: '#0d0d1a',
+                border: '1px solid rgba(201,168,76,0.08)',
+                borderRadius: '14px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: card.dotColor, flexShrink: 0 }} />
+                <span className="label-uppercase">{card.label}</span>
               </div>
-              <p className="text-3xl font-extrabold tabular-nums leading-none tracking-tight" style={{ color: card.valorColor }}>
+              <span className="metric-value" style={{ color: card.valorColor, fontSize: '26px' }}>
                 {card.valor}
-              </p>
+              </span>
             </div>
           ))}
         </div>
 
-        {/* Info planilha */}
-        {planilha && (
-          <div className="flex items-center gap-3 flex-wrap text-xs px-3 py-2 rounded-xl w-fit"
-            style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.10)' }}>
-            <div className="flex items-center gap-1.5">
-              <Database size={12} style={{ color: 'var(--text-muted)' }} />
-              <span style={{ color: 'var(--text-muted)' }}>
-                Planilha: <span style={{ color: 'var(--text-secondary)' }}>{planilha.nome}</span>
-              </span>
-            </div>
-            {dataAtualizacao && (
-              <div className="flex items-center gap-1.5">
-                <CalendarCheck size={12} style={{ color: 'var(--gold)' }} />
-                <span style={{ color: 'var(--gold-light)' }}>Dados até {formatarDataCurta(dataAtualizacao)}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Tabela com filtro */}
+        {/* ── Tabela com filtro ── */}
         <RVEquipeTabela operadores={operadores} />
       </div>
     </PainelShell>

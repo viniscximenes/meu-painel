@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
+import { getIniciaisNome } from '@/lib/operadores'
 import { formatBRL } from '@/lib/rv-utils'
 import type { Status } from '@/lib/kpi-utils'
 import type { ResultadoRV } from '@/lib/rv-utils'
@@ -17,14 +17,26 @@ export type OpRV = {
   rv: ResultadoRV | null
 }
 
-type Filtro = 'todos' | 'elegiveis' | 'inelegiveis' | 'maior-rv'
+type Filtro = 'todos' | 'elegiveis' | 'inelegiveis'
 
 const FILTROS: { key: Filtro; label: string }[] = [
   { key: 'todos',       label: 'Todos' },
   { key: 'elegiveis',   label: 'Elegíveis' },
-  { key: 'inelegiveis', label: 'Não Elegíveis' },
-  { key: 'maior-rv',    label: 'Maior RV' },
+  { key: 'inelegiveis', label: 'Inelegíveis' },
 ]
+
+function avatarEstilo(id: number): { background: string; border: string; color: string } {
+  const impar = id % 2 !== 0
+  return {
+    background: impar
+      ? 'linear-gradient(135deg, #0f1729, #1a2540)'
+      : 'linear-gradient(135deg, #0a1020, #111830)',
+    border: impar
+      ? '1px solid rgba(66,139,255,0.25)'
+      : '1px solid rgba(66,139,255,0.15)',
+    color: '#ffffff',
+  }
+}
 
 const ICONE_COMP: Record<string, React.ReactNode> = {
   retracao: <TrendingUp  size={11} />,
@@ -33,10 +45,16 @@ const ICONE_COMP: Record<string, React.ReactNode> = {
   ticket:   <Ticket      size={11} />,
 }
 
-// ── Mini breakdown expandível ─────────────────────────────────────────────────
+// ── Breakdown expandível ──────────────────────────────────────────────────────
 function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
   return (
-    <div className="px-5 py-4 space-y-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+    <div
+      className="px-5 py-4 space-y-3"
+      style={{
+        borderTop: '1px solid rgba(201,168,76,0.08)',
+        background: '#0d0d1a',
+      }}
+    >
       {/* Componentes */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {rv.componentes.map((c) => {
@@ -61,7 +79,7 @@ function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
               <p className="text-sm font-extrabold tabular-nums" style={{ color: cor }}>
                 {c.valorDisplay}
               </p>
-              <p className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-[9px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 {formatBRL(c.premio)}
               </p>
             </div>
@@ -90,7 +108,7 @@ function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
       {/* Penalidades */}
       {rv.penalidades && rv.penalidades.length > 0 && (
         <div className="rounded-xl border px-3 py-2.5 space-y-1.5"
-          style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.15)' }}>
+          style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(201,168,76,0.08)' }}>
           <p className="text-[9px] font-bold uppercase" style={{ color: '#f87171', letterSpacing: '0.07em' }}>
             Penalidades
           </p>
@@ -106,7 +124,7 @@ function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
       {/* Desconto individual */}
       {rv.descontoIndividualAplicado && (
         <div className="flex items-center justify-between text-xs rounded-xl border px-3 py-2.5"
-          style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(239,68,68,0.15)' }}>
+          style={{ background: 'rgba(239,68,68,0.04)', borderColor: 'rgba(201,168,76,0.08)' }}>
           <span style={{ color: 'var(--text-muted)' }}>
             Desconto:{' '}
             <span style={{ color: '#fca5a5' }}>{rv.descontoIndividualAplicado.motivo}</span>
@@ -117,7 +135,7 @@ function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
         </div>
       )}
 
-      {/* RV Final — sempre visível */}
+      {/* RV Final */}
       <div className="flex items-center justify-end text-xs font-bold"
         style={{ color: rv.elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
         RV Final: {formatBRL(rv.rvFinal)}
@@ -128,7 +146,7 @@ function BreakdownCompacto({ rv }: { rv: ResultadoRV }) {
 
 // ── Tabela principal ──────────────────────────────────────────────────────────
 export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
-  const [filtro,     setFiltro]    = useState<Filtro>('todos')
+  const [filtro,      setFiltro]   = useState<Filtro>('todos')
   const [expandidoId, setExpanded] = useState<number | null>(null)
 
   const filtered = operadores.filter((op) => {
@@ -137,16 +155,12 @@ export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
     return true
   })
 
-  const sorted = filtro === 'maior-rv'
-    ? [...filtered].sort((a, b) => (b.rv?.rvFinal ?? 0) - (a.rv?.rvFinal ?? 0))
-    : filtered
-
   const cntEleg   = operadores.filter(o => o.rv?.elegivel).length
   const cntInelig = operadores.filter(o => o.rv?.elegivel === false && !o.rv?.semDados).length
 
   return (
     <div className="space-y-4">
-      {/* Barra de filtro — pills */}
+      {/* ── Pills de filtro ── */}
       <div className="flex items-center gap-2 flex-wrap">
         {FILTROS.map(({ key, label }) => {
           const active = filtro === key
@@ -161,7 +175,7 @@ export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
               {key === 'elegiveis' && (
                 <span
                   className="tabular-nums text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: active ? 'rgba(16,185,129,0.20)' : 'rgba(16,185,129,0.12)', color: '#34d399' }}
+                  style={{ background: active ? 'rgba(34,197,94,0.20)' : 'rgba(34,197,94,0.12)', color: '#34d399' }}
                 >
                   {cntEleg}
                 </span>
@@ -179,98 +193,162 @@ export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
         })}
       </div>
 
-      {/* Tabela */}
-      <div className="rounded-2xl border overflow-hidden"
-        style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' }}>
-
+      {/* ── Tabela ── */}
+      <div
+        style={{
+          background: '#0d0d1a',
+          border: '1px solid rgba(201,168,76,0.08)',
+          borderRadius: '16px',
+          overflow: 'hidden',
+        }}
+      >
         {/* Cabeçalho */}
-        <div className="px-5 py-4"
+        <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 140px 1fr 40px',
-            background: 'linear-gradient(180deg, rgba(17,24,39,0.95) 0%, rgba(17,24,39,0.70) 100%)',
-            borderBottom: '1px solid rgba(201,168,76,0.10)',
-          }}>
-          {['Operador', 'RV Total', 'Elegibilidade', ''].map((h, i) => (
-            <span key={i} className="text-[10px] font-bold uppercase"
-              style={{ color: 'var(--gold)', letterSpacing: '0.10em', textAlign: i === 1 ? 'center' : 'left' }}>
+            gridTemplateColumns: '1fr 160px 1fr 44px',
+            padding: '11px 20px',
+            background: 'rgba(201,168,76,0.03)',
+            borderBottom: '1px solid rgba(201,168,76,0.08)',
+          }}
+        >
+          {(['Operador', 'RV Total', 'Elegibilidade', ''] as const).map((h, i) => (
+            <span
+              key={i}
+              style={{
+                fontSize: '9px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.14em',
+                color: h === 'RV Total' ? '#c9a84c' : 'var(--text-muted)',
+                textAlign: i === 1 ? 'center' : 'left',
+              }}
+            >
               {h}
             </span>
           ))}
         </div>
 
         {/* Linhas */}
-        {sorted.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="py-12 text-center" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
             Nenhum operador neste filtro.
           </div>
         ) : (
-          sorted.map((op, idx) => {
+          filtered.map((op, idx) => {
             const rv       = op.rv
             const elegivel = rv?.elegivel ?? false
             const semDados = rv?.semDados ?? !op.encontrado
             const isOpen   = expandidoId === op.id
-            const rowBg    = idx % 2 === 0 ? 'rgba(5,5,8,0.6)' : 'rgba(12,16,24,0.4)'
+            const av       = avatarEstilo(op.id)
 
-            // Badge
+            const borderLeft = semDados
+              ? '3px solid rgba(255,255,255,0.06)'
+              : elegivel
+                ? '3px solid var(--verde)'
+                : '3px solid var(--vermelho)'
+
+            // Badge elegibilidade
             let badgeBg: string, badgeColor: string, badgeBorder: string, badgeLabel: string
             let BadgeIcon: React.ElementType = Minus
             if (semDados) {
               badgeBg = 'rgba(255,255,255,0.04)'; badgeColor = 'var(--text-muted)'
               badgeBorder = 'rgba(255,255,255,0.08)'; badgeLabel = 'Sem dados'
             } else if (elegivel) {
-              badgeBg = 'rgba(16,185,129,0.10)'; badgeColor = '#34d399'
-              badgeBorder = 'rgba(16,185,129,0.25)'; badgeLabel = 'Elegível'; BadgeIcon = CheckCircle
+              badgeBg = 'rgba(34,197,94,0.10)'; badgeColor = '#34d399'
+              badgeBorder = 'rgba(34,197,94,0.25)'; badgeLabel = 'Elegível'; BadgeIcon = CheckCircle
             } else {
               badgeBg = 'rgba(239,68,68,0.10)'; badgeColor = '#f87171'
               badgeBorder = 'rgba(239,68,68,0.25)'; badgeLabel = 'Inelegível'; BadgeIcon = XCircle
             }
 
             return (
-              <div key={op.id} style={{ borderBottom: idx < sorted.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}>
+              <div
+                key={op.id}
+                style={{ borderBottom: idx < filtered.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none' }}
+              >
                 {/* Linha principal */}
                 <div
-                  className="px-5 py-3.5 transition-colors"
+                  className="transition-colors"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 140px 1fr 40px',
+                    gridTemplateColumns: '1fr 160px 1fr 44px',
                     alignItems: 'center',
-                    background: rowBg,
+                    padding: '10px 20px',
+                    borderLeft,
+                    cursor: rv && !semDados ? 'pointer' : 'default',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = 'transparent'
+                  }}
+                  onClick={() => {
+                    if (rv && !semDados) setExpanded(isOpen ? null : op.id)
                   }}
                 >
                   {/* Avatar + Nome */}
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border-2"
-                      style={getAvatarStyle(op.id)}>
+                    <div style={{
+                      width: '30px',
+                      height: '30px',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      fontFamily: 'var(--ff-display)',
+                      ...av,
+                    }}>
                       {getIniciaisNome(op.nome)}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm truncate" style={{ color: 'var(--text-primary)', fontWeight: 400 }}>{op.nome}</p>
-                      <p className="text-xs" style={{ color: '#4a90d9' }}>{op.username}</p>
+                      <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {op.nome.split(' ').slice(0, 2).join(' ')}
+                      </p>
+                      <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                        {op.username}
+                      </p>
                     </div>
                   </div>
 
-                  {/* RV Final */}
+                  {/* RV Total */}
                   <div className="text-center">
                     {rv && !semDados ? (
-                      <>
-                        <p className="text-base font-extrabold tabular-nums"
-                          style={{ color: elegivel ? 'var(--gold-light)' : 'var(--text-muted)' }}>
-                          {formatBRL(rv.rvFinal)}
-                        </p>
+                      <div className="flex flex-col items-center gap-0.5">
+                        {elegivel ? (
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            fontVariantNumeric: 'tabular-nums',
+                            background: 'rgba(34,197,94,0.10)',
+                            border: '1px solid rgba(34,197,94,0.30)',
+                            color: '#34d399',
+                          }}>
+                            {formatBRL(rv.rvFinal)}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>—</span>
+                        )}
                         {rv.totalPenalidade > 0 && (
-                          <p className="text-[9px]" style={{ color: '#f87171' }}>
+                          <p className="text-[9px]" style={{ color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
                             −{formatBRL(rv.totalPenalidade)} pen.
                           </p>
                         )}
-                        {rv.bonus > 0 && rv.totalPenalidade === 0 && (
-                          <p className="text-[9px]" style={{ color: 'var(--gold)' }}>
+                        {rv.bonus > 0 && rv.totalPenalidade === 0 && elegivel && (
+                          <p className="text-[9px]" style={{ color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>
                             + bônus {formatBRL(rv.bonus)}
                           </p>
                         )}
-                      </>
+                      </div>
                     ) : (
-                      <span className="text-lg font-extrabold" style={{ color: 'var(--text-muted)' }}>—</span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-muted)' }}>—</span>
                     )}
                   </div>
 
@@ -295,7 +373,7 @@ export default function RVEquipeTabela({ operadores }: { operadores: OpRV[] }) {
                   {rv && !semDados ? (
                     <button
                       type="button"
-                      onClick={() => setExpanded(isOpen ? null : op.id)}
+                      onClick={(e) => { e.stopPropagation(); setExpanded(isOpen ? null : op.id) }}
                       className="p-1.5 rounded-lg transition-all flex items-center justify-center"
                       aria-label={isOpen ? 'Recolher detalhes' : 'Ver detalhes'}
                       aria-expanded={isOpen}
