@@ -403,9 +403,7 @@ export default async function GestorPage() {
                     </div>
                   </div>
                 )}
-                <div style={{ opacity: rv.elegivel ? 1 : 0.6 }}>
-                  <GestorRVSection rv={rv} config={config} opKpis={opKpis} absVal={absVal} />
-                </div>
+                <GestorRVSection rv={rv} config={config} opKpis={opKpis} absVal={absVal} />
               </div>
             </div>
 

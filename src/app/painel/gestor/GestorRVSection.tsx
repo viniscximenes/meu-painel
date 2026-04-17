@@ -338,14 +338,14 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
                   }}
                 >
                   <div>
-                    <p style={{ fontSize: '11px', fontWeight: 600, color: '#cbd5e1' }}>{label}</p>
-                    <p style={{ fontSize: '10px', color: '#64748b', marginTop: '1px' }}>{detail}</p>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0' }}>{label}</p>
+                    <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '1px' }}>{detail}</p>
                   </div>
                   <span style={{
                     fontSize: '13px',
                     fontWeight: 700,
                     fontVariantNumeric: 'tabular-nums',
-                    color: isZero ? '#ef4444' : '#34d399',
+                    color: isZero ? '#f87171' : '#4ade80',
                   }}>
                     {formatBRLGestor(valor)}
                   </span>
@@ -358,8 +358,8 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.06)',
             }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0' }}>Subtotal (RV Base)</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#e2e8f0' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>Subtotal (RV Base)</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#f8faff' }}>
                 {formatBRLGestor(rv.rvBase)}
               </span>
             </div>
@@ -383,7 +383,7 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
             {/* Deflatores */}
             {rv.deflatores.length > 0 && (
               <div className="space-y-2">
-                <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#f87171' }}>
+                <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#f59e0b' }}>
                   Deflatores
                 </p>
                 {rv.deflatores.map((d, i) => {
@@ -402,7 +402,7 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
                         cursor: isAbs ? 'default' : undefined,
                       }}
                     >
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         {d.motivo} (−{d.perda}%)
                         {isAbs && <Info size={10} style={{ color: 'rgba(248,113,113,0.5)', flexShrink: 0 }} />}
                       </span>
