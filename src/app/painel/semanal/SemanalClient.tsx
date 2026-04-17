@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Info, Trophy, AlertTriangle } from 'lucide-react'
+import { ChevronDown, Info, Trophy, AlertTriangle, Eye, EyeOff } from 'lucide-react'
 import type { Meta } from '@/lib/kpi-utils'
 import { normalizarChave } from '@/lib/kpi-utils'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
@@ -15,7 +15,7 @@ export interface OperadorRow {
   nomeFantasia: string | null
   snap1: Record<string, number> | null
   snap2: Record<string, number> | null
-  score: number   // soma de pontos (-18 a +18); 0 se sem comparação
+  score: number
 }
 
 export interface SemanalClientProps {
@@ -27,60 +27,54 @@ export interface SemanalClientProps {
   piores: number[]
 }
 
-// ── Sistema de pontos (espelho de page.tsx) ────────────────────────────────────
+// ── Sistema de pontos ─────────────────────────────────────────────────────────
 
 function calcKpiPts(nomeColuna: string, v1: number, v2: number): number {
   const key = normalizarChave(nomeColuna)
-
   if (key.includes('retenc') || key.includes('retenç')) {
     const d = v2 - v1
-    if (d >= 2) return 3
-    if (d > 0) return 1
-    if (d < 0 && d > -2) return -1
-    if (d <= -2) return -3
-    return 0
+    if (d >= 2) return 3; if (d > 0) return 1
+    if (d < 0 && d > -2) return -1; if (d <= -2) return -3; return 0
   }
   if (key === 'pedidos') {
     const d = v2 - v1
-    if (d >= 5) return 3
-    if (d >= 1) return 1
-    if (d <= -1 && d >= -4) return -1
-    if (d <= -5) return -3
-    return 0
+    if (d >= 5) return 3; if (d >= 1) return 1
+    if (d <= -1 && d >= -4) return -1; if (d <= -5) return -3; return 0
   }
   if (key === 'churn') {
     const r = v1 - v2
-    if (r >= 3) return 3
-    if (r >= 1) return 1
-    if (r <= -1 && r >= -2) return -1
-    if (r <= -3) return -3
-    return 0
+    if (r >= 3) return 3; if (r >= 1) return 1
+    if (r <= -1 && r >= -2) return -1; if (r <= -3) return -3; return 0
   }
   if (key.startsWith('abs')) {
     const r = v1 - v2
-    if (r >= 0.5) return 3
-    if (r > 0) return 1
-    if (r < 0 && r > -0.5) return -1
-    if (r <= -0.5) return -3
-    return 0
+    if (r >= 0.5) return 3; if (r > 0) return 1
+    if (r < 0 && r > -0.5) return -1; if (r <= -0.5) return -3; return 0
   }
   if (key.includes('indisp')) {
     const r = v1 - v2
-    if (r >= 1) return 3
-    if (r > 0) return 1
-    if (r < 0 && r > -1) return -1
-    if (r <= -1) return -3
-    return 0
+    if (r >= 1) return 3; if (r > 0) return 1
+    if (r < 0 && r > -1) return -1; if (r <= -1) return -3; return 0
   }
   if (key === 'tma') {
     const r = v1 - v2
-    if (r >= 30) return 3
-    if (r >= 1) return 1
-    if (r <= -1 && r >= -29) return -1
-    if (r <= -30) return -3
-    return 0
+    if (r >= 30) return 3; if (r >= 1) return 1
+    if (r <= -1 && r >= -29) return -1; if (r <= -30) return -3; return 0
   }
   return 0
+}
+
+// ── Ícones por KPI ─────────────────────────────────────────────────────────────
+
+function getKpiIcon(meta: Meta): string {
+  const key = normalizarChave(meta.nome_coluna)
+  if (key.includes('retenc') || key.includes('retenç')) return '🎯'
+  if (key === 'pedidos') return '📦'
+  if (key === 'churn') return '🔄'
+  if (key.startsWith('abs')) return '⏱'
+  if (key.includes('indisp')) return '📵'
+  if (key === 'tma') return '⏰'
+  return '📊'
 }
 
 // ── Helpers de formato ─────────────────────────────────────────────────────────
@@ -107,16 +101,11 @@ function fmtVal(val: number, meta: Meta): string {
 
 function fmtDelta(v1: number, v2: number, meta: Meta): string {
   const d = v2 - v1
-  if (isTma(meta)) {
-    const abs = Math.round(Math.abs(d))
-    return `${d >= 0 ? '+' : '-'}${abs}s`
-  }
+  if (isTma(meta)) return `${d >= 0 ? '+' : ''}${Math.round(d)}s`
   const uni = meta.unidade.trim().toLowerCase()
-  if (uni === '%' || uni === 'porcentagem') {
-    return `${d >= 0 ? '+' : ''}${d.toFixed(1)}pp`
-  }
-  const rounded = Math.round(d * 10) / 10
-  return `${rounded >= 0 ? '+' : ''}${rounded}`
+  if (uni === '%' || uni === 'porcentagem') return `${d >= 0 ? '+' : ''}${d.toFixed(1)}pp`
+  const r = Math.round(d * 10) / 10
+  return `${r >= 0 ? '+' : ''}${r}`
 }
 
 function isImproved(v1: number, v2: number, meta: Meta): boolean {
@@ -126,12 +115,21 @@ function isImproved(v1: number, v2: number, meta: Meta): boolean {
 const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
 function fmtMes(mes: string): string {
   const [y, m] = mes.split('-')
-  const idx = parseInt(m, 10) - 1
-  return `${MESES[idx] ?? m} ${y}`
+  return `${MESES[parseInt(m, 10) - 1] ?? m} ${y}`
 }
 function fmtData(d: string): string {
   const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   return m ? `${m[3]}/${m[2]}` : d
+}
+
+// ── Pódio — config por posição ────────────────────────────────────────────────
+
+const PODIUM_MARGIN_TOP: Record<number, string> = { 1: '0',      2: '2rem',  3: '3.5rem' }
+const PODIUM_BORDER:     Record<number, string> = { 1: 'var(--gold)', 2: '#9ca3af', 3: '#92400e' }
+const PODIUM_SHADOW:     Record<number, string> = {
+  1: '0 0 0 2px var(--gold), 0 8px 32px rgba(201,168,76,0.20)',
+  2: '0 0 0 2px #9ca3af',
+  3: '0 0 0 2px #92400e',
 }
 
 // ── Barra comparativa ──────────────────────────────────────────────────────────
@@ -140,34 +138,35 @@ function KpiBar({ v1, v2, meta }: { v1: number; v2: number; meta: Meta }) {
   const max = Math.max(v1, v2) || 1
   const pct1 = Math.min((v1 / max) * 100, 100)
   const pct2 = Math.min((v2 / max) * 100, 100)
-  const ok = isImproved(v1, v2, meta)
-  const color = ok ? 'var(--verde)' : 'var(--vermelho)'
+  const ok   = isImproved(v1, v2, meta)
   const unchanged = v1 === v2
+
+  const snapColor = unchanged
+    ? 'rgba(255,255,255,0.25)'
+    : ok
+      ? 'linear-gradient(90deg, rgba(16,185,129,0.55), rgba(16,185,129,0.9))'
+      : 'linear-gradient(90deg, rgba(239,68,68,0.55), rgba(239,68,68,0.9))'
 
   return (
     <div
-      className="relative h-1 rounded-full mt-2"
-      style={{ background: 'rgba(255,255,255,0.06)' }}
+      className="relative rounded-full mt-2"
+      style={{ height: '6px', background: 'rgba(255,255,255,0.06)' }}
     >
       {/* Snap1 ghost */}
       <div
         className="absolute inset-y-0 left-0 rounded-full"
-        style={{ width: `${pct1}%`, background: 'rgba(255,255,255,0.18)' }}
+        style={{ width: `${pct1}%`, background: 'rgba(255,255,255,0.16)' }}
       />
-      {/* Snap2 bar */}
+      {/* Snap2 bar com gradiente */}
       <div
         className="absolute inset-y-0 left-0 rounded-full"
-        style={{
-          width: `${pct2}%`,
-          background: unchanged ? 'rgba(255,255,255,0.25)' : color,
-          opacity: 0.8,
-        }}
+        style={{ width: `${pct2}%`, background: snapColor }}
       />
-      {/* Tick no snap1 */}
+      {/* Tick marcando snap1 */}
       {!unchanged && (
         <div
-          className="absolute inset-y-0 w-px"
-          style={{ left: `${pct1}%`, background: 'rgba(255,255,255,0.5)' }}
+          className="absolute inset-y-0 w-0.5 rounded-full"
+          style={{ left: `${pct1}%`, background: 'rgba(255,255,255,0.55)', zIndex: 2 }}
         />
       )}
     </div>
@@ -184,62 +183,64 @@ function KpiRow({
   v2: number | undefined
   destaque?: boolean
 }) {
+  const icon = getKpiIcon(meta)
+
+  // Sem dados
   if (v1 === undefined && v2 === undefined) {
     return (
-      <div className={destaque ? 'py-2.5' : 'py-1.5'}>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {destaque && <span className="mr-1">⭐</span>}
-            {meta.label}
-            {destaque && (
-              <span className="ml-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                style={{ background: 'rgba(201,168,76,0.12)', color: 'var(--gold-light)' }}>
-                Principal
-              </span>
-            )}
-          </span>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
-        </div>
+      <div className="py-2 flex items-center gap-2">
+        <span className="text-sm leading-none">{icon}</span>
+        <span className="text-xs flex-1" style={{ color: 'var(--text-muted)' }}>
+          {meta.label}
+          {destaque && (
+            <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: 'rgba(201,168,76,0.12)', color: 'var(--gold-light)' }}>
+              Principal
+            </span>
+          )}
+        </span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
       </div>
     )
   }
 
-  // Só snap2 (sem comparação)
+  // Só snap2
   if (v1 === undefined) {
     return (
-      <div className={destaque ? 'py-2.5' : 'py-1.5'}>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {destaque && <span className="mr-1">⭐</span>}
-            {meta.label}
-          </span>
-          <span
-            className={destaque ? 'text-sm font-bold tabular-nums' : 'text-xs font-semibold tabular-nums'}
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {fmtVal(v2!, meta)}
-          </span>
-        </div>
+      <div className="py-2 flex items-center gap-2">
+        <span className="text-sm leading-none">{icon}</span>
+        <span className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>{meta.label}</span>
+        <span
+          className="font-bold tabular-nums"
+          style={{ color: 'var(--text-primary)', fontSize: destaque ? '15px' : '13px' }}
+        >
+          {fmtVal(v2!, meta)}
+        </span>
       </div>
     )
   }
 
   const val1 = v1!
   const val2 = v2 ?? val1
-  const pts = calcKpiPts(meta.nome_coluna, val1, val2)
-  const ok = isImproved(val1, val2, meta)
+  const pts  = calcKpiPts(meta.nome_coluna, val1, val2)
+  const ok   = isImproved(val1, val2, meta)
   const unchanged = val1 === val2
-  const deltaColor = unchanged ? 'var(--text-muted)' : ok ? 'var(--verde)' : 'var(--vermelho)'
+  const arrow = unchanged ? '→' : ok ? '↑' : '↓'
+  const arrowColor = unchanged ? 'var(--text-muted)' : ok ? 'var(--verde)' : 'var(--vermelho)'
+  const valColor = unchanged ? 'var(--text-secondary)' : ok ? 'var(--verde)' : 'var(--vermelho)'
 
   return (
-    <div className={destaque ? 'py-2.5' : 'py-1.5'}>
-      {/* Linha superior: label + pts badge */}
-      <div className="flex items-center justify-between gap-2 mb-1">
+    <div className={destaque ? 'py-3' : 'py-2'}>
+      {/* Linha superior: ícone + label + badge pts */}
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className={destaque ? 'text-base leading-none' : 'text-sm leading-none'}>{icon}</span>
         <span
-          className={destaque ? 'text-xs font-semibold' : 'text-[11px] font-medium'}
-          style={{ color: 'var(--text-secondary)' }}
+          className="flex-1 font-semibold"
+          style={{
+            color: 'var(--text-secondary)',
+            fontSize: destaque ? '12px' : '11px',
+          }}
         >
-          {destaque && <span className="mr-1">⭐</span>}
           {meta.label}
           {destaque && (
             <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
@@ -250,43 +251,56 @@ function KpiRow({
         </span>
         {pts !== 0 && (
           <span
-            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums shrink-0"
+            className="font-bold tabular-nums rounded-full shrink-0 px-2 py-0.5"
             style={{
-              background: pts > 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+              fontSize: '11px',
+              background: pts > 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
               color: pts > 0 ? 'var(--verde)' : 'var(--vermelho)',
-              border: `1px solid ${pts > 0 ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
+              border: `1px solid ${pts > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
             }}
           >
-            {pts > 0 ? '+' : ''}{pts}pts
+            {pts > 0 ? '+' : ''}{pts}
           </span>
         )}
       </div>
 
-      {/* Linha inferior: valores + delta */}
-      <div className="flex items-center gap-1.5">
+      {/* Linha de valores: v1 → v2 + delta */}
+      <div className="flex items-center gap-2">
+        {/* Valor anterior */}
         <span
           className="tabular-nums shrink-0"
-          style={{
-            color: 'var(--text-muted)',
-            fontSize: destaque ? '13px' : '11px',
-          }}
+          style={{ color: 'var(--text-muted)', fontSize: destaque ? '14px' : '12px' }}
         >
           {fmtVal(val1, meta)}
         </span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>→</span>
+
+        {/* Seta direcional */}
+        <span
+          className={unchanged ? '' : 'animate-pulse'}
+          style={{
+            color: arrowColor,
+            fontSize: destaque ? '16px' : '14px',
+            fontWeight: 700,
+            lineHeight: 1,
+            flexShrink: 0,
+          }}
+        >
+          {arrow}
+        </span>
+
+        {/* Valor atual */}
         <span
           className="font-bold tabular-nums shrink-0"
-          style={{
-            color: unchanged ? 'var(--text-secondary)' : deltaColor,
-            fontSize: destaque ? '15px' : '12px',
-          }}
+          style={{ color: valColor, fontSize: destaque ? '17px' : '14px' }}
         >
           {fmtVal(val2, meta)}
         </span>
+
+        {/* Delta */}
         {!unchanged && (
           <span
-            className="text-[10px] font-semibold tabular-nums ml-auto shrink-0"
-            style={{ color: deltaColor }}
+            className="tabular-nums font-semibold ml-auto shrink-0"
+            style={{ color: arrowColor, fontSize: destaque ? '11px' : '10px' }}
           >
             {fmtDelta(val1, val2, meta)}
           </span>
@@ -301,49 +315,50 @@ function KpiRow({
 
 // ── Card de operador ───────────────────────────────────────────────────────────
 
-const POS_EMOJI_MELHOR = ['🥇', '🥈', '🥉']
-
 function OperadorCard({
-  row, metas, pos, tipo,
+  row, metas, pos, tipo, mostrarNomes,
 }: {
   row: OperadorRow
   metas: Meta[]
-  pos: number        // 1-based
+  pos: number
   tipo: 'melhor' | 'pior'
+  mostrarNomes: boolean
 }) {
   const isMelhor = tipo === 'melhor'
-  const posEmoji = isMelhor ? (POS_EMOJI_MELHOR[pos - 1] ?? `#${pos}`) : '💀'
+  const posEmoji = isMelhor ? (['🥇','🥈','🥉'][pos - 1] ?? `#${pos}`) : '💀'
   const pts = row.score
-  const ptsColor = pts > 0 ? 'var(--verde)' : pts < 0 ? 'var(--vermelho)' : 'var(--text-muted)'
-  const ptsBg = pts > 0
-    ? 'rgba(16,185,129,0.08)'
-    : pts < 0
-      ? 'rgba(239,68,68,0.08)'
-      : 'rgba(255,255,255,0.04)'
-  const ptsBorder = pts > 0
-    ? 'rgba(16,185,129,0.15)'
-    : pts < 0
-      ? 'rgba(239,68,68,0.15)'
-      : 'rgba(255,255,255,0.08)'
+  const ptsColor  = pts > 0 ? 'var(--verde)' : pts < 0 ? 'var(--vermelho)' : 'var(--text-muted)'
+  const ptsBg     = pts > 0 ? 'rgba(16,185,129,0.08)'  : pts < 0 ? 'rgba(239,68,68,0.08)'  : 'rgba(255,255,255,0.04)'
+  const ptsBorder = pts > 0 ? 'rgba(16,185,129,0.18)'  : pts < 0 ? 'rgba(239,68,68,0.18)'  : 'rgba(255,255,255,0.08)'
 
   const txRetMeta   = metas.find((m) => isTxRet(m))
   const outrasMetas = metas.filter((m) => !isTxRet(m))
 
-  const nome = row.nomeFantasia ?? row.nomeReal.split(' ')[0]
+  const nome = mostrarNomes
+    ? row.nomeReal.split(' ').slice(0, 2).join(' ')
+    : (row.nomeFantasia ?? row.nomeReal.split(' ')[0])
+
+  const borderColor = isMelhor ? PODIUM_BORDER[pos] ?? 'var(--border)' : 'var(--border)'
+  const shadow      = isMelhor ? PODIUM_SHADOW[pos]  ?? 'none'          : 'none'
 
   return (
     <div
       className="card flex flex-col"
-      style={{ padding: 0, overflow: 'hidden' }}
+      style={{
+        padding: 0,
+        overflow: 'hidden',
+        border: `2px solid ${borderColor}`,
+        boxShadow: shadow,
+      }}
     >
       {/* Header */}
       <div
         className="flex items-center gap-3 px-4 pt-4 pb-3"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
-        <span className="text-xl leading-none shrink-0">{posEmoji}</span>
+        <span className="text-2xl leading-none shrink-0">{posEmoji}</span>
         <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0 border-2"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 border-2"
           style={getAvatarStyle(row.opId)}
         >
           {getIniciaisNome(row.nomeReal)}
@@ -353,25 +368,22 @@ function OperadorCard({
             className="font-bold truncate"
             style={{
               fontFamily: 'var(--ff-display)',
-              fontSize: '16px',
+              fontSize: '17px',
               color: 'var(--text-primary)',
               lineHeight: 1.2,
             }}
           >
             {nome}
           </p>
-          <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            @{row.username}
-          </p>
         </div>
-        {/* Pontuação total */}
+        {/* Pontuação */}
         <div
-          className="shrink-0 text-right px-3 py-2 rounded-xl"
+          className="shrink-0 text-center px-3 py-2 rounded-xl"
           style={{ background: ptsBg, border: `1px solid ${ptsBorder}` }}
         >
           <p
-            className="text-xl font-bold tabular-nums leading-none"
-            style={{ color: ptsColor, fontFamily: 'var(--ff-body)' }}
+            className="font-bold tabular-nums leading-none"
+            style={{ color: ptsColor, fontFamily: 'var(--ff-body)', fontSize: '22px' }}
           >
             {pts > 0 ? '+' : ''}{pts}
           </p>
@@ -383,7 +395,6 @@ function OperadorCard({
 
       {/* KPIs */}
       <div className="flex-1 px-4">
-        {/* Tx. Retenção em destaque */}
         {txRetMeta && (
           <>
             <KpiRow
@@ -393,12 +404,10 @@ function OperadorCard({
               destaque
             />
             {outrasMetas.length > 0 && (
-              <div className="divider" style={{ margin: '0 0 0.25rem' }} />
+              <div className="divider" style={{ margin: '0.25rem 0' }} />
             )}
           </>
         )}
-
-        {/* Demais KPIs */}
         {outrasMetas.map((meta, i) => (
           <div key={meta.nome_coluna}>
             <KpiRow
@@ -418,12 +427,53 @@ function OperadorCard({
   )
 }
 
+// ── Pódio dos melhores ────────────────────────────────────────────────────────
+
+function PodiumMelhores({
+  rows, metas, mostrarNomes,
+}: {
+  rows: OperadorRow[]
+  metas: Meta[]
+  mostrarNomes: boolean
+}) {
+  // Reordena para exibição: [2º, 1º, 3º]
+  const ordered =
+    rows.length === 3
+      ? [
+          { row: rows[1], pos: 2 },
+          { row: rows[0], pos: 1 },
+          { row: rows[2], pos: 3 },
+        ]
+      : rows.map((row, i) => ({ row, pos: i + 1 }))
+
+  return (
+    <>
+      {/* Mobile: ordem normal, empilhados */}
+      <div className="flex flex-col gap-4 md:hidden">
+        {rows.map((row, i) => (
+          <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="melhor" mostrarNomes={mostrarNomes} />
+        ))}
+      </div>
+
+      {/* Desktop: pódio com reordenação e margens */}
+      <div className="hidden md:flex items-start gap-4">
+        {ordered.map(({ row, pos }) => (
+          <div key={row.opId} style={{ flex: 1, marginTop: PODIUM_MARGIN_TOP[pos] ?? '0' }}>
+            <OperadorCard row={row} metas={metas} pos={pos} tipo="melhor" mostrarNomes={mostrarNomes} />
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 // ── Componente principal ───────────────────────────────────────────────────────
 
 export default function SemanalClient({
   datas, rows, metas, mesReferencia, melhores, piores,
 }: SemanalClientProps) {
-  const [infoAberta, setInfoAberta] = useState(false)
+  const [infoAberta,   setInfoAberta]   = useState(false)
+  const [mostrarNomes, setMostrarNomes] = useState(false)
 
   const data2 = datas[0] ?? null
   const data1 = datas[1] ?? null
@@ -431,42 +481,52 @@ export default function SemanalClient({
   const rowsMelhores = melhores.map((id) => rows.find((r) => r.opId === id)).filter(Boolean) as OperadorRow[]
   const rowsPiores   = piores.map((id)   => rows.find((r) => r.opId === id)).filter(Boolean) as OperadorRow[]
 
-  const semDados = datas.length === 0
-
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div>
-        <h1
-          className="text-xl font-bold"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--ff-display)' }}
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1
+            className="text-xl font-bold"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--ff-display)' }}
+          >
+            Acompanhamento Semanal
+          </h1>
+          <p className="text-sm mt-0.5 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+            <span style={{ textTransform: 'capitalize' }}>{fmtMes(mesReferencia)}</span>
+            {data1 && data2 && (
+              <>
+                <span style={{ color: 'var(--border)' }}>·</span>
+                <span>
+                  Comparando{' '}
+                  <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data1)}</strong>
+                  {' → '}
+                  <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data2)}</strong>
+                </span>
+              </>
+            )}
+            {data2 && !data1 && (
+              <>
+                <span style={{ color: 'var(--border)' }}>·</span>
+                <span>Snapshot de <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data2)}</strong></span>
+              </>
+            )}
+          </p>
+        </div>
+
+        {/* Toggle nomes */}
+        <button
+          type="button"
+          onClick={() => setMostrarNomes((v) => !v)}
+          className="btn-secondary flex items-center gap-1.5 text-xs shrink-0"
         >
-          Acompanhamento Semanal
-        </h1>
-        <p className="text-sm mt-0.5 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
-          <span style={{ textTransform: 'capitalize' }}>{fmtMes(mesReferencia)}</span>
-          {data1 && data2 && (
-            <>
-              <span style={{ color: 'var(--border)' }}>·</span>
-              <span>
-                Comparando{' '}
-                <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data1)}</strong>
-                {' '}→{' '}
-                <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data2)}</strong>
-              </span>
-            </>
-          )}
-          {data2 && !data1 && (
-            <>
-              <span style={{ color: 'var(--border)' }}>·</span>
-              <span>Snapshot de <strong style={{ color: 'var(--text-secondary)' }}>{fmtData(data2)}</strong></span>
-            </>
-          )}
-        </p>
+          {mostrarNomes ? <EyeOff size={12} /> : <Eye size={12} />}
+          {mostrarNomes ? 'Ver nomes fantasia' : 'Ver nomes reais'}
+        </button>
       </div>
 
-      {/* Como funciona */}
+      {/* ── Como funciona ── */}
       <div className="card" style={{ padding: 0 }}>
         <button
           type="button"
@@ -487,7 +547,6 @@ export default function SemanalClient({
             }}
           />
         </button>
-
         <div
           style={{
             maxHeight: infoAberta ? '600px' : '0px',
@@ -501,15 +560,14 @@ export default function SemanalClient({
               partir da planilha ativa. Esta tela compara os dois últimos registros,
               calculando a <strong style={{ color: 'var(--gold-light)' }}>pontuação de evolução</strong> de cada um.
             </p>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 pt-1">
               {[
-                { label: '⭐ Tx. Retenção', desc: '≥+2pp →+3 | +0~2pp →+1 | -0~2pp →-1 | ≤-2pp →-3' },
-                { label: 'Pedidos', desc: '≥+5 →+3 | +1~4 →+1 | -1~4 →-1 | ≤-5 →-3' },
-                { label: 'Churn', desc: 'reduziu ≥3 →+3 | 1~2 →+1 | aumentou 1~2 →-1 | ≥3 →-3' },
-                { label: 'ABS', desc: 'reduziu ≥0.5pp →+3 | >0 →+1 | aumentou >0 →-1 | ≥0.5pp →-3' },
-                { label: 'Indisp Total', desc: 'reduziu ≥1pp →+3 | >0 →+1 | aumentou >0 →-1 | ≥1pp →-3' },
-                { label: 'TMA', desc: 'reduziu ≥30s →+3 | 1~29s →+1 | aumentou 1~29s →-1 | ≥30s →-3' },
+                { label: '🎯 Tx. Retenção', desc: '≥+2pp → +3 | 0~2pp → +1 | -0~2pp → -1 | ≤-2pp → -3' },
+                { label: '📦 Pedidos',      desc: '≥+5 → +3 | +1~4 → +1 | -1~4 → -1 | ≤-5 → -3' },
+                { label: '🔄 Churn',        desc: 'reduziu ≥3 → +3 | 1~2 → +1 | aumentou 1~2 → -1 | ≥3 → -3' },
+                { label: '⏱ ABS',           desc: 'reduziu ≥0.5pp → +3 | >0 → +1 | aumentou >0 → -1 | ≥0.5pp → -3' },
+                { label: '📵 Indisp',        desc: 'reduziu ≥1pp → +3 | >0 → +1 | aumentou >0 → -1 | ≥1pp → -3' },
+                { label: '⏰ TMA',           desc: 'reduziu ≥30s → +3 | 1~29s → +1 | aumentou 1~29s → -1 | ≥30s → -3' },
               ].map(({ label, desc }) => (
                 <div key={label}>
                   <p className="text-[10px] font-bold mb-0.5" style={{ color: 'var(--text-secondary)' }}>{label}</p>
@@ -517,19 +575,18 @@ export default function SemanalClient({
                 </div>
               ))}
             </div>
-
             <p className="text-[10px] font-semibold pt-1" style={{ color: 'var(--text-muted)' }}>
               Pontuação máxima: <span style={{ color: 'var(--verde)' }}>+18 pts</span>
-              {' '}·{' '}
+              {' · '}
               Mínima: <span style={{ color: 'var(--vermelho)' }}>-18 pts</span>
             </p>
           </div>
         </div>
       </div>
 
-      {/* Sem dados */}
-      {semDados && (
-        <div className="card flex flex-col items-center justify-center py-16 text-center" style={{ padding: '4rem 2rem' }}>
+      {/* ── Sem dados ── */}
+      {datas.length === 0 && (
+        <div className="card flex flex-col items-center justify-center text-center" style={{ padding: '4rem 2rem' }}>
           <Trophy size={32} style={{ color: 'var(--text-muted)', opacity: 0.3 }} />
           <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
             Nenhum snapshot disponível ainda.
@@ -540,22 +597,18 @@ export default function SemanalClient({
         </div>
       )}
 
-      {/* Top 3 melhores */}
+      {/* ── Top 3 melhores — pódio ── */}
       {rowsMelhores.length > 0 && (
         <div>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <Trophy size={15} style={{ color: 'var(--gold)' }} />
             <span className="label-uppercase" style={{ color: 'var(--gold)' }}>Melhores da semana</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {rowsMelhores.map((row, i) => (
-              <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="melhor" />
-            ))}
-          </div>
+          <PodiumMelhores rows={rowsMelhores} metas={metas} mostrarNomes={mostrarNomes} />
         </div>
       )}
 
-      {/* Divisor */}
+      {/* ── Divisor ── */}
       {rowsMelhores.length > 0 && rowsPiores.length > 0 && (
         <div className="flex items-center gap-3">
           <div className="flex-1" style={{ height: '1px', background: 'var(--border)' }} />
@@ -569,14 +622,12 @@ export default function SemanalClient({
         </div>
       )}
 
-      {/* Top 3 piores */}
+      {/* ── Top 3 piores ── */}
       {rowsPiores.length > 0 && (
-        <div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {rowsPiores.map((row, i) => (
-              <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="pior" />
-            ))}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {rowsPiores.map((row, i) => (
+            <OperadorCard key={row.opId} row={row} metas={metas} pos={i + 1} tipo="pior" mostrarNomes={mostrarNomes} />
+          ))}
         </div>
       )}
     </div>
