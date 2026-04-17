@@ -45,50 +45,27 @@ function OpPopup({ line, config, opKpis }: { line: HoverLine; config: RVGestorCo
 
   if (line === 'retracao') {
     title = 'TX Retenção'
-    metaLabel = `Meta ≥ ${config.retencaoFaixas[config.retencaoFaixas.length - 1]?.min ?? 65}%`
-    const minFaixa = config.retencaoFaixas[config.retencaoFaixas.length - 1]?.min ?? 58
+    metaLabel = 'Meta ≥ 60%'
     entries = opKpis
-      .filter(o => o.retencaoVal > 0 && o.retencaoVal < (config.retencaoFaixas[0]?.min ?? 65))
+      .filter(o => o.retencaoVal > 0 && o.retencaoVal < 60)
       .sort((a, b) => a.retencaoVal - b.retencaoVal)
-      .map(o => ({
-        op: o,
-        valor: `${o.retencaoVal.toFixed(1)}%`,
-        cor: o.retencaoVal < minFaixa ? '#ef4444' : '#f59e0b',
-      }))
+      .map(o => ({ op: o, valor: `${o.retencaoVal.toFixed(1)}%`, cor: '#ef4444' }))
   } else if (line === 'indisp') {
     title = 'Indisponibilidade'
     metaLabel = `Meta ≤ ${config.indispMeta}%`
     entries = opKpis
       .filter(o => o.indispVal > config.indispMeta)
       .sort((a, b) => b.indispVal - a.indispVal)
-      .map(o => ({
-        op: o,
-        valor: `${o.indispVal.toFixed(1)}%`,
-        cor: o.indispVal > config.indispMeta * 1.1 ? '#ef4444' : '#f59e0b',
-      }))
+      .map(o => ({ op: o, valor: `${o.indispVal.toFixed(1)}%`, cor: '#ef4444' }))
   } else if (line === 'tma') {
     title = 'TMA'
     metaLabel = `Meta ≤ ${segParaDisplay(config.tmaMetaSeg)}`
     entries = opKpis
       .filter(o => o.tmaValSeg > config.tmaMetaSeg)
       .sort((a, b) => b.tmaValSeg - a.tmaValSeg)
-      .map(o => ({
-        op: o,
-        valor: segParaDisplay(o.tmaValSeg),
-        cor: '#ef4444',
-      }))
+      .map(o => ({ op: o, valor: segParaDisplay(o.tmaValSeg), cor: '#ef4444' }))
   } else if (line === 'ticket') {
-    title = 'Variação Ticket'
-    metaLabel = `Meta ≥ ${config.ticketFaixas[0]?.min ?? -12}%`
-    const bestMin = config.ticketFaixas[0]?.min ?? -12
-    entries = opKpis
-      .filter(o => o.ticketVal < bestMin)
-      .sort((a, b) => a.ticketVal - b.ticketVal)
-      .map(o => ({
-        op: o,
-        valor: `${o.ticketVal.toFixed(1)}%`,
-        cor: '#ef4444',
-      }))
+    return null
   }
 
   return (
@@ -282,8 +259,8 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
       {/* ── RV Card ── */}
       <div style={{ flex: '0 0 auto', maxWidth: '480px', width: '100%' }}>
         <div style={{
-          background: '#0d0d1a',
-          border: '1px solid rgba(201,168,76,0.08)',
+          background: '#111827',
+          border: '1px solid rgba(201,168,76,0.20)',
           borderRadius: '16px',
           overflow: 'hidden',
         }}>
@@ -348,14 +325,16 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
                     padding: '8px 12px',
                     borderRadius: '10px',
                     background: isZero ? 'rgba(239,68,68,0.04)' : isHovered ? 'rgba(201,168,76,0.04)' : 'rgba(255,255,255,0.02)',
-                    border: '1px solid rgba(255,255,255,0.04)',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderTop: '1px solid transparent',
+                    borderRight: '1px solid transparent',
                     borderLeft: isZero ? '3px solid #ef4444' : isHovered ? '3px solid rgba(201,168,76,0.4)' : '3px solid transparent',
                     cursor: 'default',
                     transition: 'background 0.15s ease, border-left-color 0.15s ease',
                   }}
                 >
                   <div>
-                    <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</p>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</p>
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{detail}</p>
                   </div>
                   <span style={{
@@ -375,8 +354,8 @@ export default function GestorRVSection({ rv, config, opKpis, absVal }: Props) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.06)',
             }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Subtotal (RV Base)</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)' }}>Subtotal (RV Base)</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>
                 {formatBRLGestor(rv.rvBase)}
               </span>
             </div>
