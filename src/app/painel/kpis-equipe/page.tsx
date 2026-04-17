@@ -1,6 +1,6 @@
 import { requireGestor } from '@/lib/auth'
 import { getMetas, computarKPIs, type KPIItem } from '@/lib/kpi'
-import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, extrairDataAtualizacao, formatarDataCurta } from '@/lib/sheets'
+import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, extrairDataAtualizacao, formatarDataCurta, matchCelulaOperador } from '@/lib/sheets'
 import { getAppConfig } from '@/lib/app-config'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import PainelShell from '@/components/PainelShell'
@@ -44,10 +44,9 @@ export default async function KPIsEquipePage() {
       let primeiroDebugFeito = false
 
       dadosEquipe = OPERADORES_DISPLAY.map((op) => {
-        const row = rows.find((r) => {
-          const val = (r[col] ?? '').trim().split('@')[0].toLowerCase()
-          return val === op.username.toLowerCase()
-        })
+        const row = rows.find((r) =>
+          matchCelulaOperador(r[col] ?? '', op.username, op.nome)
+        )
 
         const debugLabel = (!primeiroDebugFeito && row) ? op.username : undefined
         if (debugLabel) primeiroDebugFeito = true
