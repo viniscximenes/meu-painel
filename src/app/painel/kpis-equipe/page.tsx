@@ -17,7 +17,6 @@ export type DadosOperador = {
 export default async function KPIsEquipePage() {
   const profile = await requireGestor()
 
-  // Busca planilha e metas com timeout implícito no Supabase (rápido)
   const [planilha, metas] = await Promise.all([
     getPlanilhaAtiva().catch(() => null),
     getMetas().catch(() => []),
@@ -48,7 +47,6 @@ export default async function KPIsEquipePage() {
           return val === op.username.toLowerCase()
         })
 
-        // Loga diagnóstico completo para o primeiro operador encontrado
         const debugLabel = (!primeiroDebugFeito && row) ? op.username : undefined
         if (debugLabel) primeiroDebugFeito = true
 
@@ -62,39 +60,78 @@ export default async function KPIsEquipePage() {
     }
   }
 
+  const cssVars = {
+    '--void2': '#07070f',
+    '--void3': '#0d0d1a',
+    '--gold2': '#e8c96d',
+    '--gold4': 'rgba(201,168,76,0.15)',
+  } as React.CSSProperties
+
   return (
     <PainelShell profile={profile} title="KPIs da Equipe">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h2
-              className="text-2xl font-extrabold"
-              style={{
-                background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                letterSpacing: '-0.03em',
-              }}
-            >
+      <div style={cssVars} className="space-y-4">
+
+        {/* ── Linha dourada ── */}
+        <div style={{
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
+        }} />
+
+        {/* ── Header ── */}
+        <div style={{
+          background: 'var(--void2)',
+          border: '1px solid rgba(201,168,76,0.1)',
+          borderRadius: '14px',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            {/* Título gradient */}
+            <span style={{
+              fontFamily: 'var(--ff-display)',
+              fontSize: '16px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
               KPIs da Equipe
-            </h2>
-            <p className="text-xs mt-1 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
-              <span>{planilha ? planilha.nome : 'Nenhuma planilha ativa'}</span>
-              <span style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>
-              <span>{OPERADORES_DISPLAY.length} operadores</span>
-              {dataAtualizacao && (
-                <span
-                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                  style={{ background: 'rgba(201,168,76,0.10)', color: 'var(--gold-light)', border: '1px solid rgba(201,168,76,0.15)' }}
-                >
-                  Dados até {formatarDataCurta(dataAtualizacao)}
+            </span>
+
+            {/* Separador vertical */}
+            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
+
+            {/* Planilha */}
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+              {planilha ? planilha.nome : 'Nenhuma planilha ativa'}
+            </span>
+
+            {/* Dot pulsante + data */}
+            {dataAtualizacao && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div
+                  className="animate-pulse"
+                  style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Atualizado até{' '}
+                  <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    {formatarDataCurta(dataAtualizacao)}
+                  </strong>
                 </span>
-              )}
-            </p>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Ações */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {metas.length > 0 && (
               <DeflatoresModal metas={metas} dadosEquipe={dadosEquipe} />
             )}
@@ -107,6 +144,7 @@ export default async function KPIsEquipePage() {
           </div>
         </div>
 
+        {/* ── Erro sheets ── */}
         {erroSheets && (
           <div
             className="flex items-start gap-3 rounded-xl border px-4 py-3"

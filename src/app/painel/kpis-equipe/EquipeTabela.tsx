@@ -1,39 +1,54 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import type { KPIItem, Status, Meta } from '@/lib/kpi-utils'
 import { formatarExibicao, normalizarChave } from '@/lib/kpi-utils'
 import type { DadosOperador } from './page'
-import clsx from 'clsx'
+
+// ── Helpers de status ──────────────────────────────────────────────────────────
 
 const STATUS_COR: Record<Status, string> = {
   verde:    '#10b981',
   amarelo:  '#f59e0b',
   vermelho: '#ef4444',
-  neutro:   'var(--text-muted)',
+  neutro:   'rgba(255,255,255,0.25)',
 }
 
-const STATUS_DOT: Record<Status, string> = {
-  verde: 'bg-emerald-400', amarelo: 'bg-amber-400',
-  vermelho: 'bg-rose-400', neutro: 'bg-slate-600',
-}
-
-const STATUS_GLOW: Record<Status, string> = {
-  verde:    'rgba(16,185,129,0.30)',
-  amarelo:  'rgba(245,158,11,0.30)',
-  vermelho: 'rgba(239,68,68,0.30)',
-  neutro:   'transparent',
+const STATUS_RGB: Record<Status, string> = {
+  verde:    '16,185,129',
+  amarelo:  '245,158,11',
+  vermelho: '239,68,68',
+  neutro:   '255,255,255',
 }
 
 function globalStatus(kpis: KPIItem[]): Status {
   const com = kpis.filter((k) => k.status !== 'neutro')
   if (com.some((k) => k.status === 'vermelho')) return 'vermelho'
-  if (com.some((k) => k.status === 'amarelo')) return 'amarelo'
-  if (com.some((k) => k.status === 'verde')) return 'verde'
+  if (com.some((k) => k.status === 'amarelo'))  return 'amarelo'
+  if (com.some((k) => k.status === 'verde'))    return 'verde'
   return 'neutro'
 }
+
+function isTxRetMeta(m: Meta) {
+  const k = normalizarChave(m.nome_coluna)
+  return k.includes('retenc') || k.includes('retenç')
+}
+
+// ── Filtros ────────────────────────────────────────────────────────────────────
+
+type Filtro = 'todos' | 'verde' | 'amarelo' | 'vermelho'
+
+const FILTROS: { key: Filtro; label: string }[] = [
+  { key: 'todos',    label: 'TODOS' },
+  { key: 'verde',    label: 'VERDES' },
+  { key: 'amarelo',  label: 'ATENÇÃO' },
+  { key: 'vermelho', label: 'CRÍTICOS' },
+]
+
+// ── Props ──────────────────────────────────────────────────────────────────────
 
 interface Props {
   dadosEquipe: DadosOperador[]
@@ -41,248 +56,309 @@ interface Props {
 }
 
 export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
+  const [filtro, setFiltro] = useState<Filtro>('todos')
+
+  const counts: Record<Filtro, number> = {
+    todos:    dadosEquipe.length,
+    verde:    dadosEquipe.filter(({ kpis, encontrado }) => encontrado && globalStatus(kpis) === 'verde').length,
+    amarelo:  dadosEquipe.filter(({ kpis, encontrado }) => encontrado && globalStatus(kpis) === 'amarelo').length,
+    vermelho: dadosEquipe.filter(({ kpis, encontrado }) => encontrado && globalStatus(kpis) === 'vermelho').length,
+  }
+
+  const filtered = dadosEquipe.filter(({ kpis, encontrado }) => {
+    if (filtro === 'todos') return true
+    if (!encontrado) return false
+    return globalStatus(kpis) === filtro
+  })
+
+  const cssVars = {
+    '--void3': '#0d0d1a',
+    '--gold2': '#e8c96d',
+    '--gold4': 'rgba(201,168,76,0.15)',
+  } as React.CSSProperties
+
   return (
-    <>
-      {/* Tabela desktop */}
-      <div
-        className="hidden lg:block rounded-2xl border overflow-hidden"
-        style={{
-          background: 'rgba(255,255,255,0.02)',
-          backdropFilter: 'blur(20px)',
-          borderColor: 'rgba(255,255,255,0.06)',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
-        }}
-      >
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
-            <tr
+    <div style={cssVars} className="space-y-4">
+
+      {/* ── Filtros pill ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {FILTROS.map(({ key, label }) => {
+          const ativo = filtro === key
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFiltro(key)}
               style={{
-                background: 'linear-gradient(180deg, rgba(10,14,24,0.98) 0%, rgba(17,24,39,0.95) 100%)',
-                borderBottom: '1px solid rgba(201,168,76,0.12)',
+                padding: '5px 14px',
+                borderRadius: '20px',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                border: ativo ? '1px solid #c9a84c' : '1px solid rgba(255,255,255,0.06)',
+                background: ativo ? 'var(--gold4)' : 'var(--void3)',
+                color: ativo ? 'var(--gold2)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+              onMouseEnter={(e) => {
+                if (!ativo) {
+                  const el = e.currentTarget
+                  el.style.borderColor = 'rgba(201,168,76,0.2)'
+                  el.style.color = 'var(--text-secondary)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!ativo) {
+                  const el = e.currentTarget
+                  el.style.borderColor = 'rgba(255,255,255,0.06)'
+                  el.style.color = 'var(--text-muted)'
+                }
               }}
             >
-              <th
-                className="text-left px-5 py-4 w-52"
-                style={{
-                  color: 'var(--text-muted)',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.10em',
-                }}
-              >
-                Operador
-              </th>
-              {basicos.map((m) => (
-                <th
-                  key={m.id}
-                  className="text-center px-3 py-4 whitespace-nowrap"
-                  style={{
-                    color: 'var(--gold)',
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.10em',
-                  }}
-                >
-                  {m.label}
+              {label}
+              <span style={{ opacity: ativo ? 0.7 : 0.45, fontWeight: 400, fontSize: '10px' }}>
+                {counts[key]}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Tabela desktop ── */}
+      <div
+        className="hidden lg:block"
+        style={{
+          background: 'var(--void3)',
+          border: '1px solid rgba(201,168,76,0.08)',
+          borderRadius: '16px',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{
+                background: 'rgba(201,168,76,0.04)',
+                borderBottom: '1px solid rgba(201,168,76,0.08)',
+              }}>
+                <th style={{ textAlign: 'left', padding: '12px 20px', width: '200px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  Operador
                 </th>
-              ))}
-              <th
-                className="text-center px-4 py-4"
-                style={{
-                  color: 'var(--text-muted)',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.10em',
-                  minWidth: '110px',
-                }}
-              >
-                Status
-              </th>
-              <th className="px-4 py-4 w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {dadosEquipe.map(({ op, kpis, encontrado }, idx) => {
-              const gs = globalStatus(kpis)
-              const com      = kpis.filter((k) => k.status !== 'neutro')
-              const verde    = com.filter((k) => k.status === 'verde').length
-              const amarelo  = com.filter((k) => k.status === 'amarelo').length
-              const vermelho = com.filter((k) => k.status === 'vermelho').length
+                {basicos.map((m) => (
+                  <th key={m.id} style={{ textAlign: 'center', padding: '12px 12px', whiteSpace: 'nowrap', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: isTxRetMeta(m) ? '#c9a84c' : 'var(--text-muted)' }}>
+                    {m.label}
+                  </th>
+                ))}
+                <th style={{ textAlign: 'center', padding: '12px 16px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-muted)', minWidth: '60px', whiteSpace: 'nowrap' }}>
+                  Status
+                </th>
+                <th style={{ width: '44px' }} />
+              </tr>
+            </thead>
 
-              const rowBg = idx % 2 === 0 ? 'rgba(5,5,8,0.6)' : 'rgba(12,16,24,0.4)'
+            <tbody>
+              {filtered.map(({ op, kpis, encontrado }, idx) => {
+                const gs = globalStatus(kpis)
+                const av = getAvatarStyle(op.id)
 
-              return (
-                <tr
-                  key={op.id}
-                  className="group transition-all duration-200"
-                  style={{
-                    background: rowBg,
-                    borderBottom: idx < dadosEquipe.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    const el = e.currentTarget as HTMLElement
-                    el.style.background = 'rgba(201,168,76,0.05)'
-                    el.style.boxShadow = `inset 3px 0 0 ${STATUS_GLOW[gs]}, inset -1px 0 0 transparent`
-                  }}
-                  onMouseLeave={(e) => {
-                    const el = e.currentTarget as HTMLElement
-                    el.style.background = rowBg
-                    el.style.boxShadow = 'none'
-                  }}
-                >
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border-2"
-                        style={getAvatarStyle(op.id)}
+                return (
+                  <tr
+                    key={op.id}
+                    style={{
+                      borderBottom: idx < filtered.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+                      boxShadow: `inset 3px 0 0 ${STATUS_COR[gs]}`,
+                      cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = 'transparent'
+                    }}
+                  >
+                    {/* Operador */}
+                    <td style={{ padding: '10px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '30px', height: '30px', borderRadius: '8px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '10px', fontWeight: 700, flexShrink: 0,
+                          background: av.background, color: av.color,
+                          border: `2px solid ${av.borderColor}`,
+                        }}>
+                          {getIniciaisNome(op.nome)}
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.25 }}>
+                            {op.nome.split(' ').slice(0, 2).join(' ')}
+                          </p>
+                          <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                            {op.username}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* KPIs */}
+                    {basicos.map((m) => {
+                      const kpi = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
+                      const isTxRet = isTxRetMeta(m)
+                      const cor = kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)'
+                      const rgb = kpi ? STATUS_RGB[kpi.status] : '255,255,255'
+                      const val = kpi ? formatarExibicao(kpi.valor, kpi.unidade) : '—'
+
+                      return (
+                        <td key={m.id} style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          {kpi && isTxRet ? (
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '3px 10px',
+                              borderRadius: '20px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              fontVariantNumeric: 'tabular-nums',
+                              background: `rgba(${rgb},0.1)`,
+                              border: `1px solid rgba(${rgb},0.2)`,
+                              color: cor,
+                            }}>
+                              {val}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: cor }}>
+                              {val}
+                            </span>
+                          )}
+                        </td>
+                      )
+                    })}
+
+                    {/* Status dot */}
+                    <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                      {encontrado ? (
+                        <div style={{
+                          width: '8px', height: '8px', borderRadius: '50%',
+                          background: STATUS_COR[gs],
+                          boxShadow: `0 0 6px ${STATUS_COR[gs]}`,
+                          margin: '0 auto',
+                        }} />
+                      ) : (
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+
+                    {/* Arrow */}
+                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                      <Link
+                        href={`/painel/kpi/${op.username}`}
+                        aria-label={`Ver KPI de ${op.nome}`}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          width: '28px', height: '28px', borderRadius: '8px',
+                          border: '1px solid rgba(201,168,76,0.2)',
+                          background: 'rgba(201,168,76,0.08)',
+                          color: '#c9a84c',
+                          opacity: 0.35,
+                          transition: 'opacity 0.15s, transform 0.15s',
+                        }}
+                        onMouseEnter={(e) => {
+                          const el = e.currentTarget as HTMLElement
+                          el.style.opacity = '1'
+                          el.style.transform = 'translateX(2px)'
+                        }}
+                        onMouseLeave={(e) => {
+                          const el = e.currentTarget as HTMLElement
+                          el.style.opacity = '0.35'
+                          el.style.transform = 'translateX(0)'
+                        }}
                       >
-                        {getIniciaisNome(op.nome)}
-                      </div>
-                      <div>
-                        <p className="text-sm leading-none" style={{ color: 'var(--text-primary)', fontWeight: 400 }}>
-                          {op.nome}
-                        </p>
-                        <p className="text-xs mt-0.5" style={{ color: '#4a90d9' }}>
-                          {op.username}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
+                        <ArrowRight size={12} />
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
 
-                  {basicos.map((m) => {
-                    const kpi = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
-                    return (
-                      <td key={m.id} className="px-3 py-3.5 text-center">
-                        {kpi ? (
-                          <span
-                            className="text-sm font-bold tabular-nums"
-                            style={{
-                              color: STATUS_COR[kpi.status],
-                              textShadow: kpi.status !== 'neutro'
-                                ? `0 0 12px ${STATUS_GLOW[kpi.status]}`
-                                : 'none',
-                            }}
-                          >
-                            {formatarExibicao(kpi.valor, kpi.unidade)}
-                          </span>
-                        ) : (
-                          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>
-                        )}
-                      </td>
-                    )
-                  })}
-
-                  <td className="px-4 py-3.5 text-center">
-                    {!encontrado ? (
-                      <span
-                        className="status-badge"
-                        style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)', borderColor: 'rgba(255,255,255,0.08)' }}
-                        role="status"
-                      >
-                        sem dados
-                      </span>
-                    ) : (
-                      <div className="flex items-center justify-center gap-2">
-                        <span
-                          className={clsx('w-2 h-2 rounded-full shrink-0 animate-dotPulse', STATUS_DOT[gs])}
-                          style={{ boxShadow: `0 0 6px ${STATUS_GLOW[gs]}` }}
-                        />
-                        <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                          <span className="font-bold" style={{ color: '#10b981' }}>{verde}</span>
-                          <span style={{ color: 'rgba(255,255,255,0.15)' }}>/</span>
-                          <span className="font-bold" style={{ color: '#f59e0b' }}>{amarelo}</span>
-                          <span style={{ color: 'rgba(255,255,255,0.15)' }}>/</span>
-                          <span className="font-bold" style={{ color: '#ef4444' }}>{vermelho}</span>
-                        </span>
-                      </div>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-3.5 text-right">
-                    <Link
-                      href={`/painel/kpi/${op.username}`}
-                      aria-label={`Ver KPI de ${op.nome}`}
-                      className="transition-all opacity-30 group-hover:opacity-100 w-7 h-7 rounded-lg flex items-center justify-center border ml-auto"
-                      style={{
-                        color: 'var(--gold)',
-                        background: 'rgba(201,168,76,0.08)',
-                        borderColor: 'rgba(201,168,76,0.20)',
-                        transition: 'opacity 200ms ease, transform 200ms ease',
-                      }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateX(2px)' }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateX(0)' }}
-                    >
-                      <ArrowRight size={13} />
-                    </Link>
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={basicos.length + 3} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    Nenhum operador neste filtro.
                   </td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Cards mobile */}
+      {/* ── Cards mobile ── */}
       <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {dadosEquipe.map(({ op, kpis, encontrado }) => {
+        {filtered.map(({ op, kpis, encontrado }) => {
           const gs = globalStatus(kpis)
+          const av = getAvatarStyle(op.id)
+
           return (
             <Link
               key={op.id}
               href={`/painel/kpi/${op.username}`}
-              className="card group"
+              style={{
+                display: 'block',
+                background: 'var(--void3)',
+                border: '1px solid rgba(201,168,76,0.08)',
+                borderLeft: `3px solid ${STATUS_COR[gs]}`,
+                borderRadius: '12px',
+                padding: '14px 16px',
+                transition: 'background 0.15s',
+              }}
               onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLElement
-                el.style.transform = 'translateY(-3px)'
-                el.style.borderColor = 'rgba(201,168,76,0.35)'
+                (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)'
               }}
               onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLElement
-                el.style.transform = 'translateY(0)'
-                el.style.borderColor = 'rgba(255,255,255,0.06)'
+                (e.currentTarget as HTMLElement).style.background = 'var(--void3)'
               }}
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 border-2"
-                  style={getAvatarStyle(op.id)}
-                >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '10px', fontWeight: 700, flexShrink: 0,
+                  background: av.background, color: av.color,
+                  border: `2px solid ${av.borderColor}`,
+                }}>
                   {getIniciaisNome(op.nome)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm" style={{ color: 'var(--text-primary)', fontWeight: 400 }}>
-                    {op.nome}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {op.nome.split(' ').slice(0, 2).join(' ')}
                   </p>
-                  <p className="text-xs" style={{ color: '#4a90d9' }}>{op.username}</p>
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                    {op.username}
+                  </p>
                 </div>
-                <span
-                  className={clsx('w-2.5 h-2.5 rounded-full shrink-0 animate-dotPulse', STATUS_DOT[gs])}
-                  style={{ boxShadow: `0 0 8px ${STATUS_GLOW[gs]}` }}
-                />
+                <div style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: STATUS_COR[gs],
+                  boxShadow: `0 0 6px ${STATUS_COR[gs]}`,
+                  flexShrink: 0,
+                }} />
               </div>
 
               {encontrado && basicos.length > 0 ? (
-                <div className="grid grid-cols-3 gap-1.5">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                   {basicos.slice(0, 6).map((m) => {
                     const kpi = kpis.find((k) => normalizarChave(k.nome_coluna) === normalizarChave(m.nome_coluna))
+                    const cor = kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)'
                     return (
-                      <div
-                        key={m.id}
-                        className="rounded-xl p-2"
-                        style={{ background: 'rgba(5,5,8,0.6)', border: '1px solid rgba(255,255,255,0.04)' }}
-                      >
-                        <p className="text-[9px] truncate uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+                      <div key={m.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '7px 8px' }}>
+                        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {m.label}
                         </p>
-                        <p
-                          className="text-sm font-bold mt-0.5 tabular-nums"
-                          style={{ color: kpi ? STATUS_COR[kpi.status] : 'var(--text-muted)' }}
-                        >
+                        <p style={{ fontSize: '13px', fontWeight: 700, marginTop: '2px', fontVariantNumeric: 'tabular-nums', color: cor }}>
                           {kpi ? formatarExibicao(kpi.valor, kpi.unidade) : '—'}
                         </p>
                       </div>
@@ -290,7 +366,7 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
                   })}
                 </div>
               ) : (
-                <p className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: '12px', textAlign: 'center', padding: '8px 0', color: 'var(--text-muted)' }}>
                   {encontrado ? 'Configure metas básicas' : 'Sem dados na planilha'}
                 </p>
               )}
@@ -298,6 +374,6 @@ export default function EquipeTabela({ dadosEquipe, basicos }: Props) {
           )
         })}
       </div>
-    </>
+    </div>
   )
 }
