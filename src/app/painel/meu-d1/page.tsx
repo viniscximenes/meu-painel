@@ -157,6 +157,8 @@ export default async function MeuD1Page() {
     dadosProps = {
       nomeOperador:            profile.nome,
       mesLabel,
+      horaAtualiz,
+      dataAtualiz,
       retidosKpi, canceladosKpi, pedidosKpi, taxaKpi,
       retidosD1, canceladosD1, pedidosD1, semDadosD1,
       retidosEst, canceladosEst, pedidosEst, taxaEst, deltaTaxa,
