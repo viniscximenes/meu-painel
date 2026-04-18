@@ -4,10 +4,10 @@ import { getProfile } from '@/lib/auth'
 export default async function PainelPage() {
   const profile = await getProfile()
 
-  if (profile.role === 'gestor')   redirect('/painel/kpis-equipe')
+  if (profile.role === 'gestor')   redirect('/painel/gestor')
   if (profile.role === 'admin')    redirect('/painel/meu-kpi')
   if (profile.role === 'aux')      redirect('/painel/meu-kpi')
-  if (profile.role === 'operador') redirect('/painel/meu-diario')
+  if (profile.role === 'operador') redirect('/painel/meu-kpi')
 
   redirect('/login')
 }
