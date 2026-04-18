@@ -1,13 +1,13 @@
 'use server'
 
-import { requireGestor } from '@/lib/auth'
+import { requireGestorAdminOuAux, requireGestorOuAdmin } from '@/lib/auth'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import { criarGLPI, atualizarGLPI, excluirGLPI, type GLPIDados } from '@/lib/glpi'
 import { revalidatePath } from 'next/cache'
 
 export async function criarGLPIAction(dados: GLPIDados): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
     await criarGLPI(planilha.spreadsheet_id, dados)
@@ -23,7 +23,7 @@ export async function atualizarGLPIAction(
   dados: Partial<GLPIDados & { status: 'Em Andamento' | 'Finalizado' }>,
 ): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
     await atualizarGLPI(planilha.spreadsheet_id, rowIndex, dados)
@@ -41,7 +41,7 @@ export async function finalizarGLPIAction(
   dataResolucao: string,
 ): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
     await atualizarGLPI(planilha.spreadsheet_id, rowIndex, {
@@ -59,7 +59,7 @@ export async function finalizarGLPIAction(
 
 export async function excluirGLPIAction(rowIndex: number): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorOuAdmin()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
     await excluirGLPI(planilha.spreadsheet_id, rowIndex)

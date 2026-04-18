@@ -1,6 +1,6 @@
 'use server'
 
-import { requireGestor } from '@/lib/auth'
+import { requireGestorAdminOuAux } from '@/lib/auth'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import { inicializarAbaABS, atualizarCelulaABS } from '@/lib/abs-sheets'
 import type { ABSStatus } from '@/lib/abs-utils'
@@ -9,7 +9,7 @@ import { revalidatePath } from 'next/cache'
 
 export async function inicializarABSAction(mes: number, ano: number): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
     const usernames = OPERADORES_DISPLAY.map((op) => op.username)
@@ -27,7 +27,7 @@ export async function aplicarStatusTodosAction(
   rowIndexes: number[],
 ): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
     await Promise.all(
@@ -48,7 +48,7 @@ export async function atualizarStatusABSAction(
   status: ABSStatus,
 ): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa.' }
     await atualizarCelulaABS(planilha.spreadsheet_id, rowIndex, colIndex, status)

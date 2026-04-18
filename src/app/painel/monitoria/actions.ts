@@ -1,6 +1,6 @@
 'use server'
 
-import { requireGestor } from '@/lib/auth'
+import { requireGestorAdminOuAux, requireGestorOuAdmin } from '@/lib/auth'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import { criarMonitoria, atualizarMonitoria, deletarMonitoria } from '@/lib/monitoria'
 import type { NovaMonitoriaInput, AtualizarMonitoriaInput } from '@/lib/monitoria-utils'
@@ -10,7 +10,7 @@ export async function criarMonitoriaAction(
   dados: NovaMonitoriaInput
 ): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa configurada.' }
     await criarMonitoria(planilha.spreadsheet_id, dados)
@@ -26,7 +26,7 @@ export async function atualizarMonitoriaAction(
   dados: AtualizarMonitoriaInput
 ): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorAdminOuAux()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa configurada.' }
     await atualizarMonitoria(planilha.spreadsheet_id, dados)
@@ -42,7 +42,7 @@ export async function deletarMonitoriaAction(
   sheetRowIndex: number
 ): Promise<{ ok: boolean; erro?: string }> {
   try {
-    await requireGestor()
+    await requireGestorOuAdmin()
     const planilha = await getPlanilhaAtiva()
     if (!planilha) return { ok: false, erro: 'Nenhuma planilha ativa configurada.' }
     await deletarMonitoria(planilha.spreadsheet_id, sheetRowIndex)
