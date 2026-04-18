@@ -38,7 +38,7 @@ export const ABA_GLPI = 'GLPI'
 
 const HEADER = [
   'ID', 'Responsável', 'Fila', 'Código GLPI', 'Descrição',
-  'Data Abertura', 'Status', 'Resposta', 'Email Respondente',
+  'Data Abertura', 'Status', 'Resposta', 'Nome Respondente',
   'Data Resolução', 'Etiqueta',
 ]
 

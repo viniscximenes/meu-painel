@@ -369,8 +369,8 @@ function ModalFinalizar({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={labelStyle}>Email do Respondente</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="respondente@empresa.com" style={inputStyle} />
+              <label style={labelStyle}>Nome Respondente</label>
+              <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="Nome de quem respondeu..." style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>Data Resolução</label>
@@ -447,7 +447,7 @@ function ModalDetalhe({ glpi, onClose, onExcluir }: { glpi: GLPIItem; onClose: (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <Field label="Resposta" value={glpi.resposta} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <Field label="Email Respondente" value={glpi.emailRespondente} />
+              <Field label="Nome Respondente" value={glpi.emailRespondente} />
               <Field label="Data Resolução" value={glpi.dataResolucao} />
             </div>
           </div>
