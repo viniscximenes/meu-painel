@@ -78,12 +78,6 @@ export default async function ABSPage() {
               Controle de ABS
             </span>
 
-            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
-
-            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-              {mesAnoLabel}
-            </span>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div
                 className="animate-pulse"

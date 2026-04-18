@@ -66,11 +66,6 @@ export default async function GLPIPage() {
               Chamados GLPI
             </span>
 
-            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
-
-            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-              {mesAnoLabel}
-            </span>
           </div>
 
           {planilha && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import type { GLPIItem, GLPIStatus, GLPIEtiqueta, GLPIDados } from '@/lib/glpi'
 import { criarGLPIAction, atualizarGLPIAction, finalizarGLPIAction, excluirGLPIAction } from './actions'
@@ -12,8 +12,9 @@ import { Trash2 } from 'lucide-react'
 type ModalState =
   | null
   | { mode: 'novo' }
-  | { mode: 'editar'; glpi: GLPIItem }
+  | { mode: 'editar';    glpi: GLPIItem }
   | { mode: 'finalizar'; glpi: GLPIItem }
+  | { mode: 'detalhe';   glpi: GLPIItem }
 
 type FiltroStatus = 'todos' | 'Em Andamento' | 'Finalizado'
 
@@ -50,7 +51,7 @@ function brParaISO(br: string): string {
 }
 
 function mesAtual(): string {
-  return new Date().toISOString().slice(0, 7) // "YYYY-MM"
+  return new Date().toISOString().slice(0, 7)
 }
 
 function dataBRParaMes(br: string): string {
@@ -59,7 +60,7 @@ function dataBRParaMes(br: string): string {
   return `${y}-${m}`
 }
 
-// ── Input style reutilizável ──────────────────────────────────────────────────
+// ── Estilos base ──────────────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -82,9 +83,46 @@ const labelStyle: React.CSSProperties = {
   marginBottom: '5px',
 }
 
+// ── Pill ──────────────────────────────────────────────────────────────────────
+
+function Pill({ label, val, current, set }: { label: string; val: string; current: string; set: (v: string) => void }) {
+  const active = current === val
+  return (
+    <button
+      onClick={() => set(val)}
+      style={{
+        padding: '5px 14px', borderRadius: '99px', fontSize: '11px', fontWeight: 600,
+        border: active ? '1px solid rgba(201,168,76,0.5)' : '1px solid rgba(255,255,255,0.08)',
+        background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
+        color: active ? '#e8c96d' : '#64748b',
+        cursor: 'pointer', whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+// ── SectionHeader ─────────────────────────────────────────────────────────────
+
+function SectionHeader({ title, count, color }: { title: string; count: number; color: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+      <div style={{ width: '3px', height: '14px', borderRadius: '2px', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#94a3b8' }}>
+        {title}
+      </span>
+      <span style={{ fontSize: '11px', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
+        ({count})
+      </span>
+      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.06) 0%, transparent 100%)' }} />
+    </div>
+  )
+}
+
 // ── Modal overlay ─────────────────────────────────────────────────────────────
 
-function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+function ModalOverlay({ children, onClose, wide }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   useEffect(() => {
     function handler(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
@@ -102,7 +140,10 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
       }}
       onClick={onClose}
     >
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: wide ? '700px' : '560px', maxHeight: '90vh', overflowY: 'auto' }}
+      >
         {children}
       </div>
     </div>
@@ -143,6 +184,7 @@ function ModalCard({ title, onClose, children }: { title: string; onClose: () =>
 }
 
 // ── Modal Novo / Editar ───────────────────────────────────────────────────────
+// Estado 100% local — keystrokes não propagam ao GLPIClient
 
 function ModalNovoEditar({
   glpi,
@@ -157,35 +199,28 @@ function ModalNovoEditar({
 }) {
   const [pending, startTransition] = useTransition()
   const [responsavel, setResponsavel] = useState(glpi?.responsavel ?? '')
-  const [fila, setFila]             = useState(glpi?.fila ?? '')
-  const [codigo, setCodigo]         = useState(glpi?.codigoGLPI ?? '')
-  const [descricao, setDescricao]   = useState(glpi?.descricao ?? '')
-  const [dataAb, setDataAb]         = useState(glpi ? brParaISO(glpi.dataAbertura) : hojeISO())
-  const [etiqueta, setEtiqueta]     = useState<GLPIEtiqueta>(glpi?.etiqueta ?? 'Normal')
-  const [erro, setErro]             = useState('')
+  const [fila,        setFila]        = useState(glpi?.fila ?? '')
+  const [codigo,      setCodigo]      = useState(glpi?.codigoGLPI ?? '')
+  const [descricao,   setDescricao]   = useState(glpi?.descricao ?? '')
+  const [dataAb,      setDataAb]      = useState(glpi ? brParaISO(glpi.dataAbertura) : hojeISO())
+  const [etiqueta,    setEtiqueta]    = useState<GLPIEtiqueta>(glpi?.etiqueta ?? 'Normal')
+  const [erro,        setErro]        = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!responsavel || !descricao) { setErro('Preencha os campos obrigatórios.'); return }
     const dados: GLPIDados = {
-      responsavel,
-      fila,
-      codigoGLPI: codigo,
-      descricao,
-      dataAbertura: isoParaBR(dataAb),
-      etiqueta,
+      responsavel, fila, codigoGLPI: codigo, descricao,
+      dataAbertura: isoParaBR(dataAb), etiqueta,
       status: glpi?.status ?? 'Em Andamento',
       resposta: glpi?.resposta,
       emailRespondente: glpi?.emailRespondente,
       dataResolucao: glpi?.dataResolucao,
     }
     startTransition(async () => {
-      let res
-      if (glpi) {
-        res = await atualizarGLPIAction(glpi.rowIndex, dados)
-      } else {
-        res = await criarGLPIAction(dados)
-      }
+      const res = glpi
+        ? await atualizarGLPIAction(glpi.rowIndex, dados)
+        : await criarGLPIAction(dados)
       if (!res.ok) { setErro(res.erro ?? 'Erro'); return }
       onSaved(dados, glpi?.rowIndex)
     })
@@ -220,11 +255,11 @@ function ModalNovoEditar({
               <input
                 value={fila}
                 onChange={e => setFila(e.target.value)}
-                list="filas-list"
+                list="glpi-filas-list"
                 placeholder="Nome da fila..."
                 style={inputStyle}
               />
-              <datalist id="filas-list">
+              <datalist id="glpi-filas-list">
                 {filasExistentes.map(f => <option key={f} value={f} />)}
               </datalist>
             </div>
@@ -253,12 +288,7 @@ function ModalNovoEditar({
 
           <div style={{ maxWidth: '200px' }}>
             <label style={labelStyle}>Data Abertura</label>
-            <input
-              type="date"
-              value={dataAb}
-              onChange={e => setDataAb(e.target.value)}
-              style={inputStyle}
-            />
+            <input type="date" value={dataAb} onChange={e => setDataAb(e.target.value)} style={inputStyle} />
           </div>
 
           {erro && (
@@ -293,10 +323,10 @@ function ModalFinalizar({
   onFinalized: (rowIndex: number, resposta: string, email: string, dataRes: string) => void
 }) {
   const [pending, startTransition] = useTransition()
-  const [resposta, setResposta]   = useState(glpi.resposta)
-  const [email, setEmail]         = useState(glpi.emailRespondente)
-  const [dataRes, setDataRes]     = useState(glpi.dataResolucao ? brParaISO(glpi.dataResolucao) : hojeISO())
-  const [erro, setErro]           = useState('')
+  const [resposta, setResposta] = useState(glpi.resposta)
+  const [email,    setEmail]    = useState(glpi.emailRespondente)
+  const [dataRes,  setDataRes]  = useState(glpi.dataResolucao ? brParaISO(glpi.dataResolucao) : hojeISO())
+  const [erro,     setErro]     = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -313,13 +343,10 @@ function ModalFinalizar({
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard title="Finalizar GLPI" onClose={onClose}>
-        {/* Resumo somente leitura */}
         <div style={{ background: '#07080f', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px 14px', marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#e8c96d', fontFamily: 'monospace' }}>{glpi.id}</span>
-            <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: etStyle.bg, color: etStyle.color, border: `1px solid ${etStyle.border}` }}>
-              {glpi.etiqueta}
-            </span>
+            <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: etStyle.bg, color: etStyle.color, border: `1px solid ${etStyle.border}` }}>{glpi.etiqueta}</span>
             <span style={{ fontSize: '10px', color: '#64748b' }}>{glpi.dataAbertura}</span>
           </div>
           {glpi.fila && <span style={{ fontSize: '11px', color: '#94a3b8' }}>Fila: <strong style={{ color: '#cbd5e1' }}>{glpi.fila}</strong></span>}
@@ -343,22 +370,11 @@ function ModalFinalizar({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
               <label style={labelStyle}>Email do Respondente</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="respondente@empresa.com"
-                style={inputStyle}
-              />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="respondente@empresa.com" style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>Data Resolução</label>
-              <input
-                type="date"
-                value={dataRes}
-                onChange={e => setDataRes(e.target.value)}
-                style={inputStyle}
-              />
+              <input type="date" value={dataRes} onChange={e => setDataRes(e.target.value)} style={inputStyle} />
             </div>
           </div>
 
@@ -382,6 +398,81 @@ function ModalFinalizar({
   )
 }
 
+// ── Modal Detalhe (finalizados) ───────────────────────────────────────────────
+
+function ModalDetalhe({ glpi, onClose, onExcluir }: { glpi: GLPIItem; onClose: () => void; onExcluir: (g: GLPIItem) => void }) {
+  const etStyle = ETIQUETA_STYLE[glpi.etiqueta]
+
+  function Field({ label, value }: { label: string; value: string }) {
+    if (!value) return null
+    return (
+      <div>
+        <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#475569', marginBottom: '4px' }}>{label}</p>
+        <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: 1.6 }}>{value}</p>
+      </div>
+    )
+  }
+
+  return (
+    <ModalOverlay onClose={onClose} wide>
+      <ModalCard title="Detalhes do Chamado" onClose={onClose}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+          <span style={{ fontSize: '16px', fontWeight: 700, color: '#e8c96d', fontFamily: 'monospace' }}>{glpi.id}</span>
+          <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '99px', background: etStyle.bg, color: etStyle.color, border: `1px solid ${etStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {glpi.etiqueta}
+          </span>
+          <span style={{ fontSize: '10px', padding: '3px 10px', borderRadius: '99px', background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Finalizado
+          </span>
+          <span style={{ fontSize: '11px', color: '#475569', marginLeft: 'auto' }}>Aberto em {glpi.dataAbertura}</span>
+        </div>
+
+        {/* Seção Chamado */}
+        <div style={{ background: '#07080f', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px 18px', marginBottom: '14px' }}>
+          <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#c9a84c', marginBottom: '14px' }}>Chamado</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Field label="Responsável" value={glpi.responsavel} />
+              <Field label="Fila" value={glpi.fila} />
+            </div>
+            <Field label="Código GLPI" value={glpi.codigoGLPI ? `#${glpi.codigoGLPI}` : ''} />
+            <Field label="Descrição" value={glpi.descricao} />
+          </div>
+        </div>
+
+        {/* Seção Resolução */}
+        <div style={{ background: '#07080f', border: '1px solid rgba(34,197,94,0.12)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px' }}>
+          <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#22c55e', marginBottom: '14px' }}>Resolução</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <Field label="Resposta" value={glpi.resposta} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Field label="Email Respondente" value={glpi.emailRespondente} />
+              <Field label="Data Resolução" value={glpi.dataResolucao} />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={() => { onExcluir(glpi); onClose() }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#f87171', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            <Trash2 size={13} /> Excluir
+          </button>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 18px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.10)', background: 'transparent', color: '#cbd5e1', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Fechar
+          </button>
+        </div>
+      </ModalCard>
+    </ModalOverlay>
+  )
+}
+
 // ── Card GLPI ─────────────────────────────────────────────────────────────────
 
 function GLPICard({
@@ -389,41 +480,42 @@ function GLPICard({
   onEditar,
   onFinalizar,
   onExcluir,
+  onVerDetalhes,
 }: {
   glpi: GLPIItem
   onEditar: (g: GLPIItem) => void
   onFinalizar: (g: GLPIItem) => void
   onExcluir: (g: GLPIItem) => void
+  onVerDetalhes: (g: GLPIItem) => void
 }) {
   const isAndamento = glpi.status === 'Em Andamento'
   const etStyle     = ETIQUETA_STYLE[glpi.etiqueta]
-  const borderColor = glpi.etiqueta === 'Urgente'
-    ? '#ef4444'
-    : isAndamento ? '#f59e0b' : '#22c55e'
+  const borderColor = glpi.etiqueta === 'Urgente' ? '#ef4444' : isAndamento ? '#f59e0b' : '#22c55e'
 
   return (
-    <div style={{
-      background: '#0d0d1a',
-      border: '1px solid rgba(255,255,255,0.06)',
-      borderLeft: `3px solid ${borderColor}`,
-      borderRadius: '12px',
-      padding: '14px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-      opacity: isAndamento ? 1 : 0.85,
-    }}>
+    <div
+      onClick={!isAndamento ? () => onVerDetalhes(glpi) : undefined}
+      style={{
+        background: '#0d0d1a',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderLeft: `3px solid ${borderColor}`,
+        borderRadius: '12px',
+        padding: '14px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        opacity: isAndamento ? 1 : 0.85,
+        cursor: !isAndamento ? 'pointer' : 'default',
+        transition: !isAndamento ? 'opacity 0.15s' : undefined,
+      }}
+      onMouseEnter={!isAndamento ? e => { (e.currentTarget as HTMLElement).style.opacity = '1' } : undefined}
+      onMouseLeave={!isAndamento ? e => { (e.currentTarget as HTMLElement).style.opacity = '0.85' } : undefined}
+    >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#e8c96d', fontFamily: 'monospace' }}>
-            {glpi.id}
-          </span>
-          <span style={{
-            fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px',
-            background: etStyle.bg, color: etStyle.color, border: `1px solid ${etStyle.border}`,
-            textTransform: 'uppercase', letterSpacing: '0.06em',
-          }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#e8c96d', fontFamily: 'monospace' }}>{glpi.id}</span>
+          <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: etStyle.bg, color: etStyle.color, border: `1px solid ${etStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {glpi.etiqueta}
           </span>
           {glpi.responsavel && (
@@ -435,82 +527,57 @@ function GLPICard({
         <span style={{ fontSize: '10px', color: '#475569' }}>{glpi.dataAbertura}</span>
       </div>
 
-      {/* Fila + Código */}
       {(glpi.fila || glpi.codigoGLPI) && (
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           {glpi.fila && (
-            <span style={{
-              fontSize: '10px', padding: '2px 8px', borderRadius: '6px',
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-              color: '#94a3b8',
-            }}>
+            <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8' }}>
               {glpi.fila}
             </span>
           )}
           {glpi.codigoGLPI && (
-            <span style={{ fontSize: '10px', color: '#64748b', fontFamily: 'monospace' }}>
-              #{glpi.codigoGLPI}
-            </span>
+            <span style={{ fontSize: '10px', color: '#64748b', fontFamily: 'monospace' }}>#{glpi.codigoGLPI}</span>
           )}
         </div>
       )}
 
-      {/* Descrição */}
-      <p style={{
-        fontSize: '12px', color: '#94a3b8', lineHeight: 1.6,
-        display: '-webkit-box', WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical', overflow: 'hidden',
-      }}>
+      <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
         {glpi.descricao}
       </p>
 
-      {/* Resposta (finalizados) */}
+      {/* Resposta truncada (finalizados) */}
       {!isAndamento && glpi.resposta && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
           <p style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#22c55e', marginBottom: '4px' }}>
             Resposta
           </p>
-          <p style={{
-            fontSize: '11px', color: '#64748b', lineHeight: 1.5,
-            display: '-webkit-box', WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}>
+          <p style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {glpi.resposta}
           </p>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '6px', flexWrap: 'wrap' }}>
-            {glpi.emailRespondente && (
-              <span style={{ fontSize: '10px', color: '#475569' }}>✉ {glpi.emailRespondente}</span>
-            )}
-            {glpi.dataResolucao && (
-              <span style={{ fontSize: '10px', color: '#475569' }}>Resolvido em {glpi.dataResolucao}</span>
-            )}
-          </div>
+          {glpi.dataResolucao && (
+            <span style={{ fontSize: '10px', color: '#475569', marginTop: '4px', display: 'block' }}>Resolvido em {glpi.dataResolucao}</span>
+          )}
+          <span style={{ fontSize: '10px', color: '#22c55e', marginTop: '4px', display: 'block' }}>Clique para ver detalhes →</span>
         </div>
       )}
 
-      {/* Footer — botões */}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '2px', alignItems: 'center' }}>
+      {/* Footer */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ display: 'flex', gap: '8px', marginTop: '2px', alignItems: 'center' }}
+      >
         {isAndamento && (
           <>
             <button
               onClick={() => onEditar(glpi)}
-              style={{
-                padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                border: '1px solid rgba(255,255,255,0.10)', background: 'transparent',
-                color: '#64748b', cursor: 'pointer',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#cbd5e1'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.2)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#64748b'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.10)' }}
+              style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: '1px solid rgba(255,255,255,0.10)', background: 'transparent', color: '#64748b', cursor: 'pointer' }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#cbd5e1'; el.style.borderColor = 'rgba(255,255,255,0.2)' }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#64748b'; el.style.borderColor = 'rgba(255,255,255,0.10)' }}
             >
               Editar
             </button>
             <button
               onClick={() => onFinalizar(glpi)}
-              style={{
-                padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.08)',
-                color: '#4ade80', cursor: 'pointer',
-              }}
+              style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.08)', color: '#4ade80', cursor: 'pointer' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.14)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.08)' }}
             >
@@ -521,11 +588,7 @@ function GLPICard({
         <button
           onClick={() => onExcluir(glpi)}
           title="Excluir GLPI"
-          style={{
-            marginLeft: 'auto', padding: '5px 8px', borderRadius: '6px', fontSize: '11px',
-            border: '1px solid rgba(239,68,68,0.2)', background: 'transparent',
-            color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-          }}
+          style={{ marginLeft: 'auto', padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', background: 'transparent', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#f87171'; el.style.borderColor = 'rgba(239,68,68,0.4)'; el.style.background = 'rgba(239,68,68,0.06)' }}
           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#64748b'; el.style.borderColor = 'rgba(239,68,68,0.2)'; el.style.background = 'transparent' }}
         >
@@ -539,105 +602,72 @@ function GLPICard({
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
-  const router              = useRouter()
-  const [glpis, setGlpis]   = useState<GLPIItem[]>(inicial)
-  const [modal, setModal]   = useState<ModalState>(null)
-  const [filtroStatus, setFiltroStatus]   = useState<FiltroStatus>('todos')
-  const [filtroResp, setFiltroResp]       = useState('todos')
-  const [filtroEtiq, setFiltroEtiq]       = useState('todos')
+  const router = useRouter()
+  const [glpis, setGlpis] = useState<GLPIItem[]>(inicial)
+  const [modal, setModal] = useState<ModalState>(null)
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos')
+  const [filtroResp,   setFiltroResp]   = useState('todos')
+  const [filtroEtiq,   setFiltroEtiq]   = useState('todos')
 
-  const filasExistentes = [...new Set(glpis.map(g => g.fila).filter(Boolean))]
-  const responsaveis    = [...new Set(glpis.map(g => g.responsavel).filter(Boolean))]
+  // Sincroniza quando router.refresh() traz novos dados do servidor
+  useEffect(() => { setGlpis(inicial) }, [inicial])
+
+  const filasExistentes = useMemo(() => [...new Set(glpis.map(g => g.fila).filter(Boolean))], [glpis])
+  const responsaveis    = useMemo(() => [...new Set(glpis.map(g => g.responsavel).filter(Boolean))], [glpis])
   const mes             = mesAtual()
 
-  // ── Resumo
-  const totalAbertos         = glpis.filter(g => g.status === 'Em Andamento').length
-  const emAndamento          = glpis.filter(g => g.status === 'Em Andamento').length
-  const finalizadosMes       = glpis.filter(g => g.status === 'Finalizado' && dataBRParaMes(g.dataResolucao) === mes).length
-  const urgentesPendentes    = glpis.filter(g => g.status === 'Em Andamento' && g.etiqueta === 'Urgente').length
+  const totalAbertos      = useMemo(() => glpis.filter(g => g.status === 'Em Andamento').length, [glpis])
+  const emAndamento       = totalAbertos
+  const finalizadosMes    = useMemo(() => glpis.filter(g => g.status === 'Finalizado' && dataBRParaMes(g.dataResolucao) === mes).length, [glpis, mes])
+  const urgentesPendentes = useMemo(() => glpis.filter(g => g.status === 'Em Andamento' && g.etiqueta === 'Urgente').length, [glpis])
 
-  // ── Filtro
-  const filtrados = glpis.filter(g => {
+  const filtrados = useMemo(() => glpis.filter(g => {
     if (filtroStatus !== 'todos' && g.status !== filtroStatus) return false
-    if (filtroResp !== 'todos' && g.responsavel !== filtroResp) return false
-    if (filtroEtiq !== 'todos' && g.etiqueta !== filtroEtiq) return false
+    if (filtroResp   !== 'todos' && g.responsavel !== filtroResp) return false
+    if (filtroEtiq   !== 'todos' && g.etiqueta !== filtroEtiq) return false
     return true
-  })
+  }), [glpis, filtroStatus, filtroResp, filtroEtiq])
 
-  const andamentoFiltrados  = filtrados.filter(g => g.status === 'Em Andamento')
-  const finalizadoFiltrados = filtrados.filter(g => g.status === 'Finalizado')
+  const andamentoFiltrados  = useMemo(() => filtrados.filter(g => g.status === 'Em Andamento'), [filtrados])
+  const finalizadoFiltrados = useMemo(() => filtrados.filter(g => g.status === 'Finalizado'),   [filtrados])
 
-  // ── Callbacks
-  function handleCriado(_dados: GLPIDados) {
+  // ── Callbacks estáveis (não recriam em cada render)
+  const handleCriado = useCallback((_dados: GLPIDados) => {
     setModal(null)
-    // Buscar dados reais do servidor (com rowIndex correto)
     router.refresh()
-  }
+  }, [router])
 
-  function handleEditado(dados: GLPIDados, rowIndex?: number) {
+  const handleEditado = useCallback((dados: GLPIDados, rowIndex?: number) => {
     setModal(null)
-    if (!rowIndex) return
-    setGlpis(prev => prev.map(g =>
-      g.rowIndex === rowIndex
-        ? { ...g, ...dados, status: dados.status ?? g.status }
-        : g
-    ))
-  }
+    if (rowIndex) {
+      setGlpis(prev => prev.map(g =>
+        g.rowIndex === rowIndex ? { ...g, ...dados, status: dados.status ?? g.status } : g
+      ))
+    }
+    router.refresh()
+  }, [router])
 
-  function handleFinalizado(rowIndex: number, resposta: string, email: string, dataRes: string) {
+  const handleFinalizado = useCallback((rowIndex: number, resposta: string, email: string, dataRes: string) => {
     setModal(null)
     setGlpis(prev => prev.map(g =>
       g.rowIndex === rowIndex
         ? { ...g, status: 'Finalizado', resposta, emailRespondente: email, dataResolucao: dataRes }
         : g
     ))
-  }
+    router.refresh()
+  }, [router])
 
-  function handleExcluir(glpi: GLPIItem) {
+  const handleExcluir = useCallback((glpi: GLPIItem) => {
     if (!window.confirm(`Excluir ${glpi.id}? Esta ação não pode ser desfeita.`)) return
     setGlpis(prev => prev.filter(g => g.rowIndex !== glpi.rowIndex))
     excluirGLPIAction(glpi.rowIndex).then(res => {
-      if (!res.ok) {
-        setGlpis(inicial)
-        alert(`Erro ao excluir: ${res.erro}`)
-      }
+      if (!res.ok) { setGlpis(inicial); alert(`Erro ao excluir: ${res.erro}`) }
     })
-  }
+  }, [inicial])
 
-  // ── Pill button helper
-  function Pill({ label, val, current, set }: { label: string; val: string; current: string; set: (v: string) => void }) {
-    const active = current === val
-    return (
-      <button
-        onClick={() => set(val)}
-        style={{
-          padding: '5px 14px', borderRadius: '99px', fontSize: '11px', fontWeight: 600,
-          border: active ? '1px solid rgba(201,168,76,0.5)' : '1px solid rgba(255,255,255,0.08)',
-          background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
-          color: active ? '#e8c96d' : '#64748b',
-          cursor: 'pointer', transition: 'all 0.15s',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {label}
-      </button>
-    )
-  }
-
-  function SectionHeader({ title, count, color }: { title: string; count: number; color: string }) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <div style={{ width: '3px', height: '14px', borderRadius: '2px', background: color, flexShrink: 0 }} />
-        <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#94a3b8' }}>
-          {title}
-        </span>
-        <span style={{ fontSize: '11px', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
-          ({count})
-        </span>
-        <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.06) 0%, transparent 100%)' }} />
-      </div>
-    )
-  }
+  const handleVerDetalhes = useCallback((glpi: GLPIItem) => {
+    setModal({ mode: 'detalhe', glpi })
+  }, [])
 
   return (
     <div className="space-y-5">
@@ -645,10 +675,10 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
       {/* ── Cards resumo ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
         {[
-          { label: 'Total Abertos',       valor: totalAbertos,      cor: totalAbertos > 0 ? '#fbbf24' : '#4ade80' },
-          { label: 'Em Andamento',        valor: emAndamento,       cor: emAndamento > 0 ? '#fbbf24' : '#4ade80' },
-          { label: 'Finalizados no mês',  valor: finalizadosMes,    cor: '#4ade80' },
-          { label: 'Urgentes pendentes',  valor: urgentesPendentes, cor: urgentesPendentes > 0 ? '#f87171' : '#4ade80' },
+          { label: 'Total Abertos',      valor: totalAbertos,      cor: totalAbertos > 0 ? '#fbbf24' : '#4ade80' },
+          { label: 'Em Andamento',       valor: emAndamento,       cor: emAndamento > 0 ? '#fbbf24' : '#4ade80' },
+          { label: 'Finalizados no mês', valor: finalizadosMes,    cor: '#4ade80' },
+          { label: 'Urgentes pendentes', valor: urgentesPendentes, cor: urgentesPendentes > 0 ? '#f87171' : '#4ade80' },
         ].map(({ label, valor, cor }) => (
           <div key={label} style={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px' }}>
             <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748b' }}>{label}</p>
@@ -665,20 +695,14 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
 
         <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.08)', flexShrink: 0, margin: '0 4px' }} />
 
-        <select
-          value={filtroResp}
-          onChange={e => setFiltroResp(e.target.value)}
-          style={{ ...inputStyle, width: 'auto', padding: '5px 10px', fontSize: '11px', fontWeight: 600, color: filtroResp !== 'todos' ? '#e8c96d' : '#64748b' }}
-        >
+        <select value={filtroResp} onChange={e => setFiltroResp(e.target.value)}
+          style={{ ...inputStyle, width: 'auto', padding: '5px 10px', fontSize: '11px', fontWeight: 600, color: filtroResp !== 'todos' ? '#e8c96d' : '#64748b' }}>
           <option value="todos">Todos os responsáveis</option>
           {responsaveis.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
 
-        <select
-          value={filtroEtiq}
-          onChange={e => setFiltroEtiq(e.target.value)}
-          style={{ ...inputStyle, width: 'auto', padding: '5px 10px', fontSize: '11px', fontWeight: 600, color: filtroEtiq !== 'todos' ? '#e8c96d' : '#64748b' }}
-        >
+        <select value={filtroEtiq} onChange={e => setFiltroEtiq(e.target.value)}
+          style={{ ...inputStyle, width: 'auto', padding: '5px 10px', fontSize: '11px', fontWeight: 600, color: filtroEtiq !== 'todos' ? '#e8c96d' : '#64748b' }}>
           <option value="todos">Todas as etiquetas</option>
           <option value="Urgente">Urgente</option>
           <option value="Normal">Normal</option>
@@ -689,13 +713,7 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
 
         <button
           onClick={() => setModal({ mode: 'novo' })}
-          style={{
-            padding: '7px 16px', borderRadius: '8px',
-            border: '1px solid rgba(201,168,76,0.4)',
-            background: 'rgba(201,168,76,0.10)',
-            color: '#e8c96d', fontSize: '12px', fontWeight: 700,
-            cursor: 'pointer', whiteSpace: 'nowrap',
-          }}
+          style={{ padding: '7px 16px', borderRadius: '8px', border: '1px solid rgba(201,168,76,0.4)', background: 'rgba(201,168,76,0.10)', color: '#e8c96d', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.18)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.10)' }}
         >
@@ -712,12 +730,11 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
               {andamentoFiltrados.map(g => (
-                <GLPICard
-                  key={g.rowIndex}
-                  glpi={g}
+                <GLPICard key={g.rowIndex} glpi={g}
                   onEditar={g => setModal({ mode: 'editar', glpi: g })}
                   onFinalizar={g => setModal({ mode: 'finalizar', glpi: g })}
                   onExcluir={handleExcluir}
+                  onVerDetalhes={handleVerDetalhes}
                 />
               ))}
             </div>
@@ -731,12 +748,11 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
           <SectionHeader title="Finalizados" count={finalizadoFiltrados.length} color="#22c55e" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
             {finalizadoFiltrados.map(g => (
-              <GLPICard
-                key={g.rowIndex}
-                glpi={g}
+              <GLPICard key={g.rowIndex} glpi={g}
                 onEditar={g => setModal({ mode: 'editar', glpi: g })}
                 onFinalizar={g => setModal({ mode: 'finalizar', glpi: g })}
                 onExcluir={handleExcluir}
+                onVerDetalhes={handleVerDetalhes}
               />
             ))}
           </div>
@@ -751,26 +767,16 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
 
       {/* ── Modais ── */}
       {modal?.mode === 'novo' && (
-        <ModalNovoEditar
-          filasExistentes={filasExistentes}
-          onClose={() => setModal(null)}
-          onSaved={dados => handleCriado(dados)}
-        />
+        <ModalNovoEditar filasExistentes={filasExistentes} onClose={() => setModal(null)} onSaved={handleCriado} />
       )}
       {modal?.mode === 'editar' && (
-        <ModalNovoEditar
-          glpi={modal.glpi}
-          filasExistentes={filasExistentes}
-          onClose={() => setModal(null)}
-          onSaved={(dados, rowIndex) => handleEditado(dados, rowIndex)}
-        />
+        <ModalNovoEditar glpi={modal.glpi} filasExistentes={filasExistentes} onClose={() => setModal(null)} onSaved={handleEditado} />
       )}
       {modal?.mode === 'finalizar' && (
-        <ModalFinalizar
-          glpi={modal.glpi}
-          onClose={() => setModal(null)}
-          onFinalized={handleFinalizado}
-        />
+        <ModalFinalizar glpi={modal.glpi} onClose={() => setModal(null)} onFinalized={handleFinalizado} />
+      )}
+      {modal?.mode === 'detalhe' && (
+        <ModalDetalhe glpi={modal.glpi} onClose={() => setModal(null)} onExcluir={handleExcluir} />
       )}
     </div>
   )
