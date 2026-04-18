@@ -73,7 +73,6 @@ function focoAmarelo(kpi: KPIItem): string | null {
   const v = kpi.valorNum
   const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
 
-  // Tx. Retenção: vermelho threshold fixo em 60%
   if (label.includes('retenc') || label.includes('retenç')) {
     const dist = v - 60
     if (dist <= 0) return 'Atenção: você está muito próximo de sair da meta!'
@@ -121,6 +120,26 @@ export default function MeuKPIClient({
   posicaoRanking, meuTxRet, totalNoRanking,
 }: MeuKPIProps) {
   const basicosKPI = basicos.map(m => kpis.find(k => k.nome_coluna === m.nome_coluna)).filter(Boolean) as KPIItem[]
+  const is1 = posicaoRanking === 1
+  const is2page = posicaoRanking === 2
+
+  const [sheenPageKey,   setSheenPageKey]   = useState(0)
+  const [sheenSilverKey, setSheenSilverKey] = useState(0)
+
+  useEffect(() => {
+    if (!is1) return
+    setSheenPageKey(1)
+    const id = setInterval(() => setSheenPageKey(k => k + 1), 45000)
+    return () => clearInterval(id)
+  }, [is1])
+
+  useEffect(() => {
+    if (!is2page) return
+    setSheenSilverKey(1)
+    const id = setInterval(() => setSheenSilverKey(k => k + 1), 45000)
+    return () => clearInterval(id)
+  }, [is2page])
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -149,6 +168,10 @@ export default function MeuKPIClient({
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); }
           50%       { box-shadow: 0 0 8px 3px rgba(201,168,76,0.45); }
         }
+        @keyframes silverPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(192,192,192,0); }
+          50%       { box-shadow: 0 0 16px 4px rgba(192,192,192,0.25); }
+        }
         .rank1-beam {
           padding: 2px;
           border-radius: 22px;
@@ -160,6 +183,20 @@ export default function MeuKPIClient({
             rgba(245,217,122,1)  90deg,
             rgba(232,201,109,0.9) 95deg,
             rgba(201,168,76,0.5) 125deg,
+            transparent 175deg
+          );
+        }
+        .rank2-beam {
+          padding: 2px;
+          border-radius: 22px;
+          background: conic-gradient(
+            from var(--angle),
+            transparent 0deg,
+            rgba(192,192,192,0.3) 55deg,
+            rgba(232,232,232,0.7) 85deg,
+            rgba(255,255,255,0.9) 90deg,
+            rgba(232,232,232,0.7) 95deg,
+            rgba(192,192,192,0.3) 125deg,
             transparent 175deg
           );
         }
@@ -209,21 +246,21 @@ export default function MeuKPIClient({
           }
 
           /* ── 2º lugar ── */
-          @keyframes rank2SlideUp {
-            0%   { transform: translateY(40px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
+          @keyframes rank2Entrance {
+            0%   { transform: translateX(60px); opacity: 0; }
+            70%  { transform: translateX(-5px); opacity: 1; }
+            100% { transform: translateX(0); opacity: 1; }
           }
           @keyframes twinkle {
-            0%, 100% { opacity: 0; transform: scale(0.6); }
-            50%       { opacity: 1; transform: scale(1.2); }
+            0%   { opacity: 0; transform: scale(0.5); }
+            50%  { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(0.5); }
           }
-          @keyframes silverSweep {
-            0%   { transform: scaleX(0); opacity: 0.8; }
-            100% { transform: scaleX(1); opacity: 0; }
-          }
-          @keyframes silverPulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(156,163,175,0); border-color: rgba(156,163,175,0.30); }
-            50%       { box-shadow: 0 0 20px 4px rgba(156,163,175,0.20); border-color: rgba(209,213,219,0.60); }
+          @keyframes crystalFall {
+            0%   { transform: translateY(-10px) rotate(45deg) scale(0); opacity: 0; }
+            20%  { opacity: 1; transform: translateY(0) rotate(45deg) scale(1); }
+            80%  { opacity: 0.6; }
+            100% { transform: translateY(120px) rotate(225deg) scale(0.3); opacity: 0; }
           }
 
           /* ── 3º lugar ── */
@@ -252,11 +289,45 @@ export default function MeuKPIClient({
         @media (prefers-reduced-motion: reduce) {
           @keyframes rank1Entrance { from { opacity:0; } to { opacity:1; } }
           @keyframes num1Bounce    { from { opacity:0; } to { opacity:1; } }
-          @keyframes rank2SlideUp  { from { opacity:0; } to { opacity:1; } }
+          @keyframes rank2Entrance { from { opacity:0; } to { opacity:1; } }
           @keyframes num3Flip      { from { opacity:0; } to { opacity:1; } }
           @keyframes rankFade      { from { opacity:0; } to { opacity:1; } }
         }
       `}} />
+
+      {/* ── Sheen diagonal ouro fixed — cobre só o <main> ── */}
+      {is1 && sheenPageKey > 0 && (
+        <div key={sheenPageKey} style={{
+          position: 'fixed', inset: 0,
+          clipPath: 'inset(0 0 0 240px)',
+          pointerEvents: 'none', zIndex: 9990,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', width: '150vw', height: '150vh',
+            top: '-25vh', left: '-25vw',
+            background: 'linear-gradient(to bottom right, transparent 35%, rgba(201,168,76,0.04) 42%, rgba(232,201,109,0.08) 50%, rgba(201,168,76,0.04) 58%, transparent 65%)',
+            animation: 'diagonalSheen 2s ease-in-out forwards',
+          }} />
+        </div>
+      )}
+
+      {/* ── Sheen diagonal prata fixed — cobre só o <main> ── */}
+      {is2page && sheenSilverKey > 0 && (
+        <div key={`s${sheenSilverKey}`} style={{
+          position: 'fixed', inset: 0,
+          clipPath: 'inset(0 0 0 240px)',
+          pointerEvents: 'none', zIndex: 9990,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', width: '150vw', height: '150vh',
+            top: '-25vh', left: '-25vw',
+            background: 'linear-gradient(to bottom right, transparent 35%, rgba(192,192,192,0.03) 42%, rgba(232,232,232,0.06) 50%, rgba(192,192,192,0.03) 58%, transparent 65%)',
+            animation: 'diagonalSheen 2s ease-in-out forwards',
+          }} />
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* ── Seção 1: Ranking ── */}
@@ -297,7 +368,6 @@ export default function MeuKPIClient({
 
 interface FWParticle { id: number; fx: string; fy: string; fx2: string; fy2: string; d: number; s: number; color: string }
 
-// Grupo A — canto superior esquerdo, explode para cima-direita
 const FW_A: FWParticle[] = [
   { id:0, fx:'50px',  fy:'-70px', fx2:'70px',  fy2:'-98px',  d:0.0,  s:5, color:'#e8c96d' },
   { id:1, fx:'20px',  fy:'-80px', fx2:'28px',  fy2:'-112px', d:0.10, s:4, color:'#f5d97a' },
@@ -307,7 +377,6 @@ const FW_A: FWParticle[] = [
   { id:5, fx:'80px',  fy:'-25px', fx2:'112px', fy2:'-35px',  d:0.25, s:4, color:'#c9a84c' },
 ]
 
-// Grupo B — canto inferior direito, explode para baixo-esquerda
 const FW_B: FWParticle[] = [
   { id:6,  fx:'-50px', fy:'70px',  fx2:'-70px',  fy2:'98px',  d:0.05, s:5, color:'#e8c96d' },
   { id:7,  fx:'-20px', fy:'80px',  fx2:'-28px',  fy2:'112px', d:0.18, s:4, color:'#f5d97a' },
@@ -317,7 +386,22 @@ const FW_B: FWParticle[] = [
   { id:11, fx:'-80px', fy:'25px',  fx2:'-112px', fy2:'35px',  d:0.22, s:4, color:'#c9a84c' },
 ]
 
+// Cristais 2º lugar
+const CRYSTALS = [
+  { left: '8%',  delay: '0s',   dur: '2.5s' },
+  { left: '18%', delay: '0.3s', dur: '2.8s' },
+  { left: '30%', delay: '0.7s', dur: '2.4s' },
+  { left: '42%', delay: '1.1s', dur: '2.6s' },
+  { left: '55%', delay: '0.5s', dur: '2.9s' },
+  { left: '67%', delay: '1.4s', dur: '2.5s' },
+  { left: '78%', delay: '0.9s', dur: '2.7s' },
+  { left: '90%', delay: '0.2s', dur: '2.4s' },
+]
+
 const STARS = [0, 1, 2, 3, 4, 5]
+const STAR_SIZES  = [10, 14, 12, 8, 11, 9]
+const STAR_COLORS = ['#e8e8e8', '#c0c0c0', '#d4d4d4', '#a0a0a0', '#e0e0e0', '#b8b8b8']
+const STAR_DURS   = [1.6, 1.2, 1.8, 1.4, 1.0, 1.7]
 
 // ── Ranking Card ──────────────────────────────────────────────────────────────
 
@@ -331,11 +415,11 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
   const particleId   = useRef(0)
   const [tilt,      setTilt]      = useState({ x: 0, y: 0 })
   const [sheenKey,  setSheenKey]  = useState(0)
-  const [sheenPos,  setSheenPos]  = useState({ x: 50, y: 50 })
+  const [sheenKey2, setSheenKey2] = useState(0)
   const [glowPos,   setGlowPos]   = useState<{ x: number; y: number } | null>(null)
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
 
-  // Metal sheen periódico
+  // Metal sheen periódico — 1º lugar
   useEffect(() => {
     if (!is1) return
     setSheenKey(1)
@@ -343,7 +427,15 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     return () => clearInterval(id)
   }, [is1])
 
-  // Fanfarra Web Audio
+  // Metal sheen periódico — 2º lugar
+  useEffect(() => {
+    if (!is2) return
+    setSheenKey2(1)
+    const id = setInterval(() => setSheenKey2(k => k + 1), 45000)
+    return () => clearInterval(id)
+  }, [is2])
+
+  // Fanfarra Web Audio — 1º lugar
   useEffect(() => {
     if (!is1) return
     const timer = setTimeout(() => {
@@ -365,43 +457,37 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
   }, [is1])
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    if (!is1 || !cardRef.current) return
+    if ((!is1 && !is2) || !cardRef.current) return
     const rect = cardRef.current.getBoundingClientRect()
     const px = e.clientX - rect.left
     const py = e.clientY - rect.top
 
-    // tilt 3D + sheen position
     const cx = rect.width / 2
     const cy = rect.height / 2
-    setTilt({ x: ((py - cy) / cy) * -8, y: ((px - cx) / cx) * 8 })
-    setSheenPos({ x: (px / rect.width) * 100, y: (py / rect.height) * 100 })
+    setTilt({ x: ((py - cy) / cy) * -2, y: ((px - cx) / cx) * 2 })
 
-    // cursor glow (throttle 3s)
-    const now = Date.now()
-    if (now - glowThrottle.current > 3000) {
-      glowThrottle.current = now
-      setGlowPos({ x: px, y: py })
-      setTimeout(() => setGlowPos(null), 900)
+    if (is1) {
+      // cursor glow (throttle 3s)
+      const now = Date.now()
+      if (now - glowThrottle.current > 3000) {
+        glowThrottle.current = now
+        setGlowPos({ x: px, y: py })
+        setTimeout(() => setGlowPos(null), 900)
+      }
+
+      // trilha de partículas
+      const pid = ++particleId.current
+      setParticles(prev => [...prev.slice(-14), { id: pid, x: px, y: py, color: pid % 2 ? '#c9a84c' : '#e8c96d' }])
+      setTimeout(() => setParticles(prev => prev.filter(p => p.id !== pid)), 600)
     }
-
-    // trilha de partículas
-    const pid = ++particleId.current
-    setParticles(prev => [...prev.slice(-14), { id: pid, x: px, y: py, color: pid % 2 ? '#c9a84c' : '#e8c96d' }])
-    setTimeout(() => setParticles(prev => prev.filter(p => p.id !== pid)), 600)
   }
 
   function handleMouseLeave() {
     setTilt({ x: 0, y: 0 })
   }
 
-  // ── card interno (usado em is2/is3/4+) ──────────────────────────────────────
-  const baseStyle2345: React.CSSProperties = is2 ? {
-    background: '#0d0d1a', border: '1px solid rgba(156,163,175,0.30)',
-    animationName: 'rank2SlideUp, silverPulse',
-    animationDuration: '0.5s, 3s', animationDelay: '0s, 0.5s',
-    animationTimingFunction: 'ease, ease-in-out',
-    animationIterationCount: '1, infinite', animationFillMode: 'both, none',
-  } : is3 ? {
+  // ── baseStyle para 3º e 4º+ ──────────────────────────────────────────────────
+  const baseStyle345: React.CSSProperties = is3 ? {
     background: '#0d0d1a', border: '1px solid rgba(205,127,50,0.25)',
     animationName: 'rankFade, bronzePulse',
     animationDuration: '0.45s, 3s', animationDelay: '0s, 0.5s',
@@ -447,35 +533,44 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         </div>
       )}
 
-      {/* ── 1º: sheen confinado ao card (clip container) ── */}
-      {is1 && (
+      {/* ── 2º: cristais caindo ── */}
+      {is2 && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden', borderRadius: '20px' }}>
+          {CRYSTALS.map((c, i) => (
+            <div key={i} style={{
+              position: 'absolute', top: '10px', left: c.left,
+              width: '4px', height: '4px',
+              background: 'rgba(224,224,224,0.8)',
+              boxShadow: '0 0 4px rgba(255,255,255,0.6)',
+              animation: `crystalFall ${c.dur} ${c.delay} infinite`,
+            }} />
+          ))}
+        </div>
+      )}
+
+      {/* ── 1º: metalSheen periódico confinado ao card ── */}
+      {is1 && sheenKey > 0 && (
         <div style={{ position: 'absolute', inset: 0, borderRadius: '20px', overflow: 'hidden', pointerEvents: 'none', zIndex: 2 }}>
-          {/* Sheen segue o mouse — sempre visível */}
-          <div style={{
-            position: 'absolute',
-            left: `${sheenPos.x}%`, top: `${sheenPos.y}%`,
-            width: '80%', height: '80%',
-            transform: 'translate(-50%, -50%)',
-            background: 'radial-gradient(circle, rgba(255,245,180,0.10) 0%, transparent 65%)',
-            borderRadius: '50%',
-            transition: 'left 0.1s, top 0.1s',
-          }} />
-          {/* Sweep periódico (metalSheen + diagonal) */}
-          {sheenKey > 0 && (
-            <div key={sheenKey}>
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(120deg, transparent 30%, rgba(255,245,180,0.18) 50%, transparent 70%)',
-                animation: 'metalSheen 0.8s ease-out forwards',
-              }} />
-              <div style={{
-                position: 'absolute', width: '200%', height: '200%',
-                top: '-50%', left: '-50%',
-                background: 'linear-gradient(to bottom right, transparent 35%, rgba(201,168,76,0.06) 42%, rgba(232,201,109,0.10) 50%, rgba(201,168,76,0.06) 58%, transparent 65%)',
-                animation: 'diagonalSheen 2s ease-in-out 0.05s forwards',
-              }} />
-            </div>
-          )}
+          <div key={sheenKey}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(120deg, transparent 30%, rgba(255,245,180,0.18) 50%, transparent 70%)',
+              animation: 'metalSheen 0.8s ease-out forwards',
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* ── 2º: sheen prata periódico confinado ao card ── */}
+      {is2 && sheenKey2 > 0 && (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '20px', overflow: 'hidden', pointerEvents: 'none', zIndex: 2 }}>
+          <div key={sheenKey2}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(120deg, transparent 30%, rgba(232,232,232,0.10) 50%, transparent 70%)',
+              animation: 'metalSheen 0.8s ease-out forwards',
+            }} />
+          </div>
         </div>
       )}
 
@@ -517,17 +612,6 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         }} />
       ))}
 
-      {/* ── 2º: linha varredura prata ── */}
-      {is2 && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
-          background: 'linear-gradient(90deg, transparent, #e2e8f0, transparent)',
-          transformOrigin: 'left',
-          animation: 'silverSweep 0.7s ease-out 0.4s both',
-          zIndex: 0,
-        }} />
-      )}
-
       {/* ── 3º: chamas ── */}
       {is3 && [
         { left:'22%', color:'#cd7f32', h:24, d:'0s' },
@@ -547,17 +631,19 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
       {/* ── Número ── */}
       <div style={{ position: 'relative', zIndex: 1, flexShrink: 0, textAlign: 'center' }}>
 
-        {/* 2º: estrelas cintilantes */}
+        {/* 2º: estrelas cintilantes prata */}
         {is2 && STARS.map(i => (
           <div key={i} style={{
-            position: 'absolute', fontSize: '14px', color: '#9ca3af',
-            animation: `twinkle 1.4s ease-in-out ${i * 0.22}s infinite`,
+            position: 'absolute',
+            fontSize: `${STAR_SIZES[i]}px`,
+            color: STAR_COLORS[i],
+            animation: `twinkle ${STAR_DURS[i]}s ease-in-out ${i * 0.28}s infinite`,
             ...[
               { top:'-18px', left:'50%', transform:'translateX(-50%)' },
-              { top:'10px',  left:'-20px' },
-              { top:'10px',  right:'-20px' },
-              { bottom:'10px', left:'-18px' },
-              { bottom:'10px', right:'-18px' },
+              { top:'10px',  left:'-22px' },
+              { top:'10px',  right:'-22px' },
+              { bottom:'10px', left:'-20px' },
+              { bottom:'10px', right:'-20px' },
               { bottom:'-14px', left:'50%', transform:'translateX(-50%)' },
             ][i],
           }}>✦</div>
@@ -573,8 +659,10 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             animation: 'num1Bounce 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.1s both, shimmerGold 2.5s linear 1s infinite',
           } : is2 ? {
-            fontSize: '72px', color: '#e2e8f0',
-            animation: 'rank2SlideUp 0.5s ease both',
+            fontSize: '72px',
+            background: 'linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 50%, #a0a0a0 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            animation: 'rank2Entrance 0.7s ease-out both',
           } : is3 ? {
             fontSize: '68px', color: '#cd7f32',
             animation: 'num3Flip 0.6s ease 0.1s both',
@@ -586,7 +674,7 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
           {posicao}º
         </div>
 
-        {/* 1º: reflexo invertido */}
+        {/* 1º: reflexo invertido ouro */}
         {is1 && (
           <div style={{
             fontFamily: 'var(--ff-display)', fontSize: '80px', fontWeight: 900,
@@ -600,10 +688,22 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
           </div>
         )}
 
-        {(is2 || is3) && (
-          <div style={{ fontSize: '22px', lineHeight: 1, marginTop: '4px' }}>
-            {is2 ? '🥈' : '🥉'}
+        {/* 2º: reflexo invertido prata */}
+        {is2 && (
+          <div style={{
+            fontFamily: 'var(--ff-display)', fontSize: '72px', fontWeight: 900,
+            lineHeight: 1, color: '#c0c0c0', opacity: 0.10,
+            transform: 'scaleY(-1)',
+            WebkitMaskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
+            maskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
+            marginTop: '-6px', userSelect: 'none', pointerEvents: 'none',
+          }}>
+            {posicao}º
           </div>
+        )}
+
+        {is3 && (
+          <div style={{ fontSize: '22px', lineHeight: 1, marginTop: '4px' }}>🥉</div>
         )}
       </div>
 
@@ -611,7 +711,7 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
       <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: '160px' }}>
         <p style={{
           fontFamily: 'var(--ff-display)', fontSize: is1 ? '20px' : '17px', fontWeight: 700,
-          color: is1 ? '#e8c96d' : is2 ? '#e2e8f0' : is3 ? '#cd7f32' : 'var(--text-secondary)',
+          color: is1 ? '#e8c96d' : is2 ? '#e8e8e8' : is3 ? '#cd7f32' : 'var(--text-secondary)',
           marginBottom: '4px',
         }}>
           {is1 ? 'Líder de Retenção!' : is2 ? '2º no Ranking' : is3 ? '3º no Ranking' : `${posicao}º no Ranking`}
@@ -630,10 +730,30 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
           </div>
         )}
 
+        {/* 2º: badge vice-líder */}
+        {is2 && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '3px 10px', borderRadius: '99px', marginBottom: '8px',
+            background: 'rgba(192,192,192,0.10)', border: '1px solid rgba(192,192,192,0.30)',
+            fontSize: '11px', fontWeight: 700, color: '#e8e8e8', letterSpacing: '0.06em',
+            animation: 'silverPulse 2s ease-in-out 1.2s infinite',
+          }}>
+            ✦ VICE-LÍDER
+          </div>
+        )}
+
         {/* 1º: texto motivacional */}
         {is1 && (
           <p style={{ fontSize: '13px', color: '#c9a84c', marginBottom: '8px', animation: 'motivText 0.5s ease 0.8s both' }}>
             Você está no topo!
+          </p>
+        )}
+
+        {/* 2º: texto motivacional */}
+        {is2 && (
+          <p style={{ fontSize: '13px', color: '#c0c0c0', marginBottom: '8px', animation: 'motivText 0.5s ease 0.8s both' }}>
+            Você está logo atrás do topo!
           </p>
         )}
 
@@ -656,7 +776,7 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     </>
   )
 
-  // ── is1: wrapper beam + inner card ───────────────────────────────────────────
+  // ── is1: wrapper beam dourado + inner card ────────────────────────────────────
   if (is1) {
     return (
       <div
@@ -686,7 +806,39 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     )
   }
 
-  // ── is2 / is3 / 4+ ───────────────────────────────────────────────────────────
+  // ── is2: wrapper beam prata + inner card ──────────────────────────────────────
+  if (is2) {
+    return (
+      <div
+        className="rank2-beam"
+        style={{
+          animation: 'rank2Entrance 0.7s ease-out both, borderRotate 5s linear 0.8s infinite',
+        }}
+      >
+        <div
+          ref={cardRef}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          data-rank="2"
+          style={{
+            position: 'relative', borderRadius: '20px',
+            padding: '28px 32px', display: 'flex',
+            alignItems: 'center', gap: '32px', flexWrap: 'wrap',
+            overflow: 'visible',
+            background: '#0a0f1a',
+            border: '1px solid rgba(192,192,192,0.2)',
+            cursor: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23c0c0c0\' stroke=\'%23e8e8e8\' stroke-width=\'0.5\' d=\'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z\'/%3E%3C/svg%3E") 12 12, pointer',
+            transform: tilt.x || tilt.y ? `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined,
+            transition: tilt.x || tilt.y ? 'transform 0.1s' : 'transform 0.3s ease',
+          }}
+        >
+          {content}
+        </div>
+      </div>
+    )
+  }
+
+  // ── is3 / 4+ ───────────────────────────────────────────────────────────────────
   return (
     <div
       ref={cardRef}
@@ -695,7 +847,7 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         padding: '28px 32px', display: 'flex',
         alignItems: 'center', gap: '32px', flexWrap: 'wrap',
         overflow: 'hidden',
-        ...baseStyle2345,
+        ...baseStyle345,
       }}
     >
       {content}
