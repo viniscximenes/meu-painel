@@ -4,22 +4,57 @@ import { useState, useTransition } from 'react'
 import { adicionarLinkUtil, excluirLinkUtil } from '@/app/painel/config/actions'
 import { CATEGORIAS_LINKS } from '@/lib/links'
 import type { LinkUtil } from '@/lib/links'
-import { ExternalLink, Plus, Trash2, X } from 'lucide-react'
+import { ExternalLink, Plus, Trash2, X, Link2 } from 'lucide-react'
 
 function safeHostname(url: string): string {
   try { return new URL(url).hostname } catch { return '' }
 }
 
-function Favicon({ url }: { url: string }) {
+const MS_ICONS: { match: RegExp; src: string; color: string }[] = [
+  { match: /teams/i,   src: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/microsoftteams.svg',   color: '#6264A7' },
+  { match: /excel/i,   src: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/microsoftexcel.svg',   color: '#217346' },
+  { match: /outlook/i, src: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/microsoftoutlook.svg', color: '#0078D4' },
+]
+
+function LinkIcon({ nome, url, categoria }: { nome: string; url: string; categoria: string }) {
+  const ms = (categoria === 'Microsoft' || MS_ICONS.some(m => m.match.test(nome)))
+    ? MS_ICONS.find(m => m.match.test(nome))
+    : null
+
+  if (ms) {
+    return (
+      <span style={{
+        width: 20, height: 20, borderRadius: '4px', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: `${ms.color}18`,
+      }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={ms.src}
+          width={14} height={14}
+          alt=""
+          style={{ filter: `invert(0) sepia(1) saturate(5) hue-rotate(${ms.color === '#217346' ? '90deg' : ms.color === '#6264A7' ? '220deg' : '200deg'})`, opacity: 0.9 }}
+          onError={e => { e.currentTarget.style.display = 'none' }}
+        />
+      </span>
+    )
+  }
+
   const host = safeHostname(url)
-  if (!host) return null
+  if (!host) return <Link2 size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+
+  return <FaviconImg host={host} />
+}
+
+function FaviconImg({ host }: { host: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <Link2 size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://www.google.com/s2/favicons?domain=${host}&sz=32`}
-      onError={e => { e.currentTarget.style.display = 'none' }}
-      width={20}
-      height={20}
+      src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`}
+      onError={() => setFailed(true)}
+      width={20} height={20}
       alt=""
       style={{ borderRadius: '4px', flexShrink: 0 }}
     />
@@ -191,7 +226,7 @@ export default function LinksClient({ links: initial }: LinksClientProps) {
                   >
                     {/* Header do card */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Favicon url={link.url} />
+                      <LinkIcon nome={link.nome} url={link.url} categoria={link.categoria} />
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', flex: 1, minWidth: 0 }}>
                         {link.nome}
                       </span>
