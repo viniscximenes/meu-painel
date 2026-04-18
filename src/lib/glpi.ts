@@ -77,13 +77,27 @@ async function abaGLPIExiste(spreadsheetId: string): Promise<boolean> {
 
 async function garantirAbaGLPI(spreadsheetId: string): Promise<void> {
   const exists = await abaGLPIExiste(spreadsheetId)
-  if (exists) return
-  await withTimeout(
-    sheetsAPI().spreadsheets.batchUpdate({
+  if (!exists) {
+    await withTimeout(
+      sheetsAPI().spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: ABA_GLPI } } }] },
+      })
+    )
+  }
+  await inicializarCabecalhoGLPI(spreadsheetId)
+}
+
+async function inicializarCabecalhoGLPI(spreadsheetId: string): Promise<void> {
+  const res = await withTimeout(
+    sheetsAPI().spreadsheets.values.get({
       spreadsheetId,
-      requestBody: { requests: [{ addSheet: { properties: { title: ABA_GLPI } } }] },
+      range: `'${ABA_GLPI}'!A1:K1`,
     })
   )
+  const linha1 = (res.data.values ?? [])[0] ?? []
+  if (linha1[0] === 'ID') return // cabeçalho já presente
+  console.log('[GLPI] Cabeçalho ausente — inicializando aba GLPI')
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
@@ -128,6 +142,7 @@ export async function buscarGLPIs(spreadsheetId: string): Promise<GLPIItem[]> {
   try {
     const exists = await abaGLPIExiste(spreadsheetId)
     if (!exists) return []
+    await inicializarCabecalhoGLPI(spreadsheetId)
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({ spreadsheetId, range: `'${ABA_GLPI}'!A:K` })
     )
@@ -161,8 +176,8 @@ async function getGLPISheetId(spreadsheetId: string): Promise<number> {
     sheetsAPI().spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' })
   )
   const sheet = (res.data.sheets ?? []).find(s => s.properties?.title === ABA_GLPI)
-  if (!sheet?.properties?.sheetId === undefined) throw new Error('Aba GLPI não encontrada')
-  return sheet!.properties!.sheetId!
+  if (!sheet?.properties) throw new Error('Aba GLPI não encontrada')
+  return sheet.properties.sheetId!
 }
 
 // ── Escrita ───────────────────────────────────────────────────────────────────
