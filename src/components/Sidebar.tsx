@@ -8,7 +8,7 @@ import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   LayoutDashboard, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays, Ticket, User,
+  CalendarDays, Ticket, User, CircleDollarSign,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -227,6 +227,10 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <User size={15} /> Meu KPI
       </Link>
+      <Link href="/painel/meu-rv" onClick={onClose}
+        className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <CircleDollarSign size={15} /> Meu RV
+      </Link>
 
       <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
         Registros
@@ -315,6 +319,10 @@ function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: st
         className={pathname.startsWith('/painel/kpi') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <Target size={15} /> Meus KPIs
       </Link>
+      <Link href="/painel/meu-rv" onClick={onClose}
+        className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <CircleDollarSign size={15} /> Meu RV
+      </Link>
 
       <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
         Registros
@@ -351,6 +359,10 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
       <Link href="/painel/meu-kpi" onClick={onClose}
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <User size={15} /> Meu KPI
+      </Link>
+      <Link href="/painel/meu-rv" onClick={onClose}
+        className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <CircleDollarSign size={15} /> Meu RV
       </Link>
     </div>
   )
