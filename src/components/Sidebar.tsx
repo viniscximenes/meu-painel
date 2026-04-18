@@ -8,7 +8,7 @@ import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   LayoutDashboard, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays, Ticket, User, CircleDollarSign,
+  CalendarDays, Ticket, User, CircleDollarSign, TrendingUp,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -232,6 +232,10 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <CircleDollarSign size={15} /> Meu RV
       </Link>
+      <Link href="/painel/meu-d1" onClick={onClose}
+        className={pathname === '/painel/meu-d1' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <TrendingUp size={15} /> D-1
+      </Link>
 
       <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
         Meus Registros
@@ -333,6 +337,10 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <CircleDollarSign size={15} /> Meu RV
       </Link>
+      <Link href="/painel/meu-d1" onClick={onClose}
+        className={pathname === '/painel/meu-d1' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <TrendingUp size={15} /> D-1
+      </Link>
 
       <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
         Meus Registros
@@ -388,6 +396,10 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
       <Link href="/painel/meu-rv" onClick={onClose}
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <CircleDollarSign size={15} /> Meu RV
+      </Link>
+      <Link href="/painel/meu-d1" onClick={onClose}
+        className={pathname === '/painel/meu-d1' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <TrendingUp size={15} /> D-1
       </Link>
 
       <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
