@@ -352,6 +352,8 @@ function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: st
 /* ── Operador nav ────────────────────────────────────────────────────────────── */
 
 function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
+  const [meusRegExp, setMeusRegExp] = useState(false)
+
   return (
     <div className="space-y-0.5">
       <NavLabel>Meus Dados Gerais</NavLabel>
@@ -364,6 +366,19 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <CircleDollarSign size={15} /> Meu RV
       </Link>
+
+      <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
+        Meus Registros
+      </NavLabelCollapsible>
+
+      <div style={{ maxHeight: meusRegExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-0.5">
+          <Link href="/painel/meu-abs" onClick={onClose}
+            className={pathname === '/painel/meu-abs' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <CalendarDays size={15} /> Meu ABS
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
