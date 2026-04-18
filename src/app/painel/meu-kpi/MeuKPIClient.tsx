@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useState } from 'react'
 import { type KPIItem, type Meta } from '@/lib/kpi-utils'
 import {
   Clock, Shield, XCircle, Package, CalendarX, Activity,
@@ -113,15 +114,6 @@ function formatMeta(meta: Meta): string {
   return `${alvo}${meta.unidade ? ' ' + meta.unidade : ''}`
 }
 
-// ── Partículas para 1º lugar ───────────────────────────────────────────────────
-
-const PARTICLES: { id: number; x: number; y: number; d: number; s: number }[] = [
-  { id:0,  x: 10, y: 20, d: 0.0,  s: 5 }, { id:1,  x: 85, y: 15, d: 0.15, s: 4 }, { id:2,  x: 50, y: 5,  d: 0.3,  s: 6 },
-  { id:3,  x: 20, y: 70, d: 0.1,  s: 3 }, { id:4,  x: 80, y: 65, d: 0.25, s: 5 }, { id:5,  x: 35, y: 90, d: 0.05, s: 4 },
-  { id:6,  x: 65, y: 85, d: 0.2,  s: 3 }, { id:7,  x: 5,  y: 45, d: 0.35, s: 5 }, { id:8,  x: 92, y: 40, d: 0.1,  s: 4 },
-  { id:9,  x: 45, y: 50, d: 0.4,  s: 6 }, { id:10, x: 72, y: 30, d: 0.18, s: 3 }, { id:11, x: 28, y: 35, d: 0.28, s: 5 },
-]
-
 // ── Componente Principal ──────────────────────────────────────────────────────
 
 export default function MeuKPIClient({
@@ -133,39 +125,93 @@ export default function MeuKPIClient({
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes rankEntrance {
-          0%   { transform: scale(0) rotate(-5deg); opacity: 0; }
-          60%  { transform: scale(1.08) rotate(1deg); opacity: 1; }
-          80%  { transform: scale(0.96) rotate(-0.5deg); }
-          100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-        @keyframes rankSlideUp {
-          0%   { transform: translateY(24px); opacity: 0; }
-          100% { transform: translateY(0);    opacity: 1; }
-        }
-        @keyframes rankFade {
-          0%   { opacity: 0; transform: scale(0.97); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes goldPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); border-color: rgba(201,168,76,0.35); }
-          50%       { box-shadow: 0 0 28px 6px rgba(201,168,76,0.25); border-color: rgba(232,201,109,0.8); }
-        }
-        @keyframes silverPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(156,163,175,0); border-color: rgba(156,163,175,0.30); }
-          50%       { box-shadow: 0 0 20px 4px rgba(156,163,175,0.20); border-color: rgba(209,213,219,0.60); }
-        }
-        @keyframes bronzePulse {
-          0%, 100% { border-color: rgba(205,127,50,0.25); }
-          50%       { border-color: rgba(205,127,50,0.55); }
-        }
-        @keyframes particle {
-          0%   { transform: translateY(0) scale(1); opacity: 1; }
-          100% { transform: translateY(-60px) scale(0); opacity: 0; }
-        }
         @keyframes kpiCardIn {
           0%   { opacity: 0; transform: translateY(16px); }
           100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (prefers-reduced-motion: no-preference) {
+
+          /* ── 1º lugar ── */
+          @keyframes rank1Entrance {
+            0%   { transform: scale(0) rotate(-6deg); opacity: 0; }
+            55%  { transform: scale(1.12) rotate(2deg); opacity: 1; }
+            75%  { transform: scale(0.94) rotate(-1deg); }
+            100% { transform: scale(1) rotate(0deg); }
+          }
+          @keyframes num1Bounce {
+            0%   { transform: scale(0); opacity: 0; }
+            50%  { transform: scale(1.3); opacity: 1; }
+            70%  { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes borderGlow {
+            0%   { box-shadow: 0 0 0 0 rgba(201,168,76,0); border-color: rgba(201,168,76,0.35); }
+            33%  { box-shadow: 0 0 32px 10px rgba(201,168,76,0.30); border-color: rgba(232,201,109,0.9); }
+            66%  { box-shadow: 0 0 20px 4px rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.6); }
+            100% { box-shadow: 0 0 28px 8px rgba(201,168,76,0.25); border-color: rgba(232,201,109,0.8); }
+          }
+          @keyframes firework {
+            0%   { transform: translate(0,0) scale(1); opacity: 1; }
+            80%  { opacity: 0.6; }
+            100% { transform: translate(var(--fx), var(--fy)) scale(0); opacity: 0; }
+          }
+          @keyframes motivText {
+            0%   { opacity: 0; transform: translateY(8px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes shimmerGold {
+            0%   { background-position: -200% center; }
+            100% { background-position: 200% center; }
+          }
+
+          /* ── 2º lugar ── */
+          @keyframes rank2SlideUp {
+            0%   { transform: translateY(40px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+          @keyframes twinkle {
+            0%, 100% { opacity: 0; transform: scale(0.6); }
+            50%       { opacity: 1; transform: scale(1.2); }
+          }
+          @keyframes silverSweep {
+            0%   { transform: scaleX(0); opacity: 0.8; }
+            100% { transform: scaleX(1); opacity: 0; }
+          }
+          @keyframes silverPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(156,163,175,0); border-color: rgba(156,163,175,0.30); }
+            50%       { box-shadow: 0 0 20px 4px rgba(156,163,175,0.20); border-color: rgba(209,213,219,0.60); }
+          }
+
+          /* ── 3º lugar ── */
+          @keyframes num3Flip {
+            0%   { transform: rotateY(90deg); opacity: 0; }
+            100% { transform: rotateY(0deg); opacity: 1; }
+          }
+          @keyframes flicker {
+            0%, 100% { transform: scaleY(1) scaleX(1); }
+            25%       { transform: scaleY(1.12) scaleX(0.92); }
+            50%       { transform: scaleY(0.94) scaleX(1.05); }
+            75%       { transform: scaleY(1.08) scaleX(0.96); }
+          }
+          @keyframes bronzePulse {
+            0%, 100% { border-color: rgba(205,127,50,0.25); }
+            50%       { border-color: rgba(205,127,50,0.55); box-shadow: 0 0 16px 2px rgba(205,127,50,0.15); }
+          }
+
+          /* ── 4º+ ── */
+          @keyframes rankFade {
+            0%   { opacity: 0; transform: scale(0.95) translateY(8px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes rank1Entrance { from { opacity:0; } to { opacity:1; } }
+          @keyframes num1Bounce    { from { opacity:0; } to { opacity:1; } }
+          @keyframes rank2SlideUp  { from { opacity:0; } to { opacity:1; } }
+          @keyframes num3Flip      { from { opacity:0; } to { opacity:1; } }
+          @keyframes rankFade      { from { opacity:0; } to { opacity:1; } }
         }
       `}} />
 
@@ -204,97 +250,235 @@ export default function MeuKPIClient({
   )
 }
 
+// ── Partículas fogos 1º lugar ──────────────────────────────────────────────────
+
+const FIREWORKS: { id: number; x: number; y: number; fx: string; fy: string; d: number; s: number; color: string }[] = [
+  { id:0,  x:50, y:50, fx:'-80px', fy:'-90px', d:0.0,  s:6, color:'#e8c96d' },
+  { id:1,  x:50, y:50, fx:'80px',  fy:'-85px', d:0.08, s:5, color:'#f5d97a' },
+  { id:2,  x:50, y:50, fx:'-90px', fy:'0px',   d:0.16, s:6, color:'#c9a84c' },
+  { id:3,  x:50, y:50, fx:'90px',  fy:'0px',   d:0.04, s:5, color:'#e8c96d' },
+  { id:4,  x:50, y:50, fx:'-60px', fy:'80px',  d:0.20, s:6, color:'#f5d97a' },
+  { id:5,  x:50, y:50, fx:'60px',  fy:'80px',  d:0.12, s:5, color:'#c9a84c' },
+  { id:6,  x:20, y:30, fx:'-50px', fy:'-70px', d:0.30, s:4, color:'#e8c96d' },
+  { id:7,  x:80, y:30, fx:'50px',  fy:'-70px', d:0.24, s:4, color:'#f5d97a' },
+  { id:8,  x:20, y:70, fx:'-55px', fy:'60px',  d:0.36, s:4, color:'#c9a84c' },
+  { id:9,  x:80, y:70, fx:'55px',  fy:'60px',  d:0.18, s:4, color:'#e8c96d' },
+  { id:10, x:50, y:20, fx:'0px',   fy:'-80px', d:0.10, s:5, color:'#f5d97a' },
+  { id:11, x:50, y:80, fx:'0px',   fy:'75px',  d:0.28, s:5, color:'#c9a84c' },
+]
+
+const STARS = [0, 1, 2, 3, 4, 5]
+
 // ── Ranking Card ──────────────────────────────────────────────────────────────
 
 function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number; total: number }) {
   const is1 = posicao === 1
   const is2 = posicao === 2
   const is3 = posicao === 3
-  const medals = ['🥇','🥈','🥉']
-  const medal  = posicao <= 3 ? medals[posicao - 1] : null
 
-  const rankColor = is1 ? 'linear-gradient(135deg, #e8c96d 0%, #f5d97a 50%, #c9a84c 100%)'
-    : is2 ? '#9ca3af'
-    : is3 ? '#cd7f32'
-    : 'var(--text-muted)'
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
 
-  const animation = is1 ? 'rankEntrance 0.7s cubic-bezier(0.34,1.56,0.64,1) both'
-    : is2 ? 'rankSlideUp 0.5s ease both'
-    : is3 ? 'rankFade 0.45s ease both'
-    : 'rankFade 0.4s ease both'
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!is1 || !cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const rx = ((e.clientY - cy) / (rect.height / 2)) * -8
+    const ry = ((e.clientX - cx) / (rect.width / 2)) * 8
+    setTilt({ x: rx, y: ry })
+  }
 
-  const borderAnim = is1 ? 'goldPulse 2.5s ease-in-out infinite'
-    : is2 ? 'silverPulse 3s ease-in-out infinite'
-    : is3 ? 'bronzePulse 3s ease-in-out infinite'
-    : undefined
+  function handleMouseLeave() {
+    setTilt({ x: 0, y: 0 })
+  }
 
-  const baseBorder = is1 ? 'rgba(201,168,76,0.35)' : is2 ? 'rgba(156,163,175,0.30)' : is3 ? 'rgba(205,127,50,0.25)' : 'rgba(201,168,76,0.08)'
+  // styles by position
+  const cardStyle: React.CSSProperties = is1 ? {
+    background: 'linear-gradient(135deg, #0f0c02 0%, #1a1400 50%, #0a0900 100%)',
+    border: '1px solid rgba(201,168,76,0.35)',
+    animationName: 'rank1Entrance, borderGlow',
+    animationDuration: '0.7s, 2.5s',
+    animationDelay: '0s, 0.8s',
+    animationTimingFunction: 'cubic-bezier(0.34,1.56,0.64,1), ease-in-out',
+    animationIterationCount: '1, infinite',
+    animationFillMode: 'both, none',
+    transform: tilt.x || tilt.y ? `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined,
+    transition: tilt.x || tilt.y ? 'transform 0.1s' : 'transform 0.3s ease',
+  } : is2 ? {
+    background: '#0d0d1a',
+    border: '1px solid rgba(156,163,175,0.30)',
+    animationName: 'rank2SlideUp, silverPulse',
+    animationDuration: '0.5s, 3s',
+    animationDelay: '0s, 0.5s',
+    animationTimingFunction: 'ease, ease-in-out',
+    animationIterationCount: '1, infinite',
+    animationFillMode: 'both, none',
+  } : is3 ? {
+    background: '#0d0d1a',
+    border: '1px solid rgba(205,127,50,0.25)',
+    animationName: 'rankFade, bronzePulse',
+    animationDuration: '0.45s, 3s',
+    animationDelay: '0s, 0.5s',
+    animationTimingFunction: 'ease, ease-in-out',
+    animationIterationCount: '1, infinite',
+    animationFillMode: 'both, none',
+  } : {
+    background: '#0d0d1a',
+    border: '1px solid rgba(201,168,76,0.08)',
+    animation: 'rankFade 0.4s ease both',
+  }
 
   return (
-    <div style={{
-      position: 'relative',
-      background: is1 ? 'linear-gradient(135deg, #0f0c02 0%, #1a1400 50%, #0a0900 100%)' : '#0d0d1a',
-      border: `1px solid ${baseBorder}`,
-      borderRadius: '20px',
-      padding: '28px 32px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '32px',
-      flexWrap: 'wrap',
-      animation,
-      ...(borderAnim ? { animationName: `${animation.split(' ')[0]}, ${borderAnim.split(' ')[0]}`, animationDuration: `${animation.split(' ')[1]}, ${borderAnim.split(' ')[1]}`, animationDelay: `0s, 0.8s`, animationTimingFunction: `${animation.split(' ').slice(2,-1).join(' ')}, ease-in-out`, animationIterationCount: `1, infinite`, animationFillMode: 'both, none' } : {}),
-      overflow: 'hidden',
-    }}>
-
-      {/* Partículas 1º lugar */}
-      {is1 && PARTICLES.map(p => (
-        <div key={p.id} style={{
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        position: 'relative',
+        borderRadius: '20px',
+        padding: '28px 32px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '32px',
+        flexWrap: 'wrap',
+        overflow: 'hidden',
+        ...cardStyle,
+      }}
+    >
+      {/* ── 1º: fogos de artifício ── */}
+      {is1 && FIREWORKS.map(f => (
+        <div key={f.id} style={{
           position: 'absolute',
-          left: `${p.x}%`,
-          top:  `${p.y}%`,
-          width: `${p.s}px`,
-          height: `${p.s}px`,
+          left: `${f.x}%`, top: `${f.y}%`,
+          width: `${f.s}px`, height: `${f.s}px`,
           borderRadius: '50%',
-          background: p.id % 3 === 0 ? '#e8c96d' : p.id % 3 === 1 ? '#f5d97a' : '#c9a84c',
-          animation: `particle ${1.2 + p.d}s ease-out ${p.d + 0.7}s both`,
-          pointerEvents: 'none',
-          zIndex: 0,
+          background: f.color,
+          // @ts-expect-error CSS custom properties
+          '--fx': f.fx, '--fy': f.fy,
+          animation: `firework 1.2s ease-out ${f.d + 0.6}s both`,
+          pointerEvents: 'none', zIndex: 0,
         }} />
       ))}
 
-      {/* Posição grande */}
-      <div style={{ position: 'relative', zIndex: 1, flexShrink: 0, textAlign: 'center' }}>
+      {/* ── 2º: linha varredura prata ── */}
+      {is2 && (
         <div style={{
-          fontSize: '72px',
-          fontWeight: 900,
-          lineHeight: 1,
+          position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+          background: 'linear-gradient(90deg, transparent, #e2e8f0, transparent)',
+          transformOrigin: 'left',
+          animation: 'silverSweep 0.7s ease-out 0.4s both',
+          zIndex: 0,
+        }} />
+      )}
+
+      {/* ── 3º: chamas ── */}
+      {is3 && [
+        { left:'22%', color:'#cd7f32', h:24, d:'0s' },
+        { left:'50%', color:'#d4942a', h:30, d:'0.13s' },
+        { left:'78%', color:'#e8a83c', h:22, d:'0.07s' },
+      ].map((flame, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          bottom: 0,
+          left: flame.left,
+          width: '10px',
+          height: `${flame.h}px`,
+          background: `radial-gradient(ellipse at bottom, ${flame.color} 0%, transparent 100%)`,
+          borderRadius: '50% 50% 20% 20%',
+          animation: `flicker 0.4s ease-in-out ${flame.d} infinite alternate`,
+          opacity: 0.55,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }} />
+      ))}
+
+      {/* ── Número ── */}
+      <div style={{ position: 'relative', zIndex: 1, flexShrink: 0, textAlign: 'center' }}>
+
+        {/* 2º: estrelas cintilantes */}
+        {is2 && STARS.map(i => (
+          <div key={i} style={{
+            position: 'absolute',
+            fontSize: '14px',
+            color: '#9ca3af',
+            animation: `twinkle 1.4s ease-in-out ${i * 0.22}s infinite`,
+            ...[
+              { top:'-18px', left:'50%', transform:'translateX(-50%)' },
+              { top:'10px',  left:'-20px' },
+              { top:'10px',  right:'-20px' },
+              { bottom:'10px', left:'-18px' },
+              { bottom:'10px', right:'-18px' },
+              { bottom:'-14px', left:'50%', transform:'translateX(-50%)' },
+            ][i],
+          }}>✦</div>
+        ))}
+
+        <div style={{
           fontFamily: 'var(--ff-display)',
-          background: is1 ? rankColor : undefined,
-          color: is1 ? undefined : (is2 || is3 ? rankColor : 'var(--text-muted)'),
-          WebkitBackgroundClip: is1 ? 'text' : undefined,
-          WebkitTextFillColor: is1 ? 'transparent' : undefined,
-          backgroundClip: is1 ? 'text' : undefined,
+          lineHeight: 1,
+          fontWeight: 900,
+          ...(is1 ? {
+            fontSize: '80px',
+            background: 'linear-gradient(90deg, #c9a84c, #e8c96d, #f5d97a, #e8c96d, #c9a84c)',
+            backgroundSize: '200% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'num1Bounce 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.1s both, shimmerGold 2.5s linear 1s infinite',
+          } : is2 ? {
+            fontSize: '72px',
+            color: '#e2e8f0',
+            animation: 'rank2SlideUp 0.5s ease both',
+          } : is3 ? {
+            fontSize: '68px',
+            color: '#cd7f32',
+            animation: 'num3Flip 0.6s ease 0.1s both',
+          } : {
+            fontSize: '56px',
+            color: 'var(--text-muted)',
+            animation: 'rankFade 0.4s ease both',
+          }),
         }}>
           {posicao}º
         </div>
-        {medal && <div style={{ fontSize: '28px', lineHeight: 1, marginTop: '4px' }}>{medal}</div>}
+
+        <div style={{ fontSize: is1 ? '28px' : '22px', lineHeight: 1, marginTop: '6px' }}>
+          {is1 ? '🏆' : is2 ? '🥈' : is3 ? '🥉' : null}
+        </div>
       </div>
 
-      {/* Info */}
+      {/* ── Info ── */}
       <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: '160px' }}>
         <p style={{
           fontFamily: 'var(--ff-display)',
           fontSize: is1 ? '20px' : '17px',
           fontWeight: 700,
-          color: is1 ? '#e8c96d' : is2 ? '#9ca3af' : is3 ? '#cd7f32' : 'var(--text-secondary)',
+          color: is1 ? '#e8c96d' : is2 ? '#e2e8f0' : is3 ? '#cd7f32' : 'var(--text-secondary)',
           marginBottom: '4px',
         }}>
           {is1 ? 'Líder de Retenção!' : is2 ? '2º no Ranking' : is3 ? '3º no Ranking' : `${posicao}º no Ranking`}
         </p>
+
+        {/* 1º: texto motivacional com delay */}
+        {is1 && (
+          <p style={{
+            fontSize: '13px', color: '#c9a84c', marginBottom: '8px',
+            animation: 'motivText 0.5s ease 0.8s both',
+          }}>
+            Você está no topo! 🏆
+          </p>
+        )}
+
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
           de {total} operadores em Tx. Retenção
         </p>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '10px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
+
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '8px',
+          padding: '6px 14px', borderRadius: '10px',
+          background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)',
+        }}>
           <TrendingUp size={13} style={{ color: '#c9a84c' }} />
           <span style={{ fontSize: '18px', fontWeight: 700, color: '#e8c96d', fontVariantNumeric: 'tabular-nums' }}>
             {txRet.toFixed(1)}%
