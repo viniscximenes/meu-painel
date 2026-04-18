@@ -145,7 +145,7 @@ export default async function MeuD1Page() {
       : taxaEst
 
     // ── Cenário 2: máx cancelados/dia para bônus 63.6% ────────────────────────
-    const canceladosPermitidosFim  = pedidosProjetados * (1 - 0.636)
+    const canceladosPermitidosFim  = pedidosProjetados * (1 - 0.66)
     const canceladosPermitidosRest = canceladosPermitidosFim - canceladosEst
     const maxCanceladosDiaBon      = diasRestantes > 0
       ? canceladosPermitidosRest / diasRestantes

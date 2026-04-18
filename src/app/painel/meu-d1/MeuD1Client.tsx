@@ -361,7 +361,7 @@ function CardPlanoAcao(p: MeuD1Props) {
 
         {/* Cenário 2 — Meta de churn para bônus */}
         <CenarioBox
-          titulo="Cenário 2 — Bônus de 20% (63.6% de retenção)"
+          titulo="Cenário 2 — Meta de 66% de retenção"
           cor={bonusPossivel ? '#c9a84c' : '#f87171'}
           bg={bonusPossivel ? 'rgba(201,168,76,0.06)' : 'rgba(248,113,113,0.06)'}
           bd={bonusPossivel ? 'rgba(201,168,76,0.15)' : 'rgba(248,113,113,0.15)'}
@@ -376,12 +376,12 @@ function CardPlanoAcao(p: MeuD1Props) {
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>cancelamentos por dia no máximo</span>
               </div>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.5 }}>
-                Para garantir o bônus, mantenha no máximo {maxCancelFloor} cancelamento{maxCancelFloor !== 1 ? 's' : ''}/dia pelos próximos {p.diasRestantes} dias.
+                Para atingir 66% de retenção, mantenha no máximo {maxCancelFloor} cancelamento{maxCancelFloor !== 1 ? 's' : ''}/dia pelos próximos {p.diasRestantes} dias.
               </p>
             </>
           ) : (
             <p style={{ fontSize: '12px', color: '#f87171', lineHeight: 1.5 }}>
-              O bônus deste mês está fora de alcance. Foque em atingir 66% para a meta principal.
+              Atingir 66% já não é possível neste mês. Foque em minimizar os cancelamentos.
             </p>
           )}
         </CenarioBox>
