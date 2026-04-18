@@ -8,7 +8,7 @@ import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   LayoutDashboard, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays, Ticket, User, CircleDollarSign, TrendingUp, Calculator,
+  CalendarDays, Ticket, User, CircleDollarSign, TrendingUp, Calculator, Link2,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -218,7 +218,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
   const [dadosGestaoExpandido, setDadosGestaoExpandido] = useState(false)
   const [configExpandida,      setConfigExpandida]      = useState(false)
   const [meusRegExp,           setMeusRegExp]           = useState(false)
-  const [meusAcessosExp,       setMeusAcessosExp]       = useState(false)
+  const [meusAcessosExp,       setMeusAcessosExp]       = useState(true)
   const { glpiPendentes } = useSidebarBadges()
 
   return (
@@ -238,6 +238,23 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
         <TrendingUp size={15} /> D-1
       </Link>
 
+      <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
+        Meus Acessos
+      </NavLabelCollapsible>
+
+      <div style={{ maxHeight: meusAcessosExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-0.5">
+          <Link href="/painel/calculadora-rv" onClick={onClose}
+            className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Calculator size={15} /> Calculadora RV
+          </Link>
+          <Link href="/painel/links" onClick={onClose}
+            className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Link2 size={15} /> Links Úteis
+          </Link>
+        </div>
+      </div>
+
       <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
         Meus Registros
       </NavLabelCollapsible>
@@ -251,19 +268,6 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
           <Link href="/painel/meu-diario" onClick={onClose}
             className={pathname === '/painel/meu-diario' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <BookOpen size={15} /> Meu Diário
-          </Link>
-        </div>
-      </div>
-
-      <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
-        Meus Acessos
-      </NavLabelCollapsible>
-
-      <div style={{ maxHeight: meusAcessosExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <div className="space-y-0.5">
-          <Link href="/painel/calculadora-rv" onClick={onClose}
-            className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Calculator size={15} /> Calculadora RV
           </Link>
         </div>
       </div>
@@ -341,7 +345,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
 function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
   const [registrosExpandidos, setRegistrosExpandidos] = useState(false)
   const [meusRegExp,          setMeusRegExp]          = useState(false)
-  const [meusAcessosExp,      setMeusAcessosExp]      = useState(false)
+  const [meusAcessosExp,      setMeusAcessosExp]      = useState(true)
   const { glpiPendentes } = useSidebarBadges()
 
   return (
@@ -361,6 +365,23 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
         <TrendingUp size={15} /> D-1
       </Link>
 
+      <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
+        Meus Acessos
+      </NavLabelCollapsible>
+
+      <div style={{ maxHeight: meusAcessosExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-0.5">
+          <Link href="/painel/calculadora-rv" onClick={onClose}
+            className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Calculator size={15} /> Calculadora RV
+          </Link>
+          <Link href="/painel/links" onClick={onClose}
+            className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Link2 size={15} /> Links Úteis
+          </Link>
+        </div>
+      </div>
+
       <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
         Meus Registros
       </NavLabelCollapsible>
@@ -374,19 +395,6 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
           <Link href="/painel/meu-diario" onClick={onClose}
             className={pathname === '/painel/meu-diario' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <BookOpen size={15} /> Meu Diário
-          </Link>
-        </div>
-      </div>
-
-      <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
-        Meus Acessos
-      </NavLabelCollapsible>
-
-      <div style={{ maxHeight: meusAcessosExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <div className="space-y-0.5">
-          <Link href="/painel/calculadora-rv" onClick={onClose}
-            className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Calculator size={15} /> Calculadora RV
           </Link>
         </div>
       </div>
@@ -420,7 +428,7 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
 
 function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
   const [meusRegExp,     setMeusRegExp]     = useState(false)
-  const [meusAcessosExp, setMeusAcessosExp] = useState(false)
+  const [meusAcessosExp, setMeusAcessosExp] = useState(true)
 
   return (
     <div className="space-y-0.5">
@@ -439,6 +447,23 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
         <TrendingUp size={15} /> D-1
       </Link>
 
+      <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
+        Meus Acessos
+      </NavLabelCollapsible>
+
+      <div style={{ maxHeight: meusAcessosExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-0.5">
+          <Link href="/painel/calculadora-rv" onClick={onClose}
+            className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Calculator size={15} /> Calculadora RV
+          </Link>
+          <Link href="/painel/links" onClick={onClose}
+            className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Link2 size={15} /> Links Úteis
+          </Link>
+        </div>
+      </div>
+
       <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
         Meus Registros
       </NavLabelCollapsible>
@@ -452,19 +477,6 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
           <Link href="/painel/meu-diario" onClick={onClose}
             className={pathname === '/painel/meu-diario' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <BookOpen size={15} /> Meu Diário
-          </Link>
-        </div>
-      </div>
-
-      <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
-        Meus Acessos
-      </NavLabelCollapsible>
-
-      <div style={{ maxHeight: meusAcessosExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <div className="space-y-0.5">
-          <Link href="/painel/calculadora-rv" onClick={onClose}
-            className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Calculator size={15} /> Calculadora RV
           </Link>
         </div>
       </div>

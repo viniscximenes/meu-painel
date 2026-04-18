@@ -1,8 +1,9 @@
 'use server'
 
-import { requireGestor } from '@/lib/auth'
+import { requireGestor, requireAdmin } from '@/lib/auth'
 import { addPlanilha, ativarPlanilha, deletarPlanilha, atualizarPlanilha } from '@/lib/sheets'
 import { setAppConfig } from '@/lib/app-config'
+import { criarLink, excluirLink } from '@/lib/links'
 import { revalidatePath } from 'next/cache'
 
 export async function adicionarPlanilha(formData: FormData) {
@@ -52,4 +53,26 @@ export async function salvarKPIConsolidadoConfig(limiteLinhas: number): Promise<
   await setAppConfig('kpi_consolidado_limite_linhas', String(valor))
   revalidatePath('/painel/config')
   revalidatePath('/painel/kpis-equipe')
+}
+
+export async function adicionarLinkUtil(formData: FormData) {
+  await requireAdmin()
+  const nome      = (formData.get('nome') as string).trim()
+  const url       = (formData.get('url') as string).trim()
+  const descricao = (formData.get('descricao') as string | null)?.trim() || undefined
+  const categoria = (formData.get('categoria') as string).trim()
+  const ordem     = parseInt((formData.get('ordem') as string) || '0', 10)
+  if (!nome || !url || !categoria) throw new Error('Nome, URL e categoria são obrigatórios')
+  await criarLink({ nome, url, descricao, categoria, ordem })
+  revalidatePath('/painel/config')
+  revalidatePath('/painel/links')
+}
+
+export async function excluirLinkUtil(formData: FormData) {
+  await requireAdmin()
+  const id = (formData.get('id') as string).trim()
+  if (!id) throw new Error('ID inválido')
+  await excluirLink(id)
+  revalidatePath('/painel/config')
+  revalidatePath('/painel/links')
 }

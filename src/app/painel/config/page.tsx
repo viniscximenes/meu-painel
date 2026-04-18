@@ -3,24 +3,27 @@ import { listarPlanilhas } from '@/lib/sheets'
 import { getAppConfig } from '@/lib/app-config'
 import { getRVGestorConfigRaw } from '@/lib/rv-gestor'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { listarTodosLinks } from '@/lib/links'
 import PainelShell from '@/components/PainelShell'
 import PlanilhasClient from './PlanilhasClient'
 import KPIConsolidadoConfigClient from './KPIConsolidadoConfigClient'
 import RVGestorConfigClient from './RVGestorConfigClient'
 import UsuariosClient, { type UserInfo } from './UsuariosClient'
-import { Database, TrendingUp, Users } from 'lucide-react'
+import LinksConfigClient from './LinksConfigClient'
+import { Database, TrendingUp, Users, Link2 } from 'lucide-react'
 import { OPERADORES } from '@/lib/operadores'
 
 export default async function ConfigPage() {
   const profile = await requireAdmin()
   const admin = createAdminClient()
 
-  const [planilhas, limiteRaw, gestorConfigRaw, profilesRes, credenciaisRes] = await Promise.all([
+  const [planilhas, limiteRaw, gestorConfigRaw, profilesRes, credenciaisRes, todosLinks] = await Promise.all([
     listarPlanilhas(),
     getAppConfig('kpi_consolidado_limite_linhas'),
     getRVGestorConfigRaw(),
     admin.from('profiles').select('id, nome, username, email, role, operador_id, skills').order('nome'),
     admin.from('user_credentials').select('username, senha_atual'),
+    listarTodosLinks().catch(() => []),
   ])
 
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
@@ -97,6 +100,22 @@ export default async function ConfigPage() {
             </p>
           </div>
           <RVGestorConfigClient raw={gestorConfigRaw} />
+        </div>
+
+        <div className="divider" />
+
+        {/* ── Links Úteis ── */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <Link2 size={20} style={{ color: 'var(--gold)' }} />
+              Links Úteis
+            </h2>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+              Gerencie os links exibidos na página de Links Úteis para todos os usuários.
+            </p>
+          </div>
+          <LinksConfigClient links={todosLinks} />
         </div>
 
       </div>
