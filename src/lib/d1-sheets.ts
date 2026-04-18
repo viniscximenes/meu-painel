@@ -73,10 +73,10 @@ export async function lerAbaD1(spreadsheetId: string): Promise<D1SheetData> {
       if (!email) continue
       operadores.push({
         email,
-        retidos:    parseNum(row[1]),
-        cancelados: parseNum(row[2]),
-        pedidos:    parseNum(row[3]),
-        txRetencao: parseTaxa(row[4]),
+        cancelados: parseNum(row[1]),  // col B
+        retidos:    parseNum(row[2]),  // col C
+        pedidos:    parseNum(row[3]),  // col D
+        txRetencao: parseTaxa(row[4]), // col E — lido direto, sem recalcular
       })
     }
 

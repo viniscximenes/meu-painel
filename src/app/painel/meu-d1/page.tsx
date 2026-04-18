@@ -116,9 +116,12 @@ export default async function MeuD1Page() {
     ) ?? null
 
     const semDadosD1   = !meuD1 || meuD1.txRetencao === null
-    const retidosD1    = meuD1?.retidos    ?? 0   // col B
-    const canceladosD1 = meuD1?.cancelados ?? 0   // col C
+    const canceladosD1 = meuD1?.cancelados ?? 0   // col B
+    const retidosD1    = meuD1?.retidos    ?? 0   // col C
     const pedidosD1    = meuD1?.pedidos    ?? 0   // col D
+    // col E — taxa do dia lida direto da planilha, normalizada para %
+    const txD1Raw      = meuD1?.txRetencao ?? null
+    const txD1         = txD1Raw !== null ? (txD1Raw > 1 ? txD1Raw : txD1Raw * 100) : null
 
     // ── Estimado (KPI + D1) ────────────────────────────────────────────────────
     const retidosEst    = retidosKpi    + retidosD1
@@ -160,6 +163,7 @@ export default async function MeuD1Page() {
       diasUteisNoMes, diasPassados, diasRestantes,
       retidosPorDiaNecessario, jaEstaNaMeta,
       taxaProjetada, maxCanceladosDiaBon,
+      txD1,
     }
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido'

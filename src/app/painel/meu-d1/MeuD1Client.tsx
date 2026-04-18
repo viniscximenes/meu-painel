@@ -34,8 +34,9 @@ export interface MeuD1Props {
   jaEstaNaMeta:            boolean
 
   // Cenários Plano de Ação
-  taxaProjetada:       number  // projeção ao ritmo atual
-  maxCanceladosDiaBon: number  // máx cancel/dia para 63.6% (negativo = impossível)
+  taxaProjetada:       number        // projeção ao ritmo atual
+  maxCanceladosDiaBon: number        // máx cancel/dia para 66% (negativo = impossível)
+  txD1:                number | null // taxa de retenção do dia (col E), null se #DIV/0!
 }
 
 // ── CountUp ───────────────────────────────────────────────────────────────────
@@ -100,49 +101,36 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── Card Principal — hierarquia: estimativa = protagonista ────────────────────
+// ── Card Principal — tx do dia = protagonista ─────────────────────────────────
 
 function CardPrincipal(p: MeuD1Props) {
-  const taxaEstAnim = useCountUp(p.taxaEst)
-  const delta       = p.deltaTaxa
-  const sinal       = delta > 0 ? '+' : ''
-  const deltaColor  = delta >= 0 ? '#4ade80' : '#f87171'
+  const txDiaAnim = useCountUp(p.txD1 ?? 0)
+  const taxaKpiAnim = useCountUp(p.taxaKpi)
+  // quando não há tx do dia, fallback para KPI acumulado
+  const txShow    = p.txD1 !== null ? p.txD1 : p.taxaKpi
 
   return (
     <Card style={{ background: 'var(--void2)' }}>
       <SectionTitle>Taxa de Retenção</SectionTitle>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
-        {/* Estimativa — protagonista */}
+        {/* Taxa do dia — protagonista */}
         <div style={{
-          flex: '1 1 180px',
-          padding: '16px 18px', borderRadius: '12px',
-          background: taxaBg(p.taxaEst), border: `1px solid ${taxaBorder(p.taxaEst)}`,
+          flex: '1 1 180px', padding: '16px 18px', borderRadius: '12px',
+          background: taxaBg(txShow), border: `1px solid ${taxaBorder(txShow)}`,
         }}>
           <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            {p.semDadosD1 ? 'KPI do mês' : 'Estimativa hoje'}
+            {p.txD1 !== null ? 'Taxa de retenção hoje' : 'KPI do mês'}
           </p>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontFamily: 'var(--ff-display)', fontSize: '48px', fontWeight: 700,
-              color: taxaColor(p.taxaEst), lineHeight: 1,
-            }}>
-              {fmt1(taxaEstAnim)}%
-            </span>
-            {!p.semDadosD1 && (
-              <span style={{
-                fontSize: '12px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px',
-                background: delta >= 0 ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)',
-                border: `1px solid ${delta >= 0 ? 'rgba(74,222,128,0.25)' : 'rgba(248,113,113,0.25)'}`,
-                color: deltaColor, marginBottom: '6px',
-              }}>
-                {sinal}{fmt1(delta)}%
-              </span>
-            )}
-          </div>
+          <span style={{
+            fontFamily: 'var(--ff-display)', fontSize: '56px', fontWeight: 700,
+            color: taxaColor(txShow), lineHeight: 1,
+          }}>
+            {fmt1(p.txD1 !== null ? txDiaAnim : taxaKpiAnim)}%
+          </span>
           {p.semDadosD1 && (
             <span style={{
-              display: 'inline-block', marginTop: '8px', fontSize: '11px',
+              display: 'inline-block', marginTop: '10px', fontSize: '11px',
               color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '6px',
               background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)',
             }}>
@@ -155,17 +143,15 @@ function CardPrincipal(p: MeuD1Props) {
         {!p.semDadosD1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '4px' }}>
             <p style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              KPI do mês
+              KPI acumulado
             </p>
             <span style={{
               fontFamily: 'var(--ff-display)', fontSize: '22px', fontWeight: 700,
               color: 'var(--text-muted)', lineHeight: 1,
             }}>
-              {fmt1(p.taxaKpi)}%
+              {fmt1(taxaKpiAnim)}%
             </span>
-            <p style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.6 }}>
-              acumulado
-            </p>
+            <p style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.6 }}>do mês</p>
           </div>
         )}
       </div>
@@ -359,32 +345,44 @@ function CardPlanoAcao(p: MeuD1Props) {
           </p>
         </CenarioBox>
 
-        {/* Cenário 2 — Meta de churn para bônus */}
-        <CenarioBox
-          titulo="Cenário 2 — Meta de 66% de retenção"
-          cor={bonusPossivel ? '#c9a84c' : '#f87171'}
-          bg={bonusPossivel ? 'rgba(201,168,76,0.06)' : 'rgba(248,113,113,0.06)'}
-          bd={bonusPossivel ? 'rgba(201,168,76,0.15)' : 'rgba(248,113,113,0.15)'}
-          icon={Target}
-        >
-          {bonusPossivel ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'var(--ff-display)', fontSize: '26px', fontWeight: 700, color: 'var(--gold)', lineHeight: 1 }}>
-                  {maxCancelFloor}
-                </span>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>cancelamentos por dia no máximo</span>
-              </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.5 }}>
-                Para atingir 66% de retenção, mantenha no máximo {maxCancelFloor} cancelamento{maxCancelFloor !== 1 ? 's' : ''}/dia pelos próximos {p.diasRestantes} dias.
-              </p>
-            </>
-          ) : (
-            <p style={{ fontSize: '12px', color: '#f87171', lineHeight: 1.5 }}>
-              Atingir 66% já não é possível neste mês. Foque em minimizar os cancelamentos.
-            </p>
-          )}
-        </CenarioBox>
+        {/* Cenário 2 — Limite de cancelamentos para 66% */}
+        {(() => {
+          const hojeOkCancel = !p.semDadosD1 && p.canceladosD1 <= maxCancelFloor
+          const c2Cor = !bonusPossivel ? '#f87171' : hojeOkCancel ? '#4ade80' : '#facc15'
+          const c2Bg  = !bonusPossivel ? 'rgba(248,113,113,0.06)' : hojeOkCancel ? 'rgba(74,222,128,0.06)' : 'rgba(250,204,21,0.06)'
+          const c2Bd  = !bonusPossivel ? 'rgba(248,113,113,0.15)' : hojeOkCancel ? 'rgba(74,222,128,0.15)' : 'rgba(250,204,21,0.15)'
+          return (
+            <CenarioBox titulo="Cenário 2 — Limite de cancelamentos para 66%" cor={c2Cor} bg={c2Bg} bd={c2Bd} icon={Target}>
+              {bonusPossivel ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--ff-display)', fontSize: '26px', fontWeight: 700, color: 'var(--gold)', lineHeight: 1 }}>
+                      {maxCancelFloor}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>cancelamentos/dia no máximo</span>
+                  </div>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.5 }}>
+                    Para fechar o mês em 66%, cancele no máximo {maxCancelFloor} cliente{maxCancelFloor !== 1 ? 's' : ''}/dia nos próximos {p.diasRestantes} dias.
+                  </p>
+                  {!p.semDadosD1 && (
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: hojeOkCancel ? '#4ade80' : '#f87171' }}>
+                      {hojeOkCancel
+                        ? <CheckCircle2 size={13} style={{ flexShrink: 0 }} />
+                        : <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                      }
+                      Hoje você cancelou {p.canceladosD1} cliente{p.canceladosD1 !== 1 ? 's' : ''}
+                      {hojeOkCancel ? ' — dentro do limite!' : ` — acima do limite de ${maxCancelFloor}.`}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p style={{ fontSize: '12px', color: '#f87171', lineHeight: 1.5 }}>
+                  Atingir 66% já não é possível neste mês. Foque em minimizar os cancelamentos.
+                </p>
+              )}
+            </CenarioBox>
+          )
+        })()}
 
         {/* Cenário 3 — O que precisa hoje */}
         {!p.semDadosD1 && (
