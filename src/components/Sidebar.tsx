@@ -217,6 +217,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
   const [registrosExpandidos,  setRegistrosExpandidos]  = useState(true)
   const [dadosGestaoExpandido, setDadosGestaoExpandido] = useState(false)
   const [configExpandida,      setConfigExpandida]      = useState(false)
+  const [meusRegExp,           setMeusRegExp]           = useState(false)
   const { glpiPendentes } = useSidebarBadges()
 
   return (
@@ -231,6 +232,19 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <CircleDollarSign size={15} /> Meu RV
       </Link>
+
+      <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
+        Meus Registros
+      </NavLabelCollapsible>
+
+      <div style={{ maxHeight: meusRegExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-0.5">
+          <Link href="/painel/meu-abs" onClick={onClose}
+            className={pathname === '/painel/meu-abs' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <CalendarDays size={15} /> Meu ABS
+          </Link>
+        </div>
+      </div>
 
       <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
         Registros
@@ -304,6 +318,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
 
 function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
   const [registrosExpandidos, setRegistrosExpandidos] = useState(true)
+  const [meusRegExp,          setMeusRegExp]          = useState(false)
   const { glpiPendentes } = useSidebarBadges()
   const kpiHref = `/painel/kpi/${profile.username}`
 
@@ -323,6 +338,19 @@ function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: st
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <CircleDollarSign size={15} /> Meu RV
       </Link>
+
+      <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
+        Meus Registros
+      </NavLabelCollapsible>
+
+      <div style={{ maxHeight: meusRegExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-0.5">
+          <Link href="/painel/meu-abs" onClick={onClose}
+            className={pathname === '/painel/meu-abs' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <CalendarDays size={15} /> Meu ABS
+          </Link>
+        </div>
+      </div>
 
       <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
         Registros
