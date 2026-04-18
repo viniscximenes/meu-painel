@@ -221,11 +221,11 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
 
   return (
     <div className="space-y-0.5">
-      <NavLabel>Meus Dados Gerais</NavLabel>
+      <NavLabel>Meus Dados</NavLabel>
 
-      <Link href="/painel/meus-dados" onClick={onClose}
-        className={pathname === '/painel/meus-dados' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <User size={15} /> Meus Dados
+      <Link href="/painel/meu-kpi" onClick={onClose}
+        className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <User size={15} /> Meu KPI
       </Link>
 
       <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
@@ -305,11 +305,11 @@ function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: st
 
   return (
     <div className="space-y-0.5">
-      <NavLabel>Meus Dados Gerais</NavLabel>
+      <NavLabel>Meus Dados</NavLabel>
 
-      <Link href="/painel/meus-dados" onClick={onClose}
-        className={pathname === '/painel/meus-dados' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <User size={15} /> Meus Dados
+      <Link href="/painel/meu-kpi" onClick={onClose}
+        className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <User size={15} /> Meu KPI
       </Link>
       <Link href={kpiHref} onClick={onClose}
         className={pathname.startsWith('/painel/kpi') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
