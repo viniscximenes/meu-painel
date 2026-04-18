@@ -40,7 +40,7 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
   function renderNav() {
     if (role === 'gestor')   return <GestorNav pathname={pathname} onClose={onClose} />
     if (role === 'admin')    return <AdminNav  pathname={pathname} onClose={onClose} />
-    if (role === 'aux')      return <AuxNav    profile={profile} pathname={pathname} onClose={onClose} />
+    if (role === 'aux')      return <AuxNav    pathname={pathname} onClose={onClose} />
     return <OperadorNav profile={profile} pathname={pathname} onClose={onClose} />
   }
 
@@ -214,7 +214,7 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
 /* ── Admin nav ───────────────────────────────────────────────────────────────── */
 
 function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
-  const [registrosExpandidos,  setRegistrosExpandidos]  = useState(true)
+  const [registrosExpandidos,  setRegistrosExpandidos]  = useState(false)
   const [dadosGestaoExpandido, setDadosGestaoExpandido] = useState(false)
   const [configExpandida,      setConfigExpandida]      = useState(false)
   const [meusRegExp,           setMeusRegExp]           = useState(false)
@@ -222,7 +222,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
 
   return (
     <div className="space-y-0.5">
-      <NavLabel>Meus Dados</NavLabel>
+      <NavLabel>Meus Dados Gerais</NavLabel>
 
       <Link href="/painel/meu-kpi" onClick={onClose}
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
@@ -247,7 +247,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
       </div>
 
       <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
-        Registros
+        Registros Gerais
       </NavLabelCollapsible>
 
       <div style={{ maxHeight: registrosExpandidos ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
@@ -316,23 +316,18 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
 
 /* ── Aux nav ─────────────────────────────────────────────────────────────────── */
 
-function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
-  const [registrosExpandidos, setRegistrosExpandidos] = useState(true)
+function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
+  const [registrosExpandidos, setRegistrosExpandidos] = useState(false)
   const [meusRegExp,          setMeusRegExp]          = useState(false)
   const { glpiPendentes } = useSidebarBadges()
-  const kpiHref = `/painel/kpi/${profile.username}`
 
   return (
     <div className="space-y-0.5">
-      <NavLabel>Meus Dados</NavLabel>
+      <NavLabel>Meus Dados Gerais</NavLabel>
 
       <Link href="/painel/meu-kpi" onClick={onClose}
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <User size={15} /> Meu KPI
-      </Link>
-      <Link href={kpiHref} onClick={onClose}
-        className={pathname.startsWith('/painel/kpi') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Target size={15} /> Meus KPIs
       </Link>
       <Link href="/painel/meu-rv" onClick={onClose}
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
@@ -353,7 +348,7 @@ function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: st
       </div>
 
       <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
-        Registros
+        Registros Gerais
       </NavLabelCollapsible>
 
       <div style={{ maxHeight: registrosExpandidos ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
