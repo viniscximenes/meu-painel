@@ -8,7 +8,7 @@ import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   LayoutDashboard, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays, Ticket, User, CircleDollarSign, TrendingUp, Calculator, Link2,
+  CalendarDays, Ticket, User, CircleDollarSign, TrendingUp, Calculator, Link2, ClipboardCopy,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -242,7 +242,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
         Meus Acessos
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: meusAcessosExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: meusAcessosExp ? '400px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/calculadora-rv" onClick={onClose}
             className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
@@ -251,6 +251,10 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
           <Link href="/painel/links" onClick={onClose}
             className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <Link2 size={15} /> Links
+          </Link>
+          <Link href="/painel/mascaras" onClick={onClose}
+            className={pathname === '/painel/mascaras' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <ClipboardCopy size={15} /> Máscaras
           </Link>
         </div>
       </div>
@@ -369,7 +373,7 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
         Meus Acessos
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: meusAcessosExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: meusAcessosExp ? '400px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/calculadora-rv" onClick={onClose}
             className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
@@ -378,6 +382,10 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
           <Link href="/painel/links" onClick={onClose}
             className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <Link2 size={15} /> Links
+          </Link>
+          <Link href="/painel/mascaras" onClick={onClose}
+            className={pathname === '/painel/mascaras' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <ClipboardCopy size={15} /> Máscaras
           </Link>
         </div>
       </div>
@@ -451,7 +459,7 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
         Meus Acessos
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: meusAcessosExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: meusAcessosExp ? '400px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/calculadora-rv" onClick={onClose}
             className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
@@ -460,6 +468,10 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
           <Link href="/painel/links" onClick={onClose}
             className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <Link2 size={15} /> Links
+          </Link>
+          <Link href="/painel/mascaras" onClick={onClose}
+            className={pathname === '/painel/mascaras' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <ClipboardCopy size={15} /> Máscaras
           </Link>
         </div>
       </div>

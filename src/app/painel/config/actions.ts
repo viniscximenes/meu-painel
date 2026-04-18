@@ -1,9 +1,10 @@
 'use server'
 
-import { requireGestor, getProfile } from '@/lib/auth'
+import { requireGestor, requireAdmin, getProfile } from '@/lib/auth'
 import { addPlanilha, ativarPlanilha, deletarPlanilha, atualizarPlanilha } from '@/lib/sheets'
 import { setAppConfig } from '@/lib/app-config'
 import { criarLink, excluirLink, atualizarLink } from '@/lib/links'
+import { criarMascara, atualizarMascara, excluirMascara } from '@/lib/mascaras'
 import { revalidatePath } from 'next/cache'
 
 export async function adicionarPlanilha(formData: FormData) {
@@ -88,4 +89,42 @@ export async function editarLinkUtil(formData: FormData) {
   await atualizarLink(id, { nome, url, descricao, categoria })
   revalidatePath('/painel/config')
   revalidatePath('/painel/links')
+}
+
+export async function criarMascaraAction(formData: FormData) {
+  await requireAdmin()
+  const segmento   = (formData.get('segmento') as string).trim()
+  const fila       = (formData.get('fila') as string).trim()
+  const sla        = (formData.get('sla') as string).trim()
+  const utilizacao = (formData.get('utilizacao') as string).trim()
+  const mascara    = (formData.get('mascara') as string).trim()
+  const ordem      = parseInt((formData.get('ordem') as string) || '0', 10)
+  if (!fila || !mascara) throw new Error('Fila e máscara são obrigatórios')
+  await criarMascara({ segmento, fila, sla, utilizacao, mascara, ordem })
+  revalidatePath('/painel/config')
+  revalidatePath('/painel/mascaras')
+}
+
+export async function editarMascaraAction(formData: FormData) {
+  await requireAdmin()
+  const id         = (formData.get('id') as string).trim()
+  const segmento   = (formData.get('segmento') as string).trim()
+  const fila       = (formData.get('fila') as string).trim()
+  const sla        = (formData.get('sla') as string).trim()
+  const utilizacao = (formData.get('utilizacao') as string).trim()
+  const mascara    = (formData.get('mascara') as string).trim()
+  const ordem      = parseInt((formData.get('ordem') as string) || '0', 10)
+  if (!id || !fila || !mascara) throw new Error('Campos obrigatórios ausentes')
+  await atualizarMascara(id, { segmento, fila, sla, utilizacao, mascara, ordem })
+  revalidatePath('/painel/config')
+  revalidatePath('/painel/mascaras')
+}
+
+export async function excluirMascaraAction(formData: FormData) {
+  await requireAdmin()
+  const id = (formData.get('id') as string).trim()
+  if (!id) throw new Error('ID inválido')
+  await excluirMascara(id)
+  revalidatePath('/painel/config')
+  revalidatePath('/painel/mascaras')
 }

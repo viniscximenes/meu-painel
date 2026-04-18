@@ -4,26 +4,29 @@ import { getAppConfig } from '@/lib/app-config'
 import { getRVGestorConfigRaw } from '@/lib/rv-gestor'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { listarTodosLinks } from '@/lib/links'
+import { listarTodasMascaras } from '@/lib/mascaras'
 import PainelShell from '@/components/PainelShell'
 import PlanilhasClient from './PlanilhasClient'
 import KPIConsolidadoConfigClient from './KPIConsolidadoConfigClient'
 import RVGestorConfigClient from './RVGestorConfigClient'
 import UsuariosClient, { type UserInfo } from './UsuariosClient'
 import LinksConfigClient from './LinksConfigClient'
-import { Database, TrendingUp, Users, Link2 } from 'lucide-react'
+import MascarasConfigClient from './MascarasConfigClient'
+import { Database, TrendingUp, Users, Link2, ClipboardCopy } from 'lucide-react'
 import { OPERADORES } from '@/lib/operadores'
 
 export default async function ConfigPage() {
   const profile = await requireAdmin()
   const admin = createAdminClient()
 
-  const [planilhas, limiteRaw, gestorConfigRaw, profilesRes, credenciaisRes, todosLinks] = await Promise.all([
+  const [planilhas, limiteRaw, gestorConfigRaw, profilesRes, credenciaisRes, todosLinks, todasMascaras] = await Promise.all([
     listarPlanilhas(),
     getAppConfig('kpi_consolidado_limite_linhas'),
     getRVGestorConfigRaw(),
     admin.from('profiles').select('id, nome, username, email, role, operador_id, skills').order('nome'),
     admin.from('user_credentials').select('username, senha_atual'),
     listarTodosLinks().catch(() => []),
+    listarTodasMascaras().catch(() => []),
   ])
 
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
@@ -116,6 +119,22 @@ export default async function ConfigPage() {
             </p>
           </div>
           <LinksConfigClient links={todosLinks} />
+        </div>
+
+        <div className="divider" />
+
+        {/* ── Máscaras ── */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <ClipboardCopy size={20} style={{ color: 'var(--gold)' }} />
+              Máscaras
+            </h2>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+              Gerencie os textos prontos para abertura de chamados no AIR.
+            </p>
+          </div>
+          <MascarasConfigClient mascaras={todasMascaras} />
         </div>
 
       </div>
