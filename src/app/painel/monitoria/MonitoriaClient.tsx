@@ -16,6 +16,7 @@ interface Props {
   operadores:        Operador[]
   metaMonitorias:    number
   mesAtual:          string
+  role:              string
 }
 
 function avatarEstilo(id: number): { background: string; border: string; color: string } {
@@ -73,7 +74,9 @@ export default function MonitoriaClient({
   operadores,
   metaMonitorias,
   mesAtual,
+  role,
 }: Props) {
+  const canDelete = role !== 'aux'
   const [monitorias,        setMonitorias]        = useState<Monitoria[]>(initialMonitorias)
   const [filtroMes,         setFiltroMes]         = useState(mesAtual)
 
@@ -119,6 +122,7 @@ export default function MonitoriaClient({
     })
 
   function handleDeletar(m: Monitoria) {
+    if (!canDelete) { alert('Apenas gestores e administradores podem excluir registros.'); return }
     if (!confirm(`Deletar monitoria de ${m.colaborador} (${m.dataAtendimento || 'sem data'})?`)) return
     setDeletando(m.sheetRowIndex)
     startDel(async () => {
@@ -357,7 +361,7 @@ export default function MonitoriaClient({
                           >
                             <Pencil size={13} />
                           </button>
-                          <button
+                          {canDelete && <button
                             type="button"
                             onClick={() => handleDeletar(m)}
                             disabled={deletando === m.sheetRowIndex}
@@ -368,7 +372,7 @@ export default function MonitoriaClient({
                             title="Deletar"
                           >
                             <Trash2 size={13} />
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>

@@ -1,4 +1,4 @@
-import { requireGestorOuAdmin } from '@/lib/auth'
+import { requireGestorAdminOuAux } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { buscarMonitoriasAtivas } from '@/lib/monitoria'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
@@ -8,7 +8,7 @@ import MonitoriaClient from './MonitoriaClient'
 export const dynamic = 'force-dynamic'
 
 export default async function MonitoriaPage() {
-  const profile = await requireGestorOuAdmin()
+  const profile = await requireGestorAdminOuAux()
   const { monitorias } = await buscarMonitoriasAtivas()
 
   const d = new Date()
@@ -21,6 +21,7 @@ export default async function MonitoriaPage() {
         operadores={OPERADORES_DISPLAY}
         metaMonitorias={META_MONITORIAS}
         mesAtual={mesAtual}
+        role={profile.role}
       />
     </PainelShell>
   )

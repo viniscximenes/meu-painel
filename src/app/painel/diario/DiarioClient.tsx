@@ -20,6 +20,7 @@ const TIPO_CORES: Record<TipoRegistro, { bg: string; color: string; border: stri
 interface Props {
   registros: DiarioRegistro[]
   mesLabel: string
+  role: string
 }
 
 interface Toast {
@@ -27,7 +28,8 @@ interface Toast {
   type: 'success' | 'error'
 }
 
-export default function DiarioClient({ registros, mesLabel }: Props) {
+export default function DiarioClient({ registros, mesLabel, role }: Props) {
+  const canDelete = role !== 'aux'
   const [novoAberto,          setNovoAberto]          = useState(false)
   const [registroAberto,      setRegistroAberto]      = useState<DiarioRegistro | null>(null)
   const [registroParaDeletar, setRegistroParaDeletar] = useState<DiarioRegistro | null>(null)
@@ -267,7 +269,7 @@ export default function DiarioClient({ registros, mesLabel }: Props) {
                         onMouseLeave={() => setHoveredCard(null)}
                       >
                         {/* Delete button */}
-                        <button
+                        {canDelete && <button
                           type="button"
                           aria-label="Apagar registro"
                           onClick={(e) => { e.stopPropagation(); setRegistroParaDeletar(r) }}
@@ -285,7 +287,7 @@ export default function DiarioClient({ registros, mesLabel }: Props) {
                           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = hovered ? 'rgba(239,68,68,0.10)' : 'transparent' }}
                         >
                           <Trash2 size={13} />
-                        </button>
+                        </button>}
 
                         <div
                           style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 16px', cursor: 'pointer' }}

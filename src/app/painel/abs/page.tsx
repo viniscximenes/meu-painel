@@ -1,4 +1,4 @@
-import { requireGestorOuAdmin } from '@/lib/auth'
+import { requireGestorAdminOuAux } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import { lerAbaABS } from '@/lib/abs-sheets'
@@ -9,7 +9,7 @@ import ABSClient from './ABSClient'
 import { inicializarABSAction } from './actions'
 
 export default async function ABSPage() {
-  const profile = await requireGestorOuAdmin()
+  const profile = await requireGestorAdminOuAux()
 
   const planilha = await getPlanilhaAtiva().catch(() => null)
 

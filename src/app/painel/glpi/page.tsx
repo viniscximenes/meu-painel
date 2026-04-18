@@ -1,4 +1,4 @@
-import { requireGestorOuAdmin } from '@/lib/auth'
+import { requireGestorAdminOuAux } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import { buscarGLPIs, type GLPIItem } from '@/lib/glpi'
@@ -6,7 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 import GLPIClient from './GLPIClient'
 
 export default async function GLPIPage() {
-  const profile  = await requireGestorOuAdmin()
+  const profile  = await requireGestorAdminOuAux()
   const planilha = await getPlanilhaAtiva().catch(() => null)
 
   const mesAnoLabel = new Date()
@@ -96,7 +96,7 @@ export default async function GLPIPage() {
 
         {/* ── Conteúdo ── */}
         {planilha && !erroSheets && (
-          <GLPIClient glpis={glpis} />
+          <GLPIClient glpis={glpis} role={profile.role} />
         )}
 
       </div>

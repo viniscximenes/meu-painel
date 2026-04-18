@@ -400,7 +400,7 @@ function ModalFinalizar({
 
 // ── Modal Detalhe (finalizados) ───────────────────────────────────────────────
 
-function ModalDetalhe({ glpi, onClose, onExcluir }: { glpi: GLPIItem; onClose: () => void; onExcluir: (g: GLPIItem) => void }) {
+function ModalDetalhe({ glpi, onClose, onExcluir, canDelete }: { glpi: GLPIItem; onClose: () => void; onExcluir: (g: GLPIItem) => void; canDelete: boolean }) {
   const etStyle = ETIQUETA_STYLE[glpi.etiqueta]
 
   function Field({ label, value }: { label: string; value: string }) {
@@ -455,12 +455,12 @@ function ModalDetalhe({ glpi, onClose, onExcluir }: { glpi: GLPIItem; onClose: (
 
         {/* Footer */}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button
+          {canDelete && <button
             onClick={() => { onExcluir(glpi); onClose() }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#f87171', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
           >
             <Trash2 size={13} /> Excluir
-          </button>
+          </button>}
           <button
             onClick={onClose}
             style={{ padding: '8px 18px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.10)', background: 'transparent', color: '#cbd5e1', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
@@ -481,12 +481,14 @@ function GLPICard({
   onFinalizar,
   onExcluir,
   onVerDetalhes,
+  canDelete,
 }: {
   glpi: GLPIItem
   onEditar: (g: GLPIItem) => void
   onFinalizar: (g: GLPIItem) => void
   onExcluir: (g: GLPIItem) => void
   onVerDetalhes: (g: GLPIItem) => void
+  canDelete: boolean
 }) {
   const isAndamento = glpi.status === 'Em Andamento'
   const etStyle     = ETIQUETA_STYLE[glpi.etiqueta]
@@ -585,7 +587,7 @@ function GLPICard({
             </button>
           </>
         )}
-        <button
+        {canDelete && <button
           onClick={() => onExcluir(glpi)}
           title="Excluir GLPI"
           style={{ marginLeft: 'auto', padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', background: 'transparent', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -593,7 +595,7 @@ function GLPICard({
           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#64748b'; el.style.borderColor = 'rgba(239,68,68,0.2)'; el.style.background = 'transparent' }}
         >
           <Trash2 size={12} />
-        </button>
+        </button>}
       </div>
     </div>
   )
@@ -601,7 +603,8 @@ function GLPICard({
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
+export default function GLPIClient({ glpis: inicial, role }: { glpis: GLPIItem[]; role: string }) {
+  const canDelete = role !== 'aux'
   const router = useRouter()
   const [glpis, setGlpis] = useState<GLPIItem[]>(inicial)
   const [modal, setModal] = useState<ModalState>(null)
@@ -658,6 +661,7 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
   }, [router])
 
   const handleExcluir = useCallback((glpi: GLPIItem) => {
+    if (!canDelete) { alert('Apenas gestores e administradores podem excluir registros.'); return }
     if (!window.confirm(`Excluir ${glpi.id}? Esta ação não pode ser desfeita.`)) return
     setGlpis(prev => prev.filter(g => g.rowIndex !== glpi.rowIndex))
     excluirGLPIAction(glpi.rowIndex).then(res => {
@@ -735,6 +739,7 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
                   onFinalizar={g => setModal({ mode: 'finalizar', glpi: g })}
                   onExcluir={handleExcluir}
                   onVerDetalhes={handleVerDetalhes}
+                  canDelete={canDelete}
                 />
               ))}
             </div>
@@ -753,6 +758,7 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
                 onFinalizar={g => setModal({ mode: 'finalizar', glpi: g })}
                 onExcluir={handleExcluir}
                 onVerDetalhes={handleVerDetalhes}
+                canDelete={canDelete}
               />
             ))}
           </div>
@@ -776,7 +782,7 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
         <ModalFinalizar glpi={modal.glpi} onClose={() => setModal(null)} onFinalized={handleFinalizado} />
       )}
       {modal?.mode === 'detalhe' && (
-        <ModalDetalhe glpi={modal.glpi} onClose={() => setModal(null)} onExcluir={handleExcluir} />
+        <ModalDetalhe glpi={modal.glpi} onClose={() => setModal(null)} onExcluir={handleExcluir} canDelete={canDelete} />
       )}
     </div>
   )

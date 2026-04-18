@@ -70,6 +70,12 @@ export async function requireOperadorOuAux(): Promise<Profile> {
   return profile
 }
 
+export async function requireGestorAdminOuAux(): Promise<Profile> {
+  const profile = await getProfile()
+  if (profile.role !== 'gestor' && profile.role !== 'admin' && profile.role !== 'aux') redirect('/painel')
+  return profile
+}
+
 export async function requireOperador(operadorId?: number): Promise<Profile> {
   const profile = await getProfile()
   if (profile.role === 'gestor' || profile.role === 'admin') return profile

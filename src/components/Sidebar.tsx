@@ -300,6 +300,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
 
 function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
   const [registrosExpandidos, setRegistrosExpandidos] = useState(true)
+  const { glpiPendentes } = useSidebarBadges()
   const kpiHref = `/painel/kpi/${profile.username}`
 
   return (
@@ -319,16 +320,21 @@ function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: st
         Registros
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: registrosExpandidos ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: registrosExpandidos ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/diario" onClick={onClose}
             className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <BookOpen size={15} /> Diário de Bordo
           </Link>
-          <Link href="/painel/meu-diario" onClick={onClose}
-            className={pathname.startsWith('/painel/meu-diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <BookOpen size={15} /> Meu Diário
+          <Link href="/painel/monitoria" onClick={onClose}
+            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <ClipboardList size={15} /> Monitoria
           </Link>
+          <Link href="/painel/abs" onClick={onClose}
+            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <CalendarDays size={15} /> ABS
+          </Link>
+          <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} />
         </div>
       </div>
     </div>
@@ -362,12 +368,6 @@ function OperadorNav({ profile, pathname, onClose }: { profile: Profile; pathnam
         RV Estimada
       </Link>
 
-      <NavLabel>Registros</NavLabel>
-
-      <Link href="/painel/meu-diario" onClick={onClose}
-        className={pathname.startsWith('/painel/meu-diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <BookOpen size={15} /> Meu Diário
-      </Link>
     </div>
   )
 }
