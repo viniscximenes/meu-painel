@@ -16,6 +16,7 @@ export const OPERADORES: (Omit<Operador, 'profile_id'> & { ocultar?: true })[] =
   { id: 12, nome: 'Vítor Hugo de Almeida Rodrigues',    username: 'vitor.halmeida' },
   { id: 13, nome: 'Caio Vinicius Ximenes da Silva',     username: 'caio.vsilva' },
   { id: 14, nome: 'Ana Angelica Mattos Goncalves',      username: 'ana.angelica', ocultar: true },
+  { id: 15, nome: 'Thais Rodrigues Correa',             username: 'thais.correa' },
 ]
 
 // Apenas os operadores que aparecem na visão de equipe (exclui gestores sem função de operador)
