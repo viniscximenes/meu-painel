@@ -121,16 +121,6 @@ export default function MeuKPIClient({
   posicaoRanking, meuTxRet, totalNoRanking,
 }: MeuKPIProps) {
   const basicosKPI = basicos.map(m => kpis.find(k => k.nome_coluna === m.nome_coluna)).filter(Boolean) as KPIItem[]
-  const is1page = posicaoRanking === 1
-  const [sheenPageKey, setSheenPageKey] = useState(0)
-
-  useEffect(() => {
-    if (!is1page) return
-    setSheenPageKey(1)
-    const id = setInterval(() => setSheenPageKey(k => k + 1), 45000)
-    return () => clearInterval(id)
-  }, [is1page])
-
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -268,20 +258,6 @@ export default function MeuKPIClient({
         }
       `}} />
 
-      {/* ── 1º: sheen diagonal full page ── */}
-      {is1page && sheenPageKey > 0 && (
-        <div key={`sp${sheenPageKey}`} style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          pointerEvents: 'none', zIndex: 0, overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', width: '150vw', height: '150vh',
-            background: 'linear-gradient(to bottom right, transparent 35%, rgba(201,168,76,0.04) 42%, rgba(232,201,109,0.09) 50%, rgba(201,168,76,0.04) 58%, transparent 65%)',
-            animation: 'diagonalSheen 2s ease-in-out forwards',
-          }} />
-        </div>
-      )}
-
       <div className="space-y-6">
         {/* ── Seção 1: Ranking ── */}
         <RankingCard posicao={posicaoRanking} txRet={meuTxRet} total={totalNoRanking} />
@@ -355,6 +331,7 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
   const particleId   = useRef(0)
   const [tilt,      setTilt]      = useState({ x: 0, y: 0 })
   const [sheenKey,  setSheenKey]  = useState(0)
+  const [sheenPos,  setSheenPos]  = useState({ x: 50, y: 50 })
   const [glowPos,   setGlowPos]   = useState<{ x: number; y: number } | null>(null)
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
 
@@ -393,10 +370,11 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     const px = e.clientX - rect.left
     const py = e.clientY - rect.top
 
-    // tilt 3D
+    // tilt 3D + sheen position
     const cx = rect.width / 2
     const cy = rect.height / 2
     setTilt({ x: ((py - cy) / cy) * -8, y: ((px - cx) / cx) * 8 })
+    setSheenPos({ x: (px / rect.width) * 100, y: (py / rect.height) * 100 })
 
     // cursor glow (throttle 3s)
     const now = Date.now()
@@ -469,14 +447,36 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         </div>
       )}
 
-      {/* ── 1º: metal sheen ── */}
-      {is1 && sheenKey > 0 && (
-        <div key={sheenKey} style={{
-          position: 'absolute', inset: 0, borderRadius: '20px',
-          background: 'linear-gradient(120deg, transparent 30%, rgba(255,245,180,0.18) 50%, transparent 70%)',
-          animation: 'metalSheen 0.8s ease-out forwards',
-          pointerEvents: 'none', zIndex: 2,
-        }} />
+      {/* ── 1º: sheen confinado ao card (clip container) ── */}
+      {is1 && (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '20px', overflow: 'hidden', pointerEvents: 'none', zIndex: 2 }}>
+          {/* Sheen segue o mouse — sempre visível */}
+          <div style={{
+            position: 'absolute',
+            left: `${sheenPos.x}%`, top: `${sheenPos.y}%`,
+            width: '80%', height: '80%',
+            transform: 'translate(-50%, -50%)',
+            background: 'radial-gradient(circle, rgba(255,245,180,0.10) 0%, transparent 65%)',
+            borderRadius: '50%',
+            transition: 'left 0.1s, top 0.1s',
+          }} />
+          {/* Sweep periódico (metalSheen + diagonal) */}
+          {sheenKey > 0 && (
+            <div key={sheenKey}>
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(120deg, transparent 30%, rgba(255,245,180,0.18) 50%, transparent 70%)',
+                animation: 'metalSheen 0.8s ease-out forwards',
+              }} />
+              <div style={{
+                position: 'absolute', width: '200%', height: '200%',
+                top: '-50%', left: '-50%',
+                background: 'linear-gradient(to bottom right, transparent 35%, rgba(201,168,76,0.06) 42%, rgba(232,201,109,0.10) 50%, rgba(201,168,76,0.06) 58%, transparent 65%)',
+                animation: 'diagonalSheen 2s ease-in-out 0.05s forwards',
+              }} />
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── 1º: troféus decorativos ao fundo ── */}
@@ -600,9 +600,11 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
           </div>
         )}
 
-        <div style={{ fontSize: is1 ? '28px' : '22px', lineHeight: 1, marginTop: '4px' }}>
-          {is1 ? '🏆' : is2 ? '🥈' : is3 ? '🥉' : null}
-        </div>
+        {(is2 || is3) && (
+          <div style={{ fontSize: '22px', lineHeight: 1, marginTop: '4px' }}>
+            {is2 ? '🥈' : '🥉'}
+          </div>
+        )}
       </div>
 
       {/* ── Info ── */}

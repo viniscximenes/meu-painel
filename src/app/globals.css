@@ -717,10 +717,12 @@
   background-size: 200px;
 }
 
-/* ── Cursor flash ────────────────────────────────────────────────────────────── */
-@keyframes cursorFlash {
-  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0.9; }
-  100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+/* ── Metal flash cursor ─────────────────────────────────────────────────────── */
+@keyframes metalFlash {
+  0%   { transform: scale(0)   rotate(0deg);    opacity: 0; }
+  20%  { transform: scale(1.5) rotate(15deg);   opacity: 1; }
+  60%  { transform: scale(1)   rotate(0deg);    opacity: 0.8; }
+  100% { transform: scale(0)   rotate(-10deg);  opacity: 0; }
 }
 
 /* ── Cursor dourado — operadores/aux ─────────────────────────────────────────── */
