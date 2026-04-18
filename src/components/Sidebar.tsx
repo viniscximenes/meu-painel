@@ -250,7 +250,7 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
           </Link>
           <Link href="/painel/links" onClick={onClose}
             className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Link2 size={15} /> Links Úteis
+            <Link2 size={15} /> Links
           </Link>
         </div>
       </div>
@@ -377,7 +377,7 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
           </Link>
           <Link href="/painel/links" onClick={onClose}
             className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Link2 size={15} /> Links Úteis
+            <Link2 size={15} /> Links
           </Link>
         </div>
       </div>
@@ -459,7 +459,7 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
           </Link>
           <Link href="/painel/links" onClick={onClose}
             className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Link2 size={15} /> Links Úteis
+            <Link2 size={15} /> Links
           </Link>
         </div>
       </div>

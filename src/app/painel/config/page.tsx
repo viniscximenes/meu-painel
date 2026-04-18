@@ -104,15 +104,15 @@ export default async function ConfigPage() {
 
         <div className="divider" />
 
-        {/* ── Links Úteis ── */}
+        {/* ── Links ── */}
         <div className="space-y-6">
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
               <Link2 size={20} style={{ color: 'var(--gold)' }} />
-              Links Úteis
+              Links
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-              Gerencie os links exibidos na página de Links Úteis para todos os usuários.
+              Gerencie os links exibidos na página de Links para todos os usuários.
             </p>
           </div>
           <LinksConfigClient links={todosLinks} />
