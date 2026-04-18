@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { type KPIItem, type Meta } from '@/lib/kpi-utils'
 import {
   Clock, Shield, XCircle, Package, CalendarX, Activity,
@@ -152,9 +152,18 @@ export default function MeuKPIClient({
             100% { box-shadow: 0 0 28px 8px rgba(201,168,76,0.25); border-color: rgba(232,201,109,0.8); }
           }
           @keyframes firework {
-            0%   { transform: translate(0,0) scale(1); opacity: 1; }
-            80%  { opacity: 0.6; }
-            100% { transform: translate(var(--fx), var(--fy)) scale(0); opacity: 0; }
+            0%   { transform: translate(0,0) scale(0);              opacity: 0; }
+            20%  { opacity: 1; }
+            60%  { transform: translate(var(--fx), var(--fy)) scale(1);  opacity: 1; }
+            100% { transform: translate(var(--fx2), var(--fy2)) scale(0); opacity: 0; }
+          }
+          @keyframes metalSheen {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+          @keyframes cursorGlow {
+            0%   { transform: scale(0); opacity: 0.6; }
+            100% { transform: scale(3); opacity: 0; }
           }
           @keyframes motivText {
             0%   { opacity: 0; transform: translateY(8px); }
@@ -252,19 +261,19 @@ export default function MeuKPIClient({
 
 // ── Partículas fogos 1º lugar ──────────────────────────────────────────────────
 
-const FIREWORKS: { id: number; x: number; y: number; fx: string; fy: string; d: number; s: number; color: string }[] = [
-  { id:0,  x:50, y:50, fx:'-80px', fy:'-90px', d:0.0,  s:6, color:'#e8c96d' },
-  { id:1,  x:50, y:50, fx:'80px',  fy:'-85px', d:0.08, s:5, color:'#f5d97a' },
-  { id:2,  x:50, y:50, fx:'-90px', fy:'0px',   d:0.16, s:6, color:'#c9a84c' },
-  { id:3,  x:50, y:50, fx:'90px',  fy:'0px',   d:0.04, s:5, color:'#e8c96d' },
-  { id:4,  x:50, y:50, fx:'-60px', fy:'80px',  d:0.20, s:6, color:'#f5d97a' },
-  { id:5,  x:50, y:50, fx:'60px',  fy:'80px',  d:0.12, s:5, color:'#c9a84c' },
-  { id:6,  x:20, y:30, fx:'-50px', fy:'-70px', d:0.30, s:4, color:'#e8c96d' },
-  { id:7,  x:80, y:30, fx:'50px',  fy:'-70px', d:0.24, s:4, color:'#f5d97a' },
-  { id:8,  x:20, y:70, fx:'-55px', fy:'60px',  d:0.36, s:4, color:'#c9a84c' },
-  { id:9,  x:80, y:70, fx:'55px',  fy:'60px',  d:0.18, s:4, color:'#e8c96d' },
-  { id:10, x:50, y:20, fx:'0px',   fy:'-80px', d:0.10, s:5, color:'#f5d97a' },
-  { id:11, x:50, y:80, fx:'0px',   fy:'75px',  d:0.28, s:5, color:'#c9a84c' },
+const FIREWORKS: { id: number; x: number; y: number; fx: string; fy: string; fx2: string; fy2: string; d: number; s: number; color: string }[] = [
+  { id:0,  x:50, y:50, fx:'-80px', fy:'-90px',  fx2:'-112px', fy2:'-126px', d:0.0,  s:6, color:'#e8c96d' },
+  { id:1,  x:50, y:50, fx:'80px',  fy:'-85px',  fx2:'112px',  fy2:'-119px', d:0.08, s:5, color:'#f5d97a' },
+  { id:2,  x:50, y:50, fx:'-90px', fy:'0px',    fx2:'-126px', fy2:'0px',    d:0.16, s:6, color:'#c9a84c' },
+  { id:3,  x:50, y:50, fx:'90px',  fy:'0px',    fx2:'126px',  fy2:'0px',    d:0.04, s:5, color:'#e8c96d' },
+  { id:4,  x:50, y:50, fx:'-60px', fy:'80px',   fx2:'-84px',  fy2:'112px',  d:0.20, s:6, color:'#f5d97a' },
+  { id:5,  x:50, y:50, fx:'60px',  fy:'80px',   fx2:'84px',   fy2:'112px',  d:0.12, s:5, color:'#c9a84c' },
+  { id:6,  x:20, y:30, fx:'-50px', fy:'-70px',  fx2:'-70px',  fy2:'-98px',  d:0.30, s:4, color:'#e8c96d' },
+  { id:7,  x:80, y:30, fx:'50px',  fy:'-70px',  fx2:'70px',   fy2:'-98px',  d:0.24, s:4, color:'#f5d97a' },
+  { id:8,  x:20, y:70, fx:'-55px', fy:'60px',   fx2:'-77px',  fy2:'84px',   d:0.36, s:4, color:'#c9a84c' },
+  { id:9,  x:80, y:70, fx:'55px',  fy:'60px',   fx2:'77px',   fy2:'84px',   d:0.18, s:4, color:'#e8c96d' },
+  { id:10, x:50, y:20, fx:'0px',   fy:'-80px',  fx2:'0px',    fy2:'-112px', d:0.10, s:5, color:'#f5d97a' },
+  { id:11, x:50, y:80, fx:'0px',   fy:'75px',   fx2:'0px',    fy2:'105px',  d:0.28, s:5, color:'#c9a84c' },
 ]
 
 const STARS = [0, 1, 2, 3, 4, 5]
@@ -276,8 +285,18 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
   const is2 = posicao === 2
   const is3 = posicao === 3
 
-  const cardRef = useRef<HTMLDivElement>(null)
-  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+  const cardRef      = useRef<HTMLDivElement>(null)
+  const glowThrottle = useRef<number>(0)
+  const [tilt,     setTilt]     = useState({ x: 0, y: 0 })
+  const [sheenKey, setSheenKey] = useState(0)
+  const [glowPos,  setGlowPos]  = useState<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    if (!is1) return
+    setSheenKey(1)
+    const id = setInterval(() => setSheenKey(k => k + 1), 45000)
+    return () => clearInterval(id)
+  }, [is1])
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!is1 || !cardRef.current) return
@@ -287,6 +306,13 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     const rx = ((e.clientY - cy) / (rect.height / 2)) * -8
     const ry = ((e.clientX - cx) / (rect.width / 2)) * 8
     setTilt({ x: rx, y: ry })
+
+    const now = Date.now()
+    if (now - glowThrottle.current > 3000) {
+      glowThrottle.current = now
+      setGlowPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      setTimeout(() => setGlowPos(null), 900)
+    }
   }
 
   function handleMouseLeave() {
@@ -342,7 +368,8 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         alignItems: 'center',
         gap: '32px',
         flexWrap: 'wrap',
-        overflow: 'hidden',
+        overflow: is1 ? 'visible' : 'hidden',
+        cursor: is1 ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23e8c96d\' d=\'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z\'/%3E%3C/svg%3E") 12 12, pointer' : undefined,
         ...cardStyle,
       }}
     >
@@ -355,11 +382,50 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
           borderRadius: '50%',
           background: f.color,
           // @ts-expect-error CSS custom properties
-          '--fx': f.fx, '--fy': f.fy,
-          animation: `firework 1.2s ease-out ${f.d + 0.6}s both`,
+          '--fx': f.fx, '--fy': f.fy, '--fx2': f.fx2, '--fy2': f.fy2,
+          animation: `firework 1.6s ease-out ${f.d}s infinite`,
           pointerEvents: 'none', zIndex: 0,
         }} />
       ))}
+
+      {/* ── 1º: metal sheen ── */}
+      {is1 && sheenKey > 0 && (
+        <div key={sheenKey} style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(120deg, transparent 30%, rgba(255,245,180,0.18) 50%, transparent 70%)',
+          animation: 'metalSheen 0.8s ease-out forwards',
+          pointerEvents: 'none', zIndex: 2, borderRadius: '20px',
+        }} />
+      )}
+
+      {/* ── 1º: troféus decorativos ao fundo ── */}
+      {is1 && (
+        <>
+          <svg viewBox="0 0 24 24" fill="#e8c96d" style={{ position:'absolute', bottom:'8px', right:'20px', width:72, height:72, opacity:0.05, pointerEvents:'none', zIndex:0 }}>
+            <path d="M7 2h10v2H7V2zM5 4h2v5a5 5 0 0 0 10 0V4h2V2H5v2zm7 11.9V19h-2v2h6v-2h-2v-3.1A7 7 0 0 0 19 9V4H5v5a7 7 0 0 0 7 6.9z"/>
+          </svg>
+          <svg viewBox="0 0 24 24" fill="#e8c96d" style={{ position:'absolute', top:'10px', right:'72px', width:40, height:40, opacity:0.05, pointerEvents:'none', zIndex:0 }}>
+            <path d="M7 2h10v2H7V2zM5 4h2v5a5 5 0 0 0 10 0V4h2V2H5v2zm7 11.9V19h-2v2h6v-2h-2v-3.1A7 7 0 0 0 19 9V4H5v5a7 7 0 0 0 7 6.9z"/>
+          </svg>
+          <svg viewBox="0 0 24 24" fill="#e8c96d" style={{ position:'absolute', top:'50%', left:'6px', transform:'translateY(-50%)', width:28, height:28, opacity:0.04, pointerEvents:'none', zIndex:0 }}>
+            <path d="M7 2h10v2H7V2zM5 4h2v5a5 5 0 0 0 10 0V4h2V2H5v2zm7 11.9V19h-2v2h6v-2h-2v-3.1A7 7 0 0 0 19 9V4H5v5a7 7 0 0 0 7 6.9z"/>
+          </svg>
+        </>
+      )}
+
+      {/* ── 1º: cursor glow ── */}
+      {is1 && glowPos && (
+        <div key={`glow-${glowThrottle.current}`} style={{
+          position: 'absolute',
+          left: glowPos.x, top: glowPos.y,
+          width: '60px', height: '60px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(232,201,109,0.45) 0%, transparent 70%)',
+          transform: 'translate(-50%, -50%)',
+          animation: 'cursorGlow 0.9s ease-out forwards',
+          pointerEvents: 'none', zIndex: 3,
+        }} />
+      )}
 
       {/* ── 2º: linha varredura prata ── */}
       {is2 && (
