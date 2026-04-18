@@ -1,6 +1,6 @@
 'use server'
 
-import { requireGestor, requireAdmin } from '@/lib/auth'
+import { requireGestor, getProfile } from '@/lib/auth'
 import { addPlanilha, ativarPlanilha, deletarPlanilha, atualizarPlanilha } from '@/lib/sheets'
 import { setAppConfig } from '@/lib/app-config'
 import { criarLink, excluirLink } from '@/lib/links'
@@ -56,7 +56,7 @@ export async function salvarKPIConsolidadoConfig(limiteLinhas: number): Promise<
 }
 
 export async function adicionarLinkUtil(formData: FormData) {
-  await requireAdmin()
+  await getProfile()
   const nome      = (formData.get('nome') as string).trim()
   const url       = (formData.get('url') as string).trim()
   const descricao = (formData.get('descricao') as string | null)?.trim() || undefined
@@ -69,7 +69,7 @@ export async function adicionarLinkUtil(formData: FormData) {
 }
 
 export async function excluirLinkUtil(formData: FormData) {
-  await requireAdmin()
+  await getProfile()
   const id = (formData.get('id') as string).trim()
   if (!id) throw new Error('ID inválido')
   await excluirLink(id)
