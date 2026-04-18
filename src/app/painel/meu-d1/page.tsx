@@ -25,7 +25,7 @@ function calcDiasUteis(ano: number, mes: number): { total: number; passados: num
 
   for (let d = 1; d <= diasNoMes; d++) {
     const dow = new Date(ano, mes - 1, d).getDay()
-    if (dow === 0) continue  // pular domingo
+    if (dow === 0) continue
     total++
     if (d <= diaHoje) passados++
   }
@@ -33,13 +33,21 @@ function calcDiasUteis(ano: number, mes: number): { total: number; passados: num
   return { total, passados, restantes: Math.max(0, total - passados) }
 }
 
-// ── Parser de número genérico ─────────────────────────────────────────────────
-
 function parseNumKpi(v: string | undefined): number {
   if (!v) return 0
   const s = v.toString().replace(/[%\s]/g, '').replace(',', '.')
   const n = parseFloat(s)
   return isNaN(n) ? 0 : n
+}
+
+// ── Parse "DD/MM/YYYY HH:MM:SS" → { data, hora } ─────────────────────────────
+
+function parseAtualizacao(raw: string | null): { data: string | null; hora: string | null } {
+  if (!raw) return { data: null, hora: null }
+  const parts = raw.trim().split(/\s+/)
+  const data  = parts[0] || null
+  const hora  = parts[1]?.slice(0, 5) || null
+  return { data, hora }
 }
 
 export default async function MeuD1Page() {
@@ -74,6 +82,8 @@ export default async function MeuD1Page() {
 
   let dadosProps: MeuD1Props | null = null
   let erroSheets: string | null = null
+  let horaAtualiz: string | null = null
+  let dataAtualiz: string | null = null
 
   try {
     const [kpiData, d1Data] = await Promise.all([
@@ -81,7 +91,15 @@ export default async function MeuD1Page() {
       lerAbaD1(planilha.spreadsheet_id).catch(() => null),
     ])
 
-    // ── KPI acumulado ──────────────────────────────────────────────────────────
+    const parsed  = parseAtualizacao(d1Data?.ultimaAtualizacao ?? null)
+    horaAtualiz   = parsed.hora
+    dataAtualiz   = parsed.data
+
+    // ── KPI acumulado (colunas 1-based conforme spec) ──────────────────────────
+    // col 5  = Pedidos       → índice 4
+    // col 9  = Cancelados    → índice 8
+    // col 15 = Retidos Brutos → índice 14
+    // col 18 = Tx. Retenção % → índice 17
     const col    = encontrarColunaIdent(kpiData.headers)
     const meuRow = kpiData.rows.find(r => matchCelulaOperador(r[col] ?? '', profile.username, profile.nome))
 
@@ -89,20 +107,20 @@ export default async function MeuD1Page() {
     const canceladosKpi = parseNumKpi(meuRow?.[8])
     const retidosKpi    = parseNumKpi(meuRow?.[14])
     const taxaKpiRaw    = parseNumKpi(meuRow?.[17])
-    // taxa pode vir como 0.665 (fração) ou 66.5 (percentual)
     const taxaKpi       = taxaKpiRaw > 1 ? taxaKpiRaw : taxaKpiRaw * 100
 
     // ── D-1 do operador ────────────────────────────────────────────────────────
+    // Col B (idx 1) = Retidos, C (idx 2) = Cancelados, D (idx 3) = Pedidos
     const meuD1 = d1Data?.operadores.find(op =>
       matchEmailD1(op.email, profile.username, profile.nome)
     ) ?? null
 
     const semDadosD1   = !meuD1 || meuD1.txRetencao === null
-    const retidosD1    = meuD1?.retidos    ?? 0
-    const canceladosD1 = meuD1?.cancelados ?? 0
-    const pedidosD1    = meuD1?.pedidos    ?? 0
+    const retidosD1    = meuD1?.retidos    ?? 0   // col B
+    const canceladosD1 = meuD1?.cancelados ?? 0   // col C
+    const pedidosD1    = meuD1?.pedidos    ?? 0   // col D
 
-    // ── Estimado ───────────────────────────────────────────────────────────────
+    // ── Estimado (KPI + D1) ────────────────────────────────────────────────────
     const retidosEst    = retidosKpi    + retidosD1
     const canceladosEst = canceladosKpi + canceladosD1
     const pedidosEst    = pedidosKpi    + pedidosD1
@@ -113,39 +131,41 @@ export default async function MeuD1Page() {
     const { total: diasUteisNoMes, passados: diasPassados, restantes: diasRestantes } =
       calcDiasUteis(anoAtual, mesAtual)
 
-    const retidosNecessariosTotal     = 0.66 * pedidosEst
-    const retidosFaltam               = retidosNecessariosTotal - retidosEst
-    const retidosPorDiaNecessario     = diasRestantes > 0 ? retidosFaltam / diasRestantes : retidosFaltam
-    const jaEstaNaMeta                = taxaEst >= 66
-    const mediaDiariaRetidosEst       = diasPassados > 0 ? retidosEst / diasPassados : 0
+    const retidosFaltam66         = 0.66 * pedidosEst - retidosEst
+    const retidosPorDiaNecessario = diasRestantes > 0 ? retidosFaltam66 / diasRestantes : retidosFaltam66
+    const jaEstaNaMeta            = taxaEst >= 66
+
+    // ── Cenário 1: projeção ao ritmo atual ─────────────────────────────────────
+    const mediaDiariaRetidos = diasPassados > 0 ? retidosEst / diasPassados : 0
+    const mediaDiariaPedidos = diasPassados > 0 ? pedidosEst / diasPassados : 0
+    const retidosProjetados  = retidosEst + mediaDiariaRetidos * diasRestantes
+    const pedidosProjetados  = pedidosEst + mediaDiariaPedidos * diasRestantes
+    const taxaProjetada      = pedidosProjetados > 0
+      ? (retidosProjetados / pedidosProjetados) * 100
+      : taxaEst
+
+    // ── Cenário 2: máx cancelados/dia para bônus 63.6% ────────────────────────
+    const canceladosPermitidosFim  = pedidosProjetados * (1 - 0.636)
+    const canceladosPermitidosRest = canceladosPermitidosFim - canceladosEst
+    const maxCanceladosDiaBon      = diasRestantes > 0
+      ? canceladosPermitidosRest / diasRestantes
+      : canceladosPermitidosRest
 
     dadosProps = {
-      nomeOperador:          profile.nome,
+      nomeOperador:            profile.nome,
       mesLabel,
-      ultimaAtualizacao:     d1Data?.ultimaAtualizacao ?? null,
-      retidosKpi,
-      canceladosKpi,
-      pedidosKpi,
-      taxaKpi,
-      retidosD1,
-      canceladosD1,
-      pedidosD1,
-      semDadosD1,
-      retidosEst,
-      canceladosEst,
-      pedidosEst,
-      taxaEst,
-      deltaTaxa,
-      diasUteisNoMes,
-      diasPassados,
-      diasRestantes,
-      retidosPorDiaNecessario,
-      jaEstaNaMeta,
-      mediaDiariaRetidosEst,
+      retidosKpi, canceladosKpi, pedidosKpi, taxaKpi,
+      retidosD1, canceladosD1, pedidosD1, semDadosD1,
+      retidosEst, canceladosEst, pedidosEst, taxaEst, deltaTaxa,
+      diasUteisNoMes, diasPassados, diasRestantes,
+      retidosPorDiaNecessario, jaEstaNaMeta,
+      taxaProjetada, maxCanceladosDiaBon,
     }
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido'
   }
+
+  const nomeDisplay = dadosProps?.nomeOperador.split(' ').slice(0, 2).join(' ')
 
   return (
     <PainelShell profile={profile} title="D-1" iconName="TrendingUp">
@@ -173,16 +193,33 @@ export default async function MeuD1Page() {
           </span>
           <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
           <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-            {dadosProps?.nomeOperador.split(' ').slice(0, 2).join(' ')}
+            {nomeDisplay}
           </span>
           <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mesLabel}</span>
-          {dadosProps?.ultimaAtualizacao && (
+
+          {/* Hora de atualização em destaque */}
+          {horaAtualiz && (
             <>
               <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Atualizado {dadosProps.ultimaAtualizacao}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  última atualização
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <span style={{
+                    fontFamily: 'var(--ff-display)', fontSize: '20px', fontWeight: 700, lineHeight: 1,
+                    color: 'var(--gold)',
+                  }}>
+                    {horaAtualiz}
+                  </span>
+                  {dataAtualiz && (
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                      {dataAtualiz}
+                    </span>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>
