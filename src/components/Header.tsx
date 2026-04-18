@@ -2,7 +2,7 @@
 
 import { logout } from '@/app/login/actions'
 import { Profile } from '@/types'
-import { Menu, LogOut, BarChart2, UserCircle, Users, Banknote, CircleDollarSign, TrendingUp, CalendarDays } from 'lucide-react'
+import { Menu, LogOut, BarChart2, UserCircle, Users, Banknote, CircleDollarSign, TrendingUp, CalendarDays, Ticket } from 'lucide-react'
 import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,6 +14,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   CircleDollarSign,
   TrendingUp,
   CalendarDays,
+  Ticket,
 }
 
 interface HeaderProps {

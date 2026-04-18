@@ -8,9 +8,10 @@ import { OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/opera
 import {
   LayoutDashboard, Users, ChevronRight, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays,
+  CalendarDays, Ticket,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useSidebarBadges } from '@/context/sidebar-badges'
 
 interface SidebarProps {
   profile: Profile
@@ -142,6 +143,7 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
 function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
   const [opsExpandidas,    setOpsExpandidas]    = useState(false)
   const [configExpandida,  setConfigExpandida]  = useState(false)
+  const { glpiPendentes } = useSidebarBadges()
 
   return (
     <div className="space-y-0.5">
@@ -175,6 +177,25 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
       <Link href="/painel/abs" onClick={onClose}
         className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <CalendarDays size={15} /> ABS
+      </Link>
+      <Link href="/painel/glpi" onClick={onClose}
+        className={`${pathname.startsWith('/painel/glpi') ? 'sidebar-item-active' : 'sidebar-item-inactive'} flex items-center justify-between`}>
+        <span className="flex items-center gap-2">
+          <Ticket size={15} /> GLPI
+        </span>
+        {glpiPendentes > 0 && (
+          <span style={{
+            fontSize: '9px', fontWeight: 700,
+            padding: '1px 6px', borderRadius: '99px',
+            background: 'rgba(245,158,11,0.18)',
+            border: '1px solid rgba(245,158,11,0.35)',
+            color: '#fbbf24',
+            lineHeight: '16px',
+            flexShrink: 0,
+          }}>
+            {glpiPendentes}
+          </span>
+        )}
       </Link>
 
       {/* ── Operadores — recolhível (fechado por padrão) ── */}
