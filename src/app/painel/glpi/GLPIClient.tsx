@@ -20,10 +20,10 @@ type FiltroStatus = 'todos' | 'Em Andamento' | 'Finalizado'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-const ETIQUETA_STYLE: Record<GLPIEtiqueta, { bg: string; color: string; border: string }> = {
-  'Urgente':          { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.3)' },
-  'Normal':           { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa', border: 'rgba(59,130,246,0.25)' },
-  'Baixa Prioridade': { bg: 'rgba(107,114,128,0.15)', color: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+const ETIQUETA_STYLE: Record<GLPIEtiqueta, { bg: string; color: string; border: string; solid: string }> = {
+  'Urgente':          { bg: 'rgba(239,68,68,0.1)',   color: '#f87171', border: 'rgba(239,68,68,0.2)',   solid: '#ef4444' },
+  'Normal':           { bg: 'rgba(59,130,246,0.1)',  color: '#60a5fa', border: 'rgba(59,130,246,0.2)',  solid: '#3b82f6' },
+  'Baixa Prioridade': { bg: 'rgba(234,179,8,0.1)',   color: '#facc15', border: 'rgba(234,179,8,0.2)',   solid: '#eab308' },
 }
 
 const RESPONSAVEIS = [
@@ -490,7 +490,7 @@ function GLPICard({
 }) {
   const isAndamento = glpi.status === 'Em Andamento'
   const etStyle     = ETIQUETA_STYLE[glpi.etiqueta]
-  const borderColor = glpi.etiqueta === 'Urgente' ? '#ef4444' : isAndamento ? '#f59e0b' : '#22c55e'
+  const borderColor = etStyle.solid
 
   return (
     <div
