@@ -62,6 +62,7 @@ export default async function MeuRVPage() {
       lerAbaABS(planilha.spreadsheet_id).catch(() => null),
     ])
 
+    if (!headers.length) throw new Error('Falha ao carregar dados da planilha. Verifique a conexão com o Google Sheets ou tente novamente.')
     const col = encontrarColunaIdent(headers)
     const dataAtualizacao = extrairDataAtualizacao(rows)
     const faltasPorOp = absData ? contarFaltasPorOperador(absData) : {}

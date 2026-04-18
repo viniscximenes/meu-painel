@@ -66,6 +66,7 @@ export default async function MeuKPIPage() {
 
   try {
     const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba, limiteLinhas)
+    if (!headers.length) throw new Error('Falha ao carregar dados da planilha. Verifique a conexão com o Google Sheets ou tente novamente.')
     const col = encontrarColunaIdent(headers)
     const dataAtualizacao = extrairDataAtualizacao(rows)
 
