@@ -65,6 +65,37 @@ function focoEmMelhorar(kpi: KPIItem): string | null {
   }
 }
 
+function focoAmarelo(kpi: KPIItem): string | null {
+  if (!kpi.meta || kpi.status !== 'amarelo') return null
+  const label = kpi.label.toLowerCase()
+  const meta = kpi.meta
+  const v = kpi.valorNum
+  const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
+
+  // Tx. Retenção: vermelho threshold fixo em 60%
+  if (label.includes('retenc') || label.includes('retenç')) {
+    const dist = v - 60
+    if (dist <= 0) return 'Atenção: você está muito próximo de sair da meta!'
+    return `Faltam ${dist.toFixed(1)}% para ficar abaixo da meta`
+  }
+
+  if (meta.tipo === 'maior_melhor') {
+    const limiarVermelho = limite * 0.8
+    const dist = v - limiarVermelho
+    if (dist <= 0) return 'Atenção: muito próximo de sair da meta!'
+    if (label.includes('pedido')) return `Faltam ${Math.ceil(dist)} pedidos para perder a meta`
+    return `Faltam ${dist.toFixed(1)}${kpi.unidade ? ' ' + kpi.unidade : ''} para perder a meta`
+  } else {
+    const dist = limite - v
+    if (dist <= 0) return 'Atenção: muito próximo de sair da meta!'
+    if (label.includes('abs') || label.includes('ausên')) return `Mais ${dist.toFixed(2)}% de ausência e você perde a meta`
+    if (label.includes('indisp')) return `Mais ${dist.toFixed(1)}% e você perde a meta`
+    if (label.includes('cancel') || label.includes('churn')) return `Mais ${Math.ceil(dist)} cancelamentos e você perde a meta`
+    if (label.includes('tma') || label.includes('tempo')) return `Mais ${formatSeg(dist)} por atendimento e você perde a meta`
+    return `Mais ${dist.toFixed(1)}${kpi.unidade ? ' ' + kpi.unidade : ''} e você perde a meta`
+  }
+}
+
 function distanciaMeta(kpi: KPIItem): string {
   if (!kpi.meta) return ''
   const alvo = kpi.meta.verde_inicio > 0 ? kpi.meta.verde_inicio : kpi.meta.valor_meta
@@ -281,7 +312,8 @@ function KPICard({ kpi, delay }: { kpi: KPIItem; delay: number }) {
   const color  = STATUS_COLOR[kpi.status]
   const bg     = STATUS_BG[kpi.status]
   const border = STATUS_BORDER[kpi.status]
-  const foco   = focoEmMelhorar(kpi)
+  const foco        = focoEmMelhorar(kpi)
+  const alertaAm    = focoAmarelo(kpi)
   const dist   = kpi.meta ? distanciaMeta(kpi) : null
   const metaFmt = kpi.meta ? formatMeta(kpi.meta) : null
   const pct    = kpi.progresso
@@ -361,8 +393,13 @@ function KPICard({ kpi, delay }: { kpi: KPIItem; delay: number }) {
         </div>
       )}
 
-      {/* Foco em melhorar / mensagem positiva */}
-      {foco ? (
+      {/* Mensagem de status */}
+      {kpi.status === 'amarelo' && alertaAm ? (
+        <div style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.18)', borderRadius: '10px', padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
+          <AlertTriangle size={12} style={{ color: '#facc15', flexShrink: 0, marginTop: '1px' }} />
+          <span style={{ fontSize: '11px', color: '#fde047', lineHeight: 1.4 }}>{alertaAm}</span>
+        </div>
+      ) : kpi.status === 'vermelho' && foco ? (
         <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)', borderRadius: '10px', padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
           <AlertTriangle size={12} style={{ color: '#f87171', flexShrink: 0, marginTop: '1px' }} />
           <span style={{ fontSize: '11px', color: '#fca5a5', lineHeight: 1.4 }}>{foco}</span>
