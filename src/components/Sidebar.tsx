@@ -343,31 +343,15 @@ function AuxNav({ profile, pathname, onClose }: { profile: Profile; pathname: st
 
 /* ── Operador nav ────────────────────────────────────────────────────────────── */
 
-function OperadorNav({ profile, pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
-  const dadosHref = `/painel/operadores/${profile.operador_id}`
-
+function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
   return (
     <div className="space-y-0.5">
-      <NavLabel>Meu Painel</NavLabel>
+      <NavLabel>Meus Dados Gerais</NavLabel>
 
-      <Link href="/painel" onClick={onClose}
-        className={pathname === '/painel' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <LayoutDashboard size={15} /> Início
+      <Link href="/painel/meu-kpi" onClick={onClose}
+        className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <User size={15} /> Meu KPI
       </Link>
-      <Link href="/painel/kpi" onClick={onClose}
-        className={pathname.startsWith('/painel/kpi') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Target size={15} /> Meus KPIs
-      </Link>
-      <Link href={dadosHref} onClick={onClose}
-        className={pathname === dadosHref ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <BarChart2 size={15} /> Meus Dados
-      </Link>
-      <Link href="/painel/rv" onClick={onClose}
-        className={pathname === '/painel/rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Trophy size={15} style={{ color: pathname === '/painel/rv' ? 'var(--gold)' : undefined }} />
-        RV Estimada
-      </Link>
-
     </div>
   )
 }
