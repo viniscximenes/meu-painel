@@ -7,6 +7,7 @@ export interface Profile {
   nome: string
   role: UserRole
   operador_id: number | null
+  skills?: string[] | null
   avatar_url?: string | null
   created_at: string
 }

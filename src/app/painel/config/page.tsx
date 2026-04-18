@@ -2,25 +2,67 @@ import { requireAdmin } from '@/lib/auth'
 import { listarPlanilhas } from '@/lib/sheets'
 import { getAppConfig } from '@/lib/app-config'
 import { getRVGestorConfigRaw } from '@/lib/rv-gestor'
+import { createAdminClient } from '@/lib/supabase/admin'
 import PainelShell from '@/components/PainelShell'
 import PlanilhasClient from './PlanilhasClient'
 import KPIConsolidadoConfigClient from './KPIConsolidadoConfigClient'
 import RVGestorConfigClient from './RVGestorConfigClient'
-import { Database, TrendingUp } from 'lucide-react'
+import UsuariosClient, { type UserInfo } from './UsuariosClient'
+import { Database, TrendingUp, Users } from 'lucide-react'
+import { OPERADORES } from '@/lib/operadores'
 
 export default async function ConfigPage() {
   const profile = await requireAdmin()
+  const admin = createAdminClient()
 
-  const [planilhas, limiteRaw, gestorConfigRaw] = await Promise.all([
+  const [planilhas, limiteRaw, gestorConfigRaw, profilesRes, credenciaisRes] = await Promise.all([
     listarPlanilhas(),
     getAppConfig('kpi_consolidado_limite_linhas'),
     getRVGestorConfigRaw(),
+    admin.from('profiles').select('id, nome, username, email, role, operador_id, skills').order('nome'),
+    admin.from('user_credentials').select('username, senha_atual'),
   ])
+
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
 
+  const credMap: Record<string, string> = {}
+  for (const c of credenciaisRes.data ?? []) {
+    credMap[c.username] = c.senha_atual
+  }
+
+  const usuarios: UserInfo[] = (profilesRes.data ?? []).map((p) => {
+    const op = OPERADORES.find(o => o.id === p.operador_id)
+    return {
+      id:          p.id,
+      nome:        p.nome,
+      username:    p.username,
+      email:       p.email,
+      role:        p.role,
+      operador_id: p.operador_id,
+      skills:      p.skills ?? op?.skills ?? ['OP'],
+      senha_atual: credMap[p.username] ?? null,
+    }
+  })
+
   return (
-    <PainelShell profile={profile} title="Planilhas">
-      <div className="max-w-2xl space-y-10">
+    <PainelShell profile={profile} title="Configurações">
+      <div className="max-w-5xl space-y-10">
+
+        {/* ── Gerenciar Usuários ── */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <Users size={20} style={{ color: 'var(--gold)' }} />
+              Gerenciar Usuários
+            </h2>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+              Visualize e edite senhas, roles e skills de todos os usuários.
+            </p>
+          </div>
+          <UsuariosClient usuarios={usuarios} />
+        </div>
+
+        <div className="divider" />
 
         {/* ── Planilhas ── */}
         <div className="space-y-6">
@@ -33,17 +75,14 @@ export default async function ConfigPage() {
               Cada planilha representa um período (ex: ABRIL.2026). Apenas uma pode estar ativa por vez.
             </p>
           </div>
-
           <PlanilhasClient planilhas={planilhas} />
         </div>
 
-        {/* Divisor */}
         <div className="divider" />
 
-        {/* ── KPI CONSOLIDADO ── */}
+        {/* ── KPI Consolidado ── */}
         <KPIConsolidadoConfigClient limiteInicial={limiteLinhas} />
 
-        {/* Divisor */}
         <div className="divider" />
 
         {/* ── RV Gestor ── */}
@@ -57,7 +96,6 @@ export default async function ConfigPage() {
               Faixas, metas operacionais, bônus e deflatores do cálculo de RV do gestor.
             </p>
           </div>
-
           <RVGestorConfigClient raw={gestorConfigRaw} />
         </div>
 
