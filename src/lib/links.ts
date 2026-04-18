@@ -63,3 +63,19 @@ export async function excluirLink(id: string): Promise<void> {
   const { error } = await admin.from('links_uteis').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
+
+export async function atualizarLink(id: string, input: {
+  nome:      string
+  url:       string
+  descricao?: string | null
+  categoria: string
+}): Promise<void> {
+  const admin = createAdminClient()
+  const { error } = await admin.from('links_uteis').update({
+    nome:      input.nome,
+    url:       input.url,
+    descricao: input.descricao ?? null,
+    categoria: input.categoria,
+  }).eq('id', id)
+  if (error) throw new Error(error.message)
+}

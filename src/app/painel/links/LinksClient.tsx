@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { adicionarLinkUtil, excluirLinkUtil } from '@/app/painel/config/actions'
+import { adicionarLinkUtil, excluirLinkUtil, editarLinkUtil } from '@/app/painel/config/actions'
 import { CATEGORIAS_LINKS } from '@/lib/links'
 import type { LinkUtil } from '@/lib/links'
-import { ExternalLink, Plus, Trash2, X, Link2 } from 'lucide-react'
+import { ExternalLink, Plus, Trash2, X, Link2, Pencil } from 'lucide-react'
+
+// ── Ícones ────────────────────────────────────────────────────────────────────
 
 function safeHostname(url: string): string {
   try { return new URL(url).hostname } catch { return '' }
@@ -30,9 +32,7 @@ function LinkIcon({ nome, url, categoria }: { nome: string; url: string; categor
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={ms.src}
-          width={14} height={14}
-          alt=""
+          src={ms.src} width={14} height={14} alt=""
           style={{ filter: `invert(0) sepia(1) saturate(5) hue-rotate(${ms.color === '#217346' ? '90deg' : ms.color === '#6264A7' ? '220deg' : '200deg'})`, opacity: 0.9 }}
           onError={e => { e.currentTarget.style.display = 'none' }}
         />
@@ -42,7 +42,6 @@ function LinkIcon({ nome, url, categoria }: { nome: string; url: string; categor
 
   const host = safeHostname(url)
   if (!host) return <Link2 size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-
   return <FaviconImg host={host} />
 }
 
@@ -54,25 +53,142 @@ function FaviconImg({ host }: { host: string }) {
     <img
       src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`}
       onError={() => setFailed(true)}
-      width={20} height={20}
-      alt=""
+      width={20} height={20} alt=""
       style={{ borderRadius: '4px', flexShrink: 0 }}
     />
   )
 }
+
+// ── Estilos compartilhados ────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px',
+  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.12)',
+  color: 'var(--text-primary)', outline: 'none',
+}
+
+// ── Modal de edição ───────────────────────────────────────────────────────────
+
+interface EditModalProps {
+  link: LinkUtil
+  onClose: () => void
+  onSaved: (updated: LinkUtil) => void
+}
+
+function EditModal({ link, onClose, onSaved }: EditModalProps) {
+  const [nome, setNome]           = useState(link.nome)
+  const [url, setUrl]             = useState(link.url)
+  const [descricao, setDescricao] = useState(link.descricao ?? '')
+  const [categoria, setCategoria] = useState(link.categoria)
+  const [erro, setErro]           = useState<string | null>(null)
+  const [isPending, start]        = useTransition()
+
+  function handleSave() {
+    if (!nome.trim() || !url.trim()) { setErro('Nome e URL são obrigatórios'); return }
+    const fd = new FormData()
+    fd.set('id', link.id); fd.set('nome', nome.trim()); fd.set('url', url.trim())
+    fd.set('descricao', descricao.trim()); fd.set('categoria', categoria)
+    start(async () => {
+      try {
+        await editarLinkUtil(fd)
+        onSaved({ ...link, nome: nome.trim(), url: url.trim(), descricao: descricao.trim() || null, categoria })
+        onClose()
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : 'Erro ao salvar')
+      }
+    })
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+    }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{
+        width: '100%', maxWidth: '440px', margin: '16px',
+        background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.15)',
+        borderRadius: '16px', padding: '20px',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
+            Editar Link
+          </p>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div>
+            <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Nome *</label>
+            <input style={inputStyle} value={nome} onChange={e => setNome(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Categoria *</label>
+            <select style={inputStyle} value={categoria} onChange={e => setCategoria(e.target.value)}>
+              {CATEGORIAS_LINKS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>URL *</label>
+          <input style={inputStyle} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." />
+        </div>
+
+        <div>
+          <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Descrição</label>
+          <input style={inputStyle} value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Breve descrição opcional" />
+        </div>
+
+        {erro && <p style={{ fontSize: '12px', color: '#f87171' }}>{erro}</p>}
+
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '7px 14px', borderRadius: '8px', fontSize: '12px',
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+              color: 'var(--text-muted)', cursor: 'pointer',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            style={{
+              padding: '7px 18px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+              background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.30)',
+              color: 'var(--gold)', cursor: isPending ? 'not-allowed' : 'pointer',
+              opacity: isPending ? 0.6 : 1,
+            }}
+          >
+            {isPending ? 'Salvando…' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
 
 interface LinksClientProps {
   links: LinkUtil[]
 }
 
 export default function LinksClient({ links: initial }: LinksClientProps) {
-  const [links, setLinks]   = useState(initial)
-  const [adding, setAdding] = useState(false)
-  const [erro, setErro]     = useState<string | null>(null)
-  const [isPending, start]  = useTransition()
+  const [links, setLinks]       = useState(initial)
+  const [adding, setAdding]     = useState(false)
+  const [editingLink, setEditingLink] = useState<LinkUtil | null>(null)
+  const [erro, setErro]         = useState<string | null>(null)
+  const [isPending, start]      = useTransition()
 
-  const [nome, setNome]         = useState('')
-  const [url, setUrl]           = useState('')
+  const [nome, setNome]           = useState('')
+  const [url, setUrl]             = useState('')
   const [descricao, setDescricao] = useState('')
   const [categoria, setCategoria] = useState<string>(CATEGORIAS_LINKS[0])
 
@@ -115,12 +231,6 @@ export default function LinksClient({ links: initial }: LinksClientProps) {
     })
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px',
-    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.12)',
-    color: 'var(--text-primary)', outline: 'none',
-  }
-
   const porCategoria = CATEGORIAS_LINKS.map(cat => ({
     categoria: cat,
     items: links.filter(l => l.categoria === cat && l.ativo),
@@ -128,6 +238,15 @@ export default function LinksClient({ links: initial }: LinksClientProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Modal de edição */}
+      {editingLink && (
+        <EditModal
+          link={editingLink}
+          onClose={() => setEditingLink(null)}
+          onSaved={updated => setLinks(prev => prev.map(l => l.id === updated.id ? updated : l))}
+        />
+      )}
+
       {/* Botão adicionar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
@@ -144,7 +263,7 @@ export default function LinksClient({ links: initial }: LinksClientProps) {
         </button>
       </div>
 
-      {/* Formulário inline */}
+      {/* Formulário de adição */}
       {adding && (
         <div style={{
           padding: '16px', borderRadius: '12px',
@@ -224,10 +343,14 @@ export default function LinksClient({ links: initial }: LinksClientProps) {
                       border: '1px solid rgba(201,168,76,0.08)',
                     }}
                   >
-                    {/* Header do card */}
+                    {/* Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <LinkIcon nome={link.nome} url={link.url} categoria={link.categoria} />
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', flex: 1, minWidth: 0 }}>
+                      <span style={{
+                        fontSize: '12px', fontWeight: 700,
+                        color: 'var(--text-primary)', flex: 1, minWidth: 0,
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}>
                         {link.nome}
                       </span>
                     </div>
@@ -253,6 +376,17 @@ export default function LinksClient({ links: initial }: LinksClientProps) {
                       >
                         <ExternalLink size={11} /> Abrir
                       </a>
+                      <button
+                        onClick={() => setEditingLink(link)}
+                        title="Editar"
+                        style={{
+                          padding: '5px 8px', borderRadius: '7px',
+                          background: 'transparent', border: '1px solid rgba(201,168,76,0.15)',
+                          color: 'var(--gold)', cursor: 'pointer',
+                        }}
+                      >
+                        <Pencil size={12} />
+                      </button>
                       <button
                         onClick={() => handleDelete(link.id)}
                         disabled={isPending}

@@ -3,7 +3,7 @@
 import { requireGestor, getProfile } from '@/lib/auth'
 import { addPlanilha, ativarPlanilha, deletarPlanilha, atualizarPlanilha } from '@/lib/sheets'
 import { setAppConfig } from '@/lib/app-config'
-import { criarLink, excluirLink } from '@/lib/links'
+import { criarLink, excluirLink, atualizarLink } from '@/lib/links'
 import { revalidatePath } from 'next/cache'
 
 export async function adicionarPlanilha(formData: FormData) {
@@ -73,6 +73,19 @@ export async function excluirLinkUtil(formData: FormData) {
   const id = (formData.get('id') as string).trim()
   if (!id) throw new Error('ID inválido')
   await excluirLink(id)
+  revalidatePath('/painel/config')
+  revalidatePath('/painel/links')
+}
+
+export async function editarLinkUtil(formData: FormData) {
+  await getProfile()
+  const id        = (formData.get('id') as string).trim()
+  const nome      = (formData.get('nome') as string).trim()
+  const url       = (formData.get('url') as string).trim()
+  const descricao = (formData.get('descricao') as string | null)?.trim() || null
+  const categoria = (formData.get('categoria') as string).trim()
+  if (!id || !nome || !url || !categoria) throw new Error('Campos obrigatórios ausentes')
+  await atualizarLink(id, { nome, url, descricao, categoria })
   revalidatePath('/painel/config')
   revalidatePath('/painel/links')
 }
