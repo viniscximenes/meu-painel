@@ -154,6 +154,17 @@ export async function contarGLPIsPendentes(spreadsheetId: string): Promise<numbe
   }
 }
 
+// ── SheetId da aba GLPI ──────────────────────────────────────────────────────
+
+async function getGLPISheetId(spreadsheetId: string): Promise<number> {
+  const res = await withTimeout(
+    sheetsAPI().spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' })
+  )
+  const sheet = (res.data.sheets ?? []).find(s => s.properties?.title === ABA_GLPI)
+  if (!sheet?.properties?.sheetId === undefined) throw new Error('Aba GLPI não encontrada')
+  return sheet!.properties!.sheetId!
+}
+
 // ── Escrita ───────────────────────────────────────────────────────────────────
 
 export async function criarGLPI(spreadsheetId: string, dados: GLPIDados): Promise<void> {
@@ -217,6 +228,28 @@ export async function atualizarGLPI(
       range: `'${ABA_GLPI}'!A${rowIndex}:K${rowIndex}`,
       valueInputOption: 'RAW',
       requestBody: { values: [merged] },
+    })
+  )
+}
+
+export async function excluirGLPI(spreadsheetId: string, rowIndex: number): Promise<void> {
+  const sheetId = await getGLPISheetId(spreadsheetId)
+  // rowIndex é 1-based; DeleteDimensionRequest usa 0-based [startIndex, endIndex)
+  await withTimeout(
+    sheetsAPI().spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex,
+            },
+          },
+        }],
+      },
     })
   )
 }

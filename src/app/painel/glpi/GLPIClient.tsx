@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import type { GLPIItem, GLPIStatus, GLPIEtiqueta, GLPIDados } from '@/lib/glpi'
-import { criarGLPIAction, atualizarGLPIAction, finalizarGLPIAction } from './actions'
+import { criarGLPIAction, atualizarGLPIAction, finalizarGLPIAction, excluirGLPIAction } from './actions'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
+import { Trash2 } from 'lucide-react'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -386,10 +388,12 @@ function GLPICard({
   glpi,
   onEditar,
   onFinalizar,
+  onExcluir,
 }: {
   glpi: GLPIItem
   onEditar: (g: GLPIItem) => void
   onFinalizar: (g: GLPIItem) => void
+  onExcluir: (g: GLPIItem) => void
 }) {
   const isAndamento = glpi.status === 'Em Andamento'
   const etStyle     = ETIQUETA_STYLE[glpi.etiqueta]
@@ -485,34 +489,49 @@ function GLPICard({
       )}
 
       {/* Footer — botões */}
-      {isAndamento && (
-        <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
-          <button
-            onClick={() => onEditar(glpi)}
-            style={{
-              padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-              border: '1px solid rgba(255,255,255,0.10)', background: 'transparent',
-              color: '#64748b', cursor: 'pointer',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#cbd5e1'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.2)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#64748b'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.10)' }}
-          >
-            Editar
-          </button>
-          <button
-            onClick={() => onFinalizar(glpi)}
-            style={{
-              padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-              border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.08)',
-              color: '#4ade80', cursor: 'pointer',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.14)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.08)' }}
-          >
-            Finalizar
-          </button>
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '2px', alignItems: 'center' }}>
+        {isAndamento && (
+          <>
+            <button
+              onClick={() => onEditar(glpi)}
+              style={{
+                padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                border: '1px solid rgba(255,255,255,0.10)', background: 'transparent',
+                color: '#64748b', cursor: 'pointer',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#cbd5e1'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.2)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#64748b'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.10)' }}
+            >
+              Editar
+            </button>
+            <button
+              onClick={() => onFinalizar(glpi)}
+              style={{
+                padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.08)',
+                color: '#4ade80', cursor: 'pointer',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.14)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.08)' }}
+            >
+              Finalizar
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => onExcluir(glpi)}
+          title="Excluir GLPI"
+          style={{
+            marginLeft: 'auto', padding: '5px 8px', borderRadius: '6px', fontSize: '11px',
+            border: '1px solid rgba(239,68,68,0.2)', background: 'transparent',
+            color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+          }}
+          onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#f87171'; el.style.borderColor = 'rgba(239,68,68,0.4)'; el.style.background = 'rgba(239,68,68,0.06)' }}
+          onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#64748b'; el.style.borderColor = 'rgba(239,68,68,0.2)'; el.style.background = 'transparent' }}
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -520,6 +539,7 @@ function GLPICard({
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
+  const router              = useRouter()
   const [glpis, setGlpis]   = useState<GLPIItem[]>(inicial)
   const [modal, setModal]   = useState<ModalState>(null)
   const [filtroStatus, setFiltroStatus]   = useState<FiltroStatus>('todos')
@@ -548,25 +568,10 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
   const finalizadoFiltrados = filtrados.filter(g => g.status === 'Finalizado')
 
   // ── Callbacks
-  function handleCriado(dados: GLPIDados) {
-    // Recarregar via revalidatePath — o servidor fará reload; optimistic: apenas fecha modal
+  function handleCriado(_dados: GLPIDados) {
     setModal(null)
-    // A página será revalidada pelo server action, mas para UX imediata adicionamos um placeholder
-    const novo: GLPIItem = {
-      rowIndex: 9999,
-      id: '...',
-      responsavel: dados.responsavel,
-      fila: dados.fila,
-      codigoGLPI: dados.codigoGLPI,
-      descricao: dados.descricao,
-      dataAbertura: dados.dataAbertura,
-      status: 'Em Andamento',
-      resposta: '',
-      emailRespondente: '',
-      dataResolucao: '',
-      etiqueta: dados.etiqueta,
-    }
-    setGlpis(prev => [...prev, novo])
+    // Buscar dados reais do servidor (com rowIndex correto)
+    router.refresh()
   }
 
   function handleEditado(dados: GLPIDados, rowIndex?: number) {
@@ -586,6 +591,17 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
         ? { ...g, status: 'Finalizado', resposta, emailRespondente: email, dataResolucao: dataRes }
         : g
     ))
+  }
+
+  function handleExcluir(glpi: GLPIItem) {
+    if (!window.confirm(`Excluir ${glpi.id}? Esta ação não pode ser desfeita.`)) return
+    setGlpis(prev => prev.filter(g => g.rowIndex !== glpi.rowIndex))
+    excluirGLPIAction(glpi.rowIndex).then(res => {
+      if (!res.ok) {
+        setGlpis(inicial)
+        alert(`Erro ao excluir: ${res.erro}`)
+      }
+    })
   }
 
   // ── Pill button helper
@@ -701,6 +717,7 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
                   glpi={g}
                   onEditar={g => setModal({ mode: 'editar', glpi: g })}
                   onFinalizar={g => setModal({ mode: 'finalizar', glpi: g })}
+                  onExcluir={handleExcluir}
                 />
               ))}
             </div>
@@ -719,6 +736,7 @@ export default function GLPIClient({ glpis: inicial }: { glpis: GLPIItem[] }) {
                 glpi={g}
                 onEditar={g => setModal({ mode: 'editar', glpi: g })}
                 onFinalizar={g => setModal({ mode: 'finalizar', glpi: g })}
+                onExcluir={handleExcluir}
               />
             ))}
           </div>
