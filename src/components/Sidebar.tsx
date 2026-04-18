@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Profile } from '@/types'
-import { OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
+import { OPERADORES, OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   LayoutDashboard, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
@@ -228,7 +228,12 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         }}
       >
         <div className="mt-1">
-          {OPERADORES_DISPLAY.map((op) => {
+          {[...OPERADORES].sort((a, b) => {
+            const pa = a.skills.includes('GESTOR') ? 0 : a.skills.includes('ADM') ? 1 : a.skills.includes('AUX') ? 2 : 3
+            const pb = b.skills.includes('GESTOR') ? 0 : b.skills.includes('ADM') ? 1 : b.skills.includes('AUX') ? 2 : 3
+            if (pa !== pb) return pa - pb
+            return a.nome.localeCompare(b.nome)
+          }).map((op) => {
             const nomeDisplay = op.nome.split(' ').slice(0, 2).join(' ').toUpperCase()
             return (
               <div
