@@ -28,16 +28,15 @@ interface Toast {
 }
 
 export default function DiarioClient({ registros, mesLabel }: Props) {
-  const [novoAberto,         setNovoAberto]         = useState(false)
-  const [registroAberto,     setRegistroAberto]     = useState<DiarioRegistro | null>(null)
-  const [registroParaDeletar,setRegistroParaDeletar]= useState<DiarioRegistro | null>(null)
-  const [filtroOp,           setFiltroOp]           = useState('')
-  const [filtroTipo,         setFiltroTipo]         = useState<TipoRegistro | ''>('')
-  const [expandidos,         setExpandidos]         = useState<Set<number>>(new Set())
-  const [hoveredCard,        setHoveredCard]        = useState<number | null>(null)
-  const [toast,              setToast]              = useState<Toast | null>(null)
+  const [novoAberto,          setNovoAberto]          = useState(false)
+  const [registroAberto,      setRegistroAberto]      = useState<DiarioRegistro | null>(null)
+  const [registroParaDeletar, setRegistroParaDeletar] = useState<DiarioRegistro | null>(null)
+  const [filtroOp,            setFiltroOp]            = useState('')
+  const [filtroTipo,          setFiltroTipo]          = useState<TipoRegistro | ''>('')
+  const [expandidos,          setExpandidos]          = useState<Set<number>>(new Set())
+  const [hoveredCard,         setHoveredCard]         = useState<number | null>(null)
+  const [toast,               setToast]               = useState<Toast | null>(null)
 
-  // Auto-dismiss toast after 3s
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), 3000)
@@ -47,11 +46,8 @@ export default function DiarioClient({ registros, mesLabel }: Props) {
   const filtrados = useMemo(() => {
     return registros.filter((r) => {
       if (filtroOp) {
-        if (filtroOp === '__geral__') {
-          if (r.colaborador) return false
-        } else {
-          if (!r.colaborador.toLowerCase().includes(filtroOp.toLowerCase())) return false
-        }
+        if (filtroOp === '__geral__') { if (r.colaborador) return false }
+        else { if (!r.colaborador.toLowerCase().includes(filtroOp.toLowerCase())) return false }
       }
       if (filtroTipo && r.tipo !== filtroTipo) return false
       return true
@@ -83,334 +79,318 @@ export default function DiarioClient({ registros, mesLabel }: Props) {
   }
 
   const hasFilters = filtroOp !== '' || filtroTipo !== ''
+  const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
 
   return (
     <>
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h2
-            className="text-2xl font-extrabold"
-            style={{
-              background: 'linear-gradient(90deg, var(--text-primary) 0%, var(--gold-light) 100%)',
+      <div style={cssVars} className="space-y-5">
+
+        {/* ── Linha dourada ── */}
+        <div style={{
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
+        }} />
+
+        {/* ── Header ── */}
+        <div style={{
+          background: 'var(--void2)',
+          border: '1px solid rgba(201,168,76,0.1)',
+          borderRadius: '14px',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <span style={{
+              fontFamily: 'var(--ff-display)',
+              fontSize: '16px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Diário de Bordo
-          </h2>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {mesLabel} · {registros.length} registros
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link
-            href="/painel/diario/resumo"
-            className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl transition-all"
-            style={{
-              background: 'rgba(96,165,250,0.08)',
-              color: '#60a5fa',
-              border: '1px solid rgba(96,165,250,0.20)',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(96,165,250,0.14)' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(96,165,250,0.08)' }}
-          >
-            <Users size={14} />
-            Por Operador
-          </Link>
-          <button
-            type="button"
-            onClick={() => setNovoAberto(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus size={15} />
-            Novo Registro
-          </button>
-        </div>
-      </div>
-
-      {/* Filter bar */}
-      <div
-        className="rounded-2xl border px-4 py-3 mb-5 flex items-center gap-3 flex-wrap"
-        style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' }}
-      >
-        <Filter size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-
-        <select
-          value={filtroOp}
-          onChange={(e) => setFiltroOp(e.target.value)}
-          className="select"
-          style={{ maxWidth: '200px', fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
-        >
-          <option value="">Todos os operadores</option>
-          <option value="__geral__">Geral — Setor inteiro</option>
-          {OPERADORES_DISPLAY.map((op) => (
-            <option key={op.id} value={op.nome}>{op.nome.split(' ')[0]} {op.nome.split(' ').slice(-1)[0]}</option>
-          ))}
-        </select>
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {(['', 'Pausa justificada', 'Fora da jornada', 'Geral', 'Outros'] as const).map((t) => {
-            const active = filtroTipo === t
-            const tc = t ? TIPO_CORES[t] : null
-            return (
-              <button
-                key={t || 'todos'}
-                type="button"
-                onClick={() => setFiltroTipo(t)}
-                aria-pressed={active}
-                className={active ? 'pill-filter' : 'pill-filter pill-filter-inactive'}
-                style={
-                  active
-                    ? {
-                        background: tc ? tc.bg : 'rgba(201,168,76,0.12)',
-                        color: tc ? tc.color : 'var(--gold-light)',
-                        border: `1px solid ${tc ? tc.border : 'rgba(201,168,76,0.30)'}`,
-                      }
-                    : {}
-                }
-              >
-                {t || 'Todos'}
-              </button>
-            )
-          })}
+              backgroundClip: 'text',
+            }}>
+              Diário de Bordo
+            </span>
+            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+              {mesLabel}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{registros.length}</strong>{' '}registros
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link
+              href="/painel/diario/resumo"
+              className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl transition-all"
+              style={{ background: 'rgba(96,165,250,0.08)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.20)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(96,165,250,0.14)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(96,165,250,0.08)' }}
+            >
+              <Users size={14} />
+              Por Operador
+            </Link>
+            <button type="button" onClick={() => setNovoAberto(true)} className="btn-primary flex items-center gap-2">
+              <Plus size={15} />
+              Novo Registro
+            </button>
+          </div>
         </div>
 
-        {hasFilters && (
-          <button
-            type="button"
-            onClick={() => { setFiltroOp(''); setFiltroTipo('') }}
-            className="text-[11px] ml-auto"
-            style={{ color: 'var(--text-muted)' }}
+        {/* ── Filter bar ── */}
+        <div style={{
+          background: 'var(--void3)',
+          border: '1px solid rgba(201,168,76,0.08)',
+          borderRadius: '14px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          flexWrap: 'wrap',
+        }}>
+          <Filter size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+
+          <select
+            value={filtroOp}
+            onChange={(e) => setFiltroOp(e.target.value)}
+            className="select"
+            style={{ maxWidth: '200px', fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
           >
-            Limpar filtros
-          </button>
+            <option value="">Todos os operadores</option>
+            <option value="__geral__">Geral — Setor inteiro</option>
+            {OPERADORES_DISPLAY.map((op) => (
+              <option key={op.id} value={op.nome}>{op.nome.split(' ')[0]} {op.nome.split(' ').slice(-1)[0]}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(['', 'Pausa justificada', 'Fora da jornada', 'Geral', 'Outros'] as const).map((t) => {
+              const active = filtroTipo === t
+              const tc = t ? TIPO_CORES[t] : null
+              return (
+                <button
+                  key={t || 'todos'}
+                  type="button"
+                  onClick={() => setFiltroTipo(t)}
+                  aria-pressed={active}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '99px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    border: active ? `1px solid ${tc ? tc.border : 'rgba(201,168,76,0.30)'}` : '1px solid rgba(255,255,255,0.08)',
+                    background: active ? (tc ? tc.bg : 'rgba(201,168,76,0.12)') : 'transparent',
+                    color: active ? (tc ? tc.color : '#e8c96d') : '#64748b',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t || 'Todos'}
+                </button>
+              )
+            })}
+          </div>
+
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={() => { setFiltroOp(''); setFiltroTipo('') }}
+              style={{ fontSize: '11px', marginLeft: 'auto', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+
+        {/* ── List ── */}
+        {grupos.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: '12px' }}>
+            <div style={{ padding: '16px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)' }}>
+              <BookOpen size={28} style={{ color: 'var(--text-muted)' }} />
+            </div>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+              {hasFilters ? 'Nenhum registro encontrado para este filtro.' : 'Nenhum registro no diário ainda.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {grupos.map(([data, regs]) => (
+              <div key={data}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                  <span style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    borderRadius: '99px',
+                    fontVariantNumeric: 'tabular-nums',
+                    background: 'rgba(201,168,76,0.08)',
+                    color: '#e8c96d',
+                    border: '1px solid rgba(201,168,76,0.20)',
+                  }}>
+                    {formatarDataCurta(data)}
+                  </span>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    {regs.length} {regs.length === 1 ? 'registro' : 'registros'}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {regs.map((r, i) => {
+                    const cardKey = r.sheetRowIndex
+                    const tc = TIPO_CORES[r.tipo]
+                    const expanded = expandidos.has(cardKey)
+                    const hovered = hoveredCard === cardKey
+                    const label = r.colaborador || 'Geral — Setor inteiro'
+                    const tempoFmt = r.tempoMin > 0 ? formatTempo(r.tempoMin) : r.tempo || null
+
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          position: 'relative',
+                          borderRadius: '12px',
+                          border: expanded ? `1px solid ${tc.border}` : '1px solid rgba(201,168,76,0.08)',
+                          background: '#111827',
+                          transition: 'border-color 150ms ease',
+                        }}
+                        onMouseEnter={() => setHoveredCard(cardKey)}
+                        onMouseLeave={() => setHoveredCard(null)}
+                      >
+                        {/* Delete button */}
+                        <button
+                          type="button"
+                          aria-label="Apagar registro"
+                          onClick={(e) => { e.stopPropagation(); setRegistroParaDeletar(r) }}
+                          style={{
+                            position: 'absolute', top: '8px', right: '8px',
+                            opacity: hovered ? 1 : 0,
+                            transition: 'opacity 150ms ease, background 150ms ease',
+                            padding: '5px', borderRadius: '8px',
+                            color: '#f87171',
+                            background: hovered ? 'rgba(239,68,68,0.10)' : 'transparent',
+                            border: hovered ? '1px solid rgba(239,68,68,0.20)' : '1px solid transparent',
+                            zIndex: 2, cursor: 'pointer', lineHeight: 0,
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.20)' }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = hovered ? 'rgba(239,68,68,0.10)' : 'transparent' }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+
+                        <div
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 16px', cursor: 'pointer' }}
+                          onClick={() => toggleExpand(cardKey)}
+                        >
+                          <div style={{ width: '3px', alignSelf: 'stretch', borderRadius: '99px', flexShrink: 0, marginTop: '2px', background: tc.color, opacity: 0.8, minHeight: '20px' }} />
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                              <span style={{
+                                fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
+                                padding: '2px 6px', borderRadius: '99px', flexShrink: 0,
+                                background: tc.bg, color: tc.color, border: `1px solid ${tc.border}`,
+                              }}>
+                                {r.tipo.split(' ')[0]}
+                              </span>
+                              <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 'calc(100% - 80px)' }}>
+                                {label}
+                              </span>
+                              {r.glpi && (
+                                <span style={{
+                                  fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '99px', flexShrink: 0,
+                                  fontVariantNumeric: 'tabular-nums',
+                                  background: 'rgba(96,165,250,0.10)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.20)',
+                                }}>
+                                  <Hash size={8} className="inline mr-0.5" />{r.glpi}
+                                </span>
+                              )}
+                            </div>
+                            <p style={{
+                              fontSize: '12px', lineHeight: 1.6, color: 'var(--text-muted)',
+                              overflow: 'hidden', display: '-webkit-box',
+                              WebkitLineClamp: expanded ? undefined : 2,
+                              WebkitBoxOrient: 'vertical',
+                            }}>
+                              {r.observacoes || '—'}
+                            </p>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, paddingRight: '20px' }}>
+                            {tempoFmt && (
+                              <span style={{ fontSize: '12px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: tc.color }}>
+                                {tempoFmt}
+                              </span>
+                            )}
+                            <ChevronRight size={14} style={{ color: 'var(--text-muted)', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }} />
+                          </div>
+                        </div>
+
+                        {expanded && (
+                          <div
+                            style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 12px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => { setRegistroAberto(r); toggleExpand(cardKey) }}
+                              className="btn-secondary text-xs flex items-center gap-1.5"
+                            >
+                              <BookOpen size={12} />
+                              Ver detalhes
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* List */}
-      {grupos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <BookOpen size={28} style={{ color: 'var(--text-muted)' }} />
-          </div>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            {hasFilters ? 'Nenhum registro encontrado para este filtro.' : 'Nenhum registro no diário ainda.'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {grupos.map(([data, regs]) => (
-            <div key={data}>
-              <div className="flex items-center gap-3 mb-3">
-                <span
-                  className="text-xs font-bold px-2.5 py-1 rounded-full tabular-nums"
-                  style={{
-                    background: 'rgba(201,168,76,0.08)',
-                    color: 'var(--gold-light)',
-                    border: '1px solid rgba(201,168,76,0.20)',
-                  }}
-                >
-                  {formatarDataCurta(data)}
-                </span>
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                  {regs.length} {regs.length === 1 ? 'registro' : 'registros'}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {regs.map((r, i) => {
-                  const cardKey = r.sheetRowIndex
-                  const tc = TIPO_CORES[r.tipo]
-                  const expanded = expandidos.has(cardKey)
-                  const hovered = hoveredCard === cardKey
-                  const label = r.colaborador || 'Geral — Setor inteiro'
-                  const tempoFmt = r.tempoMin > 0 ? formatTempo(r.tempoMin) : r.tempo || null
-
-                  return (
-                    <div
-                      key={i}
-                      className="relative rounded-xl border transition-all"
-                      style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        borderColor: expanded ? tc.border : 'rgba(255,255,255,0.06)',
-                        boxShadow: expanded ? `0 0 0 1px ${tc.bg}` : 'none',
-                      }}
-                      onMouseEnter={() => setHoveredCard(cardKey)}
-                      onMouseLeave={() => setHoveredCard(null)}
-                    >
-                      {/* Delete button — top-right, visible on hover */}
-                      <button
-                        type="button"
-                        aria-label="Apagar registro"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setRegistroParaDeletar(r)
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: '8px',
-                          right: '8px',
-                          opacity: hovered ? 1 : 0,
-                          transition: 'opacity 150ms ease, background 150ms ease',
-                          padding: '5px',
-                          borderRadius: '8px',
-                          color: '#f87171',
-                          background: hovered ? 'rgba(239,68,68,0.10)' : 'transparent',
-                          border: hovered ? '1px solid rgba(239,68,68,0.20)' : '1px solid transparent',
-                          zIndex: 2,
-                          cursor: 'pointer',
-                          lineHeight: 0,
-                        }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.20)' }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = hovered ? 'rgba(239,68,68,0.10)' : 'transparent' }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-
-                      <div
-                        className="flex items-start gap-3 px-4 py-3 cursor-pointer"
-                        onClick={() => toggleExpand(cardKey)}
-                      >
-                        <div
-                          className="w-1 self-stretch rounded-full shrink-0 mt-0.5"
-                          style={{ background: tc.color, opacity: 0.7, minHeight: '20px' }}
-                        />
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span
-                              className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0"
-                              style={{ background: tc.bg, color: tc.color, border: `1px solid ${tc.border}` }}
-                            >
-                              {r.tipo.split(' ')[0]}
-                            </span>
-                            <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)', maxWidth: 'calc(100% - 80px)' }}>
-                              {label}
-                            </span>
-                            {r.glpi && (
-                              <span
-                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums shrink-0"
-                                style={{
-                                  background: 'rgba(96,165,250,0.10)',
-                                  color: '#60a5fa',
-                                  border: '1px solid rgba(96,165,250,0.20)',
-                                }}
-                              >
-                                <Hash size={8} className="inline mr-0.5" />
-                                {r.glpi}
-                              </span>
-                            )}
-                          </div>
-                          <p
-                            className="text-xs leading-relaxed"
-                            style={{
-                              color: 'var(--text-muted)',
-                              overflow: 'hidden',
-                              display: '-webkit-box',
-                              WebkitLineClamp: expanded ? undefined : 2,
-                              WebkitBoxOrient: 'vertical',
-                            }}
-                          >
-                            {r.observacoes || '—'}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0" style={{ paddingRight: '20px' }}>
-                          {tempoFmt && (
-                            <span className="text-xs font-bold tabular-nums" style={{ color: tc.color }}>
-                              {tempoFmt}
-                            </span>
-                          )}
-                          <ChevronRight
-                            size={14}
-                            style={{
-                              color: 'var(--text-muted)',
-                              transform: expanded ? 'rotate(90deg)' : 'none',
-                              transition: 'transform 200ms ease',
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      {expanded && (
-                        <div
-                          className="flex justify-end px-4 pb-3 pt-0"
-                          style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRegistroAberto(r)
-                              toggleExpand(cardKey)
-                            }}
-                            className="btn-secondary text-xs flex items-center gap-1.5"
-                          >
-                            <BookOpen size={12} />
-                            Ver detalhes
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Modals */}
-      <NovoRegistroModal
-        aberto={novoAberto}
-        onFechar={() => setNovoAberto(false)}
-        onSalvo={() => setNovoAberto(false)}
-      />
-
+      <NovoRegistroModal aberto={novoAberto} onFechar={() => setNovoAberto(false)} onSalvo={() => setNovoAberto(false)} />
       <RegistroModal
         registro={registroAberto}
         historico={registroAberto ? getHistorico(registroAberto) : []}
         onFechar={() => setRegistroAberto(null)}
       />
-
       <ConfirmDeleteModal
         registro={registroParaDeletar}
         onFechar={() => setRegistroParaDeletar(null)}
-        onApagado={() => {
-          setRegistroParaDeletar(null)
-          setToast({ message: 'Registro apagado da planilha.', type: 'success' })
-        }}
+        onApagado={() => { setRegistroParaDeletar(null); setToast({ message: 'Registro apagado da planilha.', type: 'success' }) }}
         onErro={(msg) => setToast({ message: msg, type: 'error' })}
       />
 
       {/* Toast */}
       {toast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            zIndex: 60,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '12px 16px',
-            borderRadius: '12px',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            background: toast.type === 'success'
-              ? 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))'
-              : 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))',
-            border: `1px solid ${toast.type === 'success' ? 'rgba(16,185,129,0.30)' : 'rgba(239,68,68,0.30)'}`,
-            color: toast.type === 'success' ? '#34d399' : '#f87171',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.40)',
-            backdropFilter: 'blur(12px)',
-            animation: 'fadeInScale 200ms ease',
-            maxWidth: '320px',
-          }}
-        >
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 60,
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '12px 16px', borderRadius: '12px',
+          fontSize: '0.8125rem', fontWeight: 600,
+          background: toast.type === 'success'
+            ? 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))'
+            : 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))',
+          border: `1px solid ${toast.type === 'success' ? 'rgba(16,185,129,0.30)' : 'rgba(239,68,68,0.30)'}`,
+          color: toast.type === 'success' ? '#34d399' : '#f87171',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.40)',
+          backdropFilter: 'blur(12px)',
+          animation: 'fadeInScale 200ms ease',
+          maxWidth: '320px',
+        }}>
           {toast.message}
         </div>
       )}

@@ -31,7 +31,7 @@ export default function RegistroModal({ registro, historico, onFechar }: Props) 
     >
       <div
         className="animate-fadeInScale w-full max-w-lg rounded-2xl overflow-hidden flex flex-col glass-premium"
-        style={{ borderColor: tc.border, maxHeight: '88vh' }}
+        style={{ border: '1px solid rgba(201,168,76,0.25)', maxHeight: '88vh' }}
       >
         {/* Header */}
         <div

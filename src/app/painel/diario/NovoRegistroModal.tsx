@@ -118,7 +118,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
     >
       <div
         className="animate-fadeInScale w-full max-w-xl rounded-2xl overflow-hidden flex flex-col glass-premium"
-        style={{ maxHeight: '90vh' }}
+        style={{ border: '1px solid rgba(201,168,76,0.25)', maxHeight: '90vh' }}
       >
         {/* Header */}
         <div

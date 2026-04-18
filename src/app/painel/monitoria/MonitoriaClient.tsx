@@ -18,26 +18,51 @@ interface Props {
   mesAtual:          string
 }
 
-function ProgressCard({ nome, count, meta }: { nome: string; count: number; meta: number }) {
+function avatarEstilo(id: number): { background: string; border: string; color: string } {
+  const impar = id % 2 !== 0
+  return {
+    background: impar ? 'linear-gradient(135deg, #0f1729, #1a2540)' : 'linear-gradient(135deg, #0a1020, #111830)',
+    border: impar ? '1px solid rgba(66,139,255,0.25)' : '1px solid rgba(66,139,255,0.15)',
+    color: '#ffffff',
+  }
+}
+
+function ProgressCard({ id, nome, count, meta }: { id: number; nome: string; count: number; meta: number }) {
   const pct = Math.min(Math.round((count / meta) * 100), 100)
   const cor = count >= meta ? '#4ade80' : count > 0 ? '#facc15' : '#f87171'
   const firstName = nome.split(' ')[0]
+  const initials = nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+  const av = avatarEstilo(id)
   return (
-    <div
-      className="card flex flex-col gap-2.5"
-      style={{ minHeight: 88, padding: '0.875rem' }}
-    >
-      <p className="text-xs font-semibold truncate" title={nome} style={{ color: 'var(--text-secondary)' }}>
-        {firstName}
-      </p>
-      <div className="flex items-end gap-1">
-        <span className="text-2xl font-extrabold tabular-nums leading-none" style={{ color: cor }}>
-          {count}
-        </span>
-        <span className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>/{meta}</span>
+    <div style={{
+      background: '#111827',
+      border: '1px solid rgba(201,168,76,0.15)',
+      borderRadius: '12px',
+      padding: '14px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px',
+      minHeight: '100px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{
+          width: '28px', height: '28px', borderRadius: '8px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '10px', fontWeight: 700, fontFamily: 'var(--ff-display)',
+          flexShrink: 0, ...av,
+        }}>
+          {initials}
+        </div>
+        <p style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nome}>
+          {firstName}
+        </p>
       </div>
-      <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: cor }} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
+        <span style={{ fontSize: '24px', fontWeight: 800, color: cor, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{count}</span>
+        <span style={{ fontSize: '12px', color: '#475569', marginBottom: '2px' }}>/{meta}</span>
+      </div>
+      <div style={{ width: '100%', height: '3px', borderRadius: '99px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', borderRadius: '99px', width: `${pct}%`, background: cor, transition: 'width 0.5s ease' }} />
       </div>
     </div>
   )
@@ -62,7 +87,6 @@ export default function MonitoriaClient({
   const [,                  startDel]             = useTransition()
   const router = useRouter()
 
-  // Meses disponíveis (descendente)
   const meses = Array.from(
     new Set(monitorias.map((m) => mesDeData(m.dataAtendimento)).filter(Boolean))
   ).sort((a, b) => {
@@ -72,10 +96,8 @@ export default function MonitoriaClient({
   })
   if (!meses.includes(mesAtual)) meses.unshift(mesAtual)
 
-  // Monitorias do mês selecionado (para progress grid)
   const monitoriasMes = monitorias.filter((m) => mesDeData(m.dataAtendimento) === filtroMes)
 
-  // Linhas filtradas para a tabela
   const filtradas = monitorias
     .filter((m) => {
       if (filtroMes && mesDeData(m.dataAtendimento) !== filtroMes) return false
@@ -106,25 +128,53 @@ export default function MonitoriaClient({
     })
   }
 
+  const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5" style={cssVars}>
+
+      {/* ── Linha dourada ── */}
+      <div style={{
+        height: '1px',
+        background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
+      }} />
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h2
-            className="text-2xl font-extrabold"
-            style={{
-              background: 'linear-gradient(90deg, var(--text-primary) 0%, var(--gold-light) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
+      <div style={{
+        background: 'var(--void2)',
+        border: '1px solid rgba(201,168,76,0.1)',
+        borderRadius: '14px',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <span style={{
+            fontFamily: 'var(--ff-display)',
+            fontSize: '16px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}>
             Monitoria de Qualidade
-          </h2>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {monitoriasMes.length} registro{monitoriasMes.length !== 1 ? 's' : ''} em {filtroMes}
-          </p>
+          </span>
+          <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
+          <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+            {filtroMes}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{monitoriasMes.length}</strong>{' '}registros
+            </span>
+          </div>
         </div>
         <button
           type="button"
@@ -136,20 +186,41 @@ export default function MonitoriaClient({
       </div>
 
       {/* ── Progress grid ── */}
-      <div>
-        <p className="text-[10px] font-bold uppercase mb-3" style={{ color: 'var(--text-muted)', letterSpacing: '0.10em' }}>
+      <div style={{
+        background: 'var(--void3)',
+        border: '1px solid rgba(201,168,76,0.08)',
+        borderRadius: '16px',
+        padding: '16px 20px',
+      }}>
+        <p style={{
+          fontSize: '9px',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.12em',
+          color: '#c9a84c',
+          marginBottom: '14px',
+        }}>
           Progresso — {filtroMes}
         </p>
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
           {operadores.map((op) => {
             const count = monitoriasMes.filter((m) => m.colaborador === op.nome && m.status === 'verde').length
-            return <ProgressCard key={op.id} nome={op.nome} count={count} meta={metaMonitorias} />
+            return <ProgressCard key={op.id} id={op.id} nome={op.nome} count={count} meta={metaMonitorias} />
           })}
         </div>
       </div>
 
       {/* ── Filtros ── */}
-      <div className="flex flex-wrap gap-3">
+      <div style={{
+        background: 'var(--void3)',
+        border: '1px solid rgba(201,168,76,0.08)',
+        borderRadius: '14px',
+        padding: '12px 16px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '10px',
+        alignItems: 'center',
+      }}>
         <select
           value={filtroMes}
           onChange={(e) => setFiltroMes(e.target.value)}
@@ -194,16 +265,21 @@ export default function MonitoriaClient({
       </div>
 
       {/* ── Tabela ── */}
-      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+      <div style={{
+        background: 'var(--void3)',
+        border: '1px solid rgba(201,168,76,0.08)',
+        borderRadius: '16px',
+        overflow: 'hidden',
+      }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <tr style={{ borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
                 {['Status', 'Colaborador', 'Contrato', 'Data', 'Sinalização', 'Anexo', 'Forms', 'Ações'].map((col) => (
                   <th
                     key={col}
-                    className="text-left px-4 py-3 text-xs font-semibold uppercase"
-                    style={{ color: 'var(--text-muted)', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}
+                    className="text-left px-4 py-3"
+                    style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#c9a84c', whiteSpace: 'nowrap' }}
                   >
                     {col}
                   </th>
@@ -225,51 +301,26 @@ export default function MonitoriaClient({
                     <tr
                       key={m.sheetRowIndex}
                       style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.015)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '' }}
                     >
-                      {/* Status */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
                           style={{ background: si.bg, color: si.color, border: `1px solid ${si.border}` }}
                         >
-                          {m.status === 'verde'
-                            ? <Check size={10} />
-                            : m.status === 'amarelo'
-                            ? <Clock size={10} />
-                            : <AlertTriangle size={10} />}
+                          {m.status === 'verde' ? <Check size={10} /> : m.status === 'amarelo' ? <Clock size={10} /> : <AlertTriangle size={10} />}
                           {si.label}
                         </span>
                       </td>
-
-                      {/* Colaborador */}
-                      <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>
-                        {m.colaborador || '—'}
-                      </td>
-
-                      {/* Contrato */}
-                      <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
-                        {m.contratoCliente || '—'}
-                      </td>
-
-                      {/* Data */}
-                      <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {m.dataAtendimento || '—'}
-                      </td>
-
-                      {/* Sinalização */}
+                      <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{m.colaborador || '—'}</td>
+                      <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{m.contratoCliente || '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: 'var(--text-muted)' }}>{m.dataAtendimento || '—'}</td>
                       <td className="px-4 py-3" style={{ maxWidth: 200 }}>
-                        <span
-                          className="block truncate text-xs"
-                          title={m.sinalizacao || undefined}
-                          style={{ color: 'var(--text-muted)' }}
-                        >
+                        <span className="block truncate text-xs" title={m.sinalizacao || undefined} style={{ color: 'var(--text-muted)' }}>
                           {m.sinalizacao || '—'}
                         </span>
                       </td>
-
-                      {/* Anexo */}
                       <td className="px-4 py-3">
                         {m.anexo ? (
                           <a
@@ -278,23 +329,9 @@ export default function MonitoriaClient({
                             rel="noopener noreferrer"
                             title="Abrir anexo"
                             className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors"
-                            style={{
-                              background: 'rgba(201,168,76,0.12)',
-                              color: 'var(--gold-light)',
-                              border: '1px solid rgba(201,168,76,0.20)',
-                              fontSize: '0.55rem',
-                              lineHeight: 1,
-                            }}
-                            onMouseEnter={(e) => {
-                              const el = e.currentTarget as HTMLElement
-                              el.style.background = 'rgba(201,168,76,0.22)'
-                              el.style.borderColor = 'rgba(201,168,76,0.50)'
-                            }}
-                            onMouseLeave={(e) => {
-                              const el = e.currentTarget as HTMLElement
-                              el.style.background = 'rgba(201,168,76,0.12)'
-                              el.style.borderColor = 'rgba(201,168,76,0.20)'
-                            }}
+                            style={{ background: 'rgba(201,168,76,0.12)', color: 'var(--gold-light)', border: '1px solid rgba(201,168,76,0.20)', fontSize: '0.55rem', lineHeight: 1 }}
+                            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(201,168,76,0.22)'; el.style.borderColor = 'rgba(201,168,76,0.50)' }}
+                            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(201,168,76,0.12)'; el.style.borderColor = 'rgba(201,168,76,0.20)' }}
                           >
                             ▶
                           </a>
@@ -302,15 +339,11 @@ export default function MonitoriaClient({
                           <span style={{ color: 'var(--text-muted)' }}>—</span>
                         )}
                       </td>
-
-                      {/* Enviado Forms */}
                       <td className="px-4 py-3 whitespace-nowrap text-xs">
                         <span style={{ color: m.enviadoForms?.toLowerCase() === 'sim' ? '#4ade80' : 'var(--text-muted)' }}>
                           {m.enviadoForms || '—'}
                         </span>
                       </td>
-
-                      {/* Ações */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
@@ -352,10 +385,7 @@ export default function MonitoriaClient({
         aberto={novaAberta}
         operadores={operadores}
         onFechar={() => setNovaAberta(false)}
-        onSalvo={async () => {
-          setNovaAberta(false)
-          router.refresh()
-        }}
+        onSalvo={async () => { setNovaAberta(false); router.refresh() }}
       />
 
       {editando && (
@@ -363,10 +393,7 @@ export default function MonitoriaClient({
           monitoria={editando}
           operadores={operadores}
           onFechar={() => setEditando(null)}
-          onSalvo={async () => {
-            setEditando(null)
-            router.refresh()
-          }}
+          onSalvo={async () => { setEditando(null); router.refresh() }}
         />
       )}
     </div>

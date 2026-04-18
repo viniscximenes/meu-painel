@@ -47,7 +47,7 @@ export default function ConfirmDeleteModal({ registro, onFechar, onApagado, onEr
     >
       <div
         className="animate-fadeInScale w-full max-w-md rounded-2xl overflow-hidden flex flex-col glass-premium"
-        style={{ borderColor: 'rgba(239,68,68,0.25)' }}
+        style={{ border: '1px solid rgba(201,168,76,0.25)' }}
       >
         {/* Header */}
         <div

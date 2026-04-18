@@ -22,6 +22,15 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
+function avatarEstiloEscuro(id: number): { background: string; border: string; color: string } {
+  const impar = id % 2 !== 0
+  return {
+    background: impar ? 'linear-gradient(135deg, #0f1729, #1a2540)' : 'linear-gradient(135deg, #0a1020, #111830)',
+    border: impar ? '2px solid rgba(66,139,255,0.25)' : '2px solid rgba(66,139,255,0.15)',
+    color: '#ffffff',
+  }
+}
+
 export const dynamic = 'force-dynamic'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -220,13 +229,30 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
   // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
     <PainelShell profile={profile} title={`Diário — ${operador.nome.split(' ')[0]}`}>
-      <div className="space-y-8">
+      <div className="space-y-6" style={{ '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties}>
+
+        {/* ── Linha dourada ── */}
+        <div style={{
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
+        }} />
 
         {/* Cabeçalho */}
-        <div className="flex items-center gap-4">
+        <div style={{
+          background: 'var(--void2)',
+          border: '1px solid rgba(201,168,76,0.1)',
+          borderRadius: '14px',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+        }}>
+          <div className="flex items-center gap-4">
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold border-2 shrink-0"
-            style={getAvatarStyle(operador.id)}
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold shrink-0"
+            style={avatarEstiloEscuro(operador.id)}
           >
             {getIniciaisNome(operador.nome)}
           </div>
@@ -234,9 +260,11 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
             <h2
               className="text-xl font-extrabold"
               style={{
-                background: 'linear-gradient(90deg, var(--text-primary) 0%, var(--gold-light) 100%)',
+                fontFamily: 'var(--ff-display)',
+                background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
               }}
             >
               {operador.nome}
@@ -246,14 +274,15 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
               Diário de Bordo · {registros.length} registros do mês
             </p>
           </div>
-          <Link href="/painel/diario" className="ml-auto text-xs btn-ghost">
+          </div>
+          <Link href="/painel/diario" className="text-xs btn-ghost">
             ← Todos os registros
           </Link>
         </div>
 
         {/* KPI cards resumo */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="card" style={{ minHeight: '100px' }}>
+          <div style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)', borderRadius: '16px', padding: '16px', minHeight: '100px' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b' }}>
                 <Clock size={13} />
@@ -270,7 +299,7 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
             </p>
           </div>
 
-          <div className="card" style={{ minHeight: '100px' }}>
+          <div style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)', borderRadius: '16px', padding: '16px', minHeight: '100px' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg" style={{ background: 'rgba(96,165,250,0.10)', color: '#60a5fa' }}>
                 <TrendingUp size={13} />
@@ -287,7 +316,7 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
             </p>
           </div>
 
-          <div className="card" style={{ minHeight: '100px' }}>
+          <div style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)', borderRadius: '16px', padding: '16px', minHeight: '100px' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg" style={{ background: 'rgba(167,139,250,0.10)', color: '#a78bfa' }}>
                 <BookOpen size={13} />
@@ -304,7 +333,7 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
             </p>
           </div>
 
-          <div className="card" style={{ minHeight: '100px' }}>
+          <div style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)', borderRadius: '16px', padding: '16px', minHeight: '100px' }}>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg" style={{ background: 'rgba(96,165,250,0.10)', color: '#60a5fa' }}>
                 <Hash size={13} />
@@ -431,7 +460,7 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
           </p>
 
           {registros.length === 0 ? (
-            <div className="card text-center py-12">
+            <div style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)', borderRadius: '16px', padding: '48px 24px', textAlign: 'center' }}>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 Nenhum registro para {operador.nome.split(' ')[0]} no mês atual.
               </p>
@@ -444,8 +473,8 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
                 return (
                   <div
                     key={i}
-                    className="rounded-xl border flex items-start gap-3 px-4 py-3"
-                    style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' }}
+                    className="rounded-xl flex items-start gap-3 px-4 py-3"
+                    style={{ background: '#111827', border: '1px solid rgba(201,168,76,0.08)' }}
                   >
                     <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: tc.color, opacity: 0.7, minHeight: '20px' }} />
                     <div className="shrink-0 text-[10px] tabular-nums font-medium w-10" style={{ color: 'var(--text-muted)', paddingTop: '2px' }}>
@@ -528,7 +557,7 @@ function ContestCard({
   return (
     <div
       className="rounded-2xl border overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.02)', borderColor: `${iconColor}22` }}
+      style={{ background: '#111827', borderColor: `${iconColor}30` }}
     >
       {/* Cabeçalho */}
       <div

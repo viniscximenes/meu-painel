@@ -109,7 +109,7 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
     >
       <div
         className="animate-fadeInScale w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col glass-premium"
-        style={{ maxHeight: '92vh' }}
+        style={{ border: '1px solid rgba(201,168,76,0.25)', maxHeight: '92vh' }}
       >
         {/* Header */}
         <div
