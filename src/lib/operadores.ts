@@ -1,22 +1,22 @@
 import { Operador } from '@/types'
 
 // Lista completa dos operadores — IDs vinculados ao campo operador_id no perfil Supabase
-export const OPERADORES: (Omit<Operador, 'profile_id'> & { ocultar?: true })[] = [
-  { id: 1,  nome: 'Samyrha Fenix da Silva Costa',       username: 'samyrha.fenix' },
-  { id: 2,  nome: 'Marcos Paulo Rodrigues da Silva',    username: 'marcos.psilva' },
-  { id: 3,  nome: 'Bruno Chaves Roberto',               username: 'bruno.roberto' },
-  { id: 4,  nome: 'Reyzo Miranda Candido de Deus',      username: 'reyzo.deus' },
-  { id: 5,  nome: 'Kaian Alfradique Rodrigues',         username: 'kaian.alfradique' },
-  { id: 6,  nome: 'Edna de Souza',                      username: 'edna.desouza' },
-  { id: 7,  nome: 'Sara Secundo Batista da Silva',      username: 'sara.secundo' },
-  { id: 8,  nome: 'Igor Rogerio da Silva Souza',        username: 'igor.souza' },
-  { id: 9,  nome: 'Willian Gozzi Nunes de Souza',       username: 'willian.souza' },
-  { id: 10, nome: 'Thyelen Oliveira Azevedo',           username: 'thyelen.azevedo' },
-  { id: 11, nome: 'Barbara Beatriz Damasceno Vilela',   username: 'barbara.vilela' },
-  { id: 12, nome: 'Vítor Hugo de Almeida Rodrigues',    username: 'vitor.halmeida' },
-  { id: 13, nome: 'Caio Vinicius Ximenes da Silva',     username: 'caio.vsilva' },
-  { id: 14, nome: 'Ana Angelica Mattos Goncalves',      username: 'ana.angelica', ocultar: true },
-  { id: 15, nome: 'Thais Rodrigues Correa',             username: 'thais.correa' },
+export const OPERADORES: (Omit<Operador, 'profile_id'> & { ocultar?: true; skills: string[] })[] = [
+  { id: 1,  nome: 'Samyrha Fenix da Silva Costa',       username: 'samyrha.fenix',    skills: ['OP'] },
+  { id: 2,  nome: 'Marcos Paulo Rodrigues da Silva',    username: 'marcos.psilva',    skills: ['OP'] },
+  { id: 3,  nome: 'Bruno Chaves Roberto',               username: 'bruno.roberto',    skills: ['OP'] },
+  { id: 4,  nome: 'Reyzo Miranda Candido de Deus',      username: 'reyzo.deus',       skills: ['OP'] },
+  { id: 5,  nome: 'Kaian Alfradique Rodrigues',         username: 'kaian.alfradique', skills: ['OP'] },
+  { id: 6,  nome: 'Edna de Souza',                      username: 'edna.desouza',     skills: ['OP'] },
+  { id: 7,  nome: 'Sara Secundo Batista da Silva',      username: 'sara.secundo',     skills: ['OP', 'AUX'] },
+  { id: 8,  nome: 'Igor Rogerio da Silva Souza',        username: 'igor.souza',       skills: ['OP'] },
+  { id: 9,  nome: 'Willian Gozzi Nunes de Souza',       username: 'willian.souza',    skills: ['OP'] },
+  { id: 10, nome: 'Thyelen Oliveira Azevedo',           username: 'thyelen.azevedo',  skills: ['OP'] },
+  { id: 11, nome: 'Barbara Beatriz Damasceno Vilela',   username: 'barbara.vilela',   skills: ['OP', 'AUX'] },
+  { id: 12, nome: 'Vítor Hugo de Almeida Rodrigues',    username: 'vitor.halmeida',   skills: ['OP'] },
+  { id: 13, nome: 'Caio Vinicius Ximenes da Silva',     username: 'caio.vsilva',      skills: ['OP', 'AUX', 'ADM'] },
+  { id: 14, nome: 'Ana Angelica Mattos Goncalves',      username: 'ana.angelica',     skills: ['GESTOR'], ocultar: true },
+  { id: 15, nome: 'Thais Rodrigues Correa',             username: 'thais.correa',     skills: ['OP'] },
 ]
 
 // Apenas os operadores que aparecem na visão de equipe (exclui gestores sem função de operador)

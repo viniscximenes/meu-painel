@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { Profile } from '@/types'
 import { OPERADORES_DISPLAY, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
-  LayoutDashboard, Users, ChevronRight, ChevronDown, BarChart2,
+  LayoutDashboard, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
   CalendarDays, Ticket,
 } from 'lucide-react'
@@ -141,8 +141,9 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
 /* ── Gestor nav ──────────────────────────────────────────────────────────────── */
 
 function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
-  const [opsExpandidas,    setOpsExpandidas]    = useState(false)
-  const [configExpandida,  setConfigExpandida]  = useState(false)
+  const [registrosExpandidos, setRegistrosExpandidos] = useState(true)
+  const [opsExpandidas,       setOpsExpandidas]       = useState(false)
+  const [configExpandida,     setConfigExpandida]     = useState(false)
   const { glpiPendentes } = useSidebarBadges()
 
   return (
@@ -163,40 +164,53 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         <Trophy size={15} style={{ color: pathname === '/painel/rv-equipe' ? 'var(--gold)' : undefined }} />
         RV da Equipe
       </Link>
-      {/* ── Registros ── */}
-      <NavLabel>Registros</NavLabel>
+      {/* ── Registros — recolhível (expandido por padrão) ── */}
+      <NavLabelCollapsible
+        expanded={registrosExpandidos}
+        onToggle={() => setRegistrosExpandidos((v) => !v)}
+      >
+        Registros
+      </NavLabelCollapsible>
 
-      <Link href="/painel/diario" onClick={onClose}
-        className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <BookOpen size={15} /> Diário de Bordo
-      </Link>
-      <Link href="/painel/monitoria" onClick={onClose}
-        className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <ClipboardList size={15} /> Monitoria
-      </Link>
-      <Link href="/painel/abs" onClick={onClose}
-        className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <CalendarDays size={15} /> ABS
-      </Link>
-      <Link href="/painel/glpi" onClick={onClose}
-        className={`${pathname.startsWith('/painel/glpi') ? 'sidebar-item-active' : 'sidebar-item-inactive'} flex items-center justify-between`}>
-        <span className="flex items-center gap-2">
-          <Ticket size={15} /> GLPI
-        </span>
-        {glpiPendentes > 0 && (
-          <span style={{
-            fontSize: '9px', fontWeight: 700,
-            padding: '1px 6px', borderRadius: '99px',
-            background: 'rgba(245,158,11,0.18)',
-            border: '1px solid rgba(245,158,11,0.35)',
-            color: '#fbbf24',
-            lineHeight: '16px',
-            flexShrink: 0,
-          }}>
-            {glpiPendentes}
-          </span>
-        )}
-      </Link>
+      <div style={{
+        maxHeight: registrosExpandidos ? '300px' : '0px',
+        overflow: 'hidden',
+        transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)',
+      }}>
+        <div className="space-y-0.5">
+          <Link href="/painel/diario" onClick={onClose}
+            className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <BookOpen size={15} /> Diário de Bordo
+          </Link>
+          <Link href="/painel/monitoria" onClick={onClose}
+            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <ClipboardList size={15} /> Monitoria
+          </Link>
+          <Link href="/painel/abs" onClick={onClose}
+            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <CalendarDays size={15} /> ABS
+          </Link>
+          <Link href="/painel/glpi" onClick={onClose}
+            className={`${pathname.startsWith('/painel/glpi') ? 'sidebar-item-active' : 'sidebar-item-inactive'} flex items-center justify-between`}>
+            <span className="flex items-center gap-2">
+              <Ticket size={15} /> GLPI
+            </span>
+            {glpiPendentes > 0 && (
+              <span style={{
+                fontSize: '9px', fontWeight: 700,
+                padding: '1px 6px', borderRadius: '99px',
+                background: 'rgba(245,158,11,0.18)',
+                border: '1px solid rgba(245,158,11,0.35)',
+                color: '#fbbf24',
+                lineHeight: '16px',
+                flexShrink: 0,
+              }}>
+                {glpiPendentes}
+              </span>
+            )}
+          </Link>
+        </div>
+      </div>
 
       {/* ── Operadores — recolhível (fechado por padrão) ── */}
       <NavLabelCollapsible
@@ -206,11 +220,6 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         Operadores
       </NavLabelCollapsible>
 
-      <Link href="/painel/operadores" onClick={onClose}
-        className={pathname === '/painel/operadores' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Users size={15} /> Todos os Operadores
-      </Link>
-
       <div
         style={{
           maxHeight: opsExpandidas ? '1200px' : '0px',
@@ -218,48 +227,31 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
           transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        <div className="space-y-0.5 mt-1">
+        <div className="mt-1">
           {OPERADORES_DISPLAY.map((op) => {
-            const href = `/painel/operadores/${op.id}`
-            const active = pathname === href
+            const nomeDisplay = op.nome.split(' ').slice(0, 2).join(' ').toUpperCase()
             return (
-              <Link
+              <div
                 key={op.id}
-                href={href}
-                onClick={onClose}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs transition-all"
-                style={{
-                  color: active ? 'var(--gold-light)' : 'var(--text-muted)',
-                  background: active
-                    ? 'linear-gradient(90deg, rgba(201,168,76,0.10) 0%, transparent 100%)'
-                    : 'transparent',
-                  borderLeft: active ? '2px solid rgba(201,168,76,0.5)' : '2px solid transparent',
-                  paddingLeft: 'calc(0.75rem - 2px)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    const el = e.currentTarget as HTMLElement
-                    el.style.color = 'var(--text-secondary)'
-                    el.style.background = 'rgba(255,255,255,0.03)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    const el = e.currentTarget as HTMLElement
-                    el.style.color = 'var(--text-muted)'
-                    el.style.background = 'transparent'
-                  }
-                }}
+                style={{ padding: '6px 18px' }}
               >
-                <span
-                  className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0 border"
-                  style={getAvatarStyle(op.id)}
-                >
-                  {getIniciaisNome(op.nome)}
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 500,
+                  letterSpacing: '0.06em',
+                  color: 'var(--text-secondary)',
+                }}>
+                  {nomeDisplay}
                 </span>
-                <span className="truncate">{op.nome.split(' ')[0]} {op.nome.split(' ')[1]}</span>
-                {active && <ChevronRight size={10} className="ml-auto shrink-0" style={{ color: 'var(--gold)' }} />}
-              </Link>
+                {' '}
+                <span style={{
+                  fontSize: '10px',
+                  letterSpacing: '0.06em',
+                  color: 'var(--text-muted)',
+                }}>
+                  {op.skills.join(' · ')}
+                </span>
+              </div>
             )
           })}
         </div>
