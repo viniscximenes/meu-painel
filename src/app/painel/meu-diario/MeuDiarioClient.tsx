@@ -278,7 +278,7 @@ function AvisoRodape() {
     }}>
       <Info size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: '1px' }} />
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        Para solicitar correções ou novos registros, entre em contato com a gestão:{' '}
+        Para solicitar correções ou novos registros, entre em contato com a supervisão:{' '}
         <span style={{ color: 'var(--text-secondary)' }}>Caio Vinicius · Sara Secundo · Barbara Vilela</span>
       </p>
     </div>

@@ -50,9 +50,17 @@ export default async function MeuDiarioPage() {
     )
 
     // Estatísticas
-    const totalPausasMin      = totalPausasJustificadas(doMes)
-    const totalForaJornadaMin = totalForaJornada(doMes)
-    const totalComGlpi        = contarComGLPI(doMes)
+    const totalPausasMin = totalPausasJustificadas(doMes)
+
+    // "Fora da jornada": valor ≥ 240min → salvo como tempo logado bruto → déficit = 380 − valor
+    //                    valor < 240min → já salvo como déficit → usar diretamente
+    const LIMIAR_BRUTO_MIN = 240
+    const JORNADA_MIN      = 380
+    const totalForaJornadaMin = doMes
+      .filter(r => r.tipo === 'Fora da jornada' && r.tempoMin > 0 && r.tempoMin < JORNADA_MIN)
+      .reduce((acc, r) => acc + (r.tempoMin >= LIMIAR_BRUTO_MIN ? JORNADA_MIN - r.tempoMin : r.tempoMin), 0)
+
+    const totalComGlpi = contarComGLPI(doMes)
 
     // Distribuição por tipo (só tipos com registros, ordenados por count desc)
     const porTipo = [...TIPOS_REGISTRO]
