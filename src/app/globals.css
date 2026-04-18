@@ -717,6 +717,19 @@
   background-size: 200px;
 }
 
+/* ── Cursor dourado — operadores/aux ─────────────────────────────────────────── */
+body.cursor-gold,
+body.cursor-gold * {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%23c9a84c" stroke="%23f5e0a0" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, auto;
+}
+body.cursor-gold a,
+body.cursor-gold button,
+body.cursor-gold [role="button"],
+body.cursor-gold input[type="button"],
+body.cursor-gold input[type="submit"] {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%23c9a84c" stroke="%23f5e0a0" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, pointer;
+}
+
 /* ── prefers-reduced-motion ─────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,

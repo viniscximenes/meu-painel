@@ -130,6 +130,37 @@ export default function MeuKPIClient({
           100% { opacity: 1; transform: translateY(0); }
         }
 
+        @property --angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @keyframes borderRotate {
+          to { --angle: 360deg; }
+        }
+        @keyframes particleFade {
+          0%   { transform: translate(-50%,-50%) scale(1.2); opacity: 0.9; }
+          100% { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+        }
+        @keyframes leaderPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); }
+          50%       { box-shadow: 0 0 8px 3px rgba(201,168,76,0.45); }
+        }
+        .rank1-beam {
+          padding: 2px;
+          border-radius: 22px;
+          background: conic-gradient(
+            from var(--angle),
+            transparent 0deg,
+            rgba(201,168,76,0.5) 55deg,
+            rgba(232,201,109,0.9) 85deg,
+            rgba(245,217,122,1)  90deg,
+            rgba(232,201,109,0.9) 95deg,
+            rgba(201,168,76,0.5) 125deg,
+            transparent 175deg
+          );
+        }
+
         @media (prefers-reduced-motion: no-preference) {
 
           /* ── 1º lugar ── */
@@ -287,10 +318,13 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
 
   const cardRef      = useRef<HTMLDivElement>(null)
   const glowThrottle = useRef<number>(0)
-  const [tilt,     setTilt]     = useState({ x: 0, y: 0 })
-  const [sheenKey, setSheenKey] = useState(0)
-  const [glowPos,  setGlowPos]  = useState<{ x: number; y: number } | null>(null)
+  const particleId   = useRef(0)
+  const [tilt,      setTilt]      = useState({ x: 0, y: 0 })
+  const [sheenKey,  setSheenKey]  = useState(0)
+  const [glowPos,   setGlowPos]   = useState<{ x: number; y: number } | null>(null)
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
 
+  // Metal sheen periódico
   useEffect(() => {
     if (!is1) return
     setSheenKey(1)
@@ -298,88 +332,82 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     return () => clearInterval(id)
   }, [is1])
 
+  // Fanfarra Web Audio
+  useEffect(() => {
+    if (!is1) return
+    const timer = setTimeout(() => {
+      try {
+        const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+        ;[440, 550, 660].forEach((freq, i) => {
+          const osc  = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain); gain.connect(ctx.destination)
+          osc.frequency.value = freq; osc.type = 'sine'
+          const t = ctx.currentTime + i * 0.15
+          gain.gain.setValueAtTime(0.07, t)
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12)
+          osc.start(t); osc.stop(t + 0.13)
+        })
+      } catch { /* silent */ }
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [is1])
+
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!is1 || !cardRef.current) return
     const rect = cardRef.current.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    const rx = ((e.clientY - cy) / (rect.height / 2)) * -8
-    const ry = ((e.clientX - cx) / (rect.width / 2)) * 8
-    setTilt({ x: rx, y: ry })
+    const px = e.clientX - rect.left
+    const py = e.clientY - rect.top
 
+    // tilt 3D
+    const cx = rect.width / 2
+    const cy = rect.height / 2
+    setTilt({ x: ((py - cy) / cy) * -8, y: ((px - cx) / cx) * 8 })
+
+    // cursor glow (throttle 3s)
     const now = Date.now()
     if (now - glowThrottle.current > 3000) {
       glowThrottle.current = now
-      setGlowPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      setGlowPos({ x: px, y: py })
       setTimeout(() => setGlowPos(null), 900)
     }
+
+    // trilha de partículas
+    const pid = ++particleId.current
+    setParticles(prev => [...prev.slice(-14), { id: pid, x: px, y: py, color: pid % 2 ? '#c9a84c' : '#e8c96d' }])
+    setTimeout(() => setParticles(prev => prev.filter(p => p.id !== pid)), 600)
   }
 
   function handleMouseLeave() {
     setTilt({ x: 0, y: 0 })
   }
 
-  // styles by position
-  const cardStyle: React.CSSProperties = is1 ? {
-    background: 'linear-gradient(135deg, #0f0c02 0%, #1a1400 50%, #0a0900 100%)',
-    border: '1px solid rgba(201,168,76,0.35)',
-    animationName: 'rank1Entrance, borderGlow',
-    animationDuration: '0.7s, 2.5s',
-    animationDelay: '0s, 0.8s',
-    animationTimingFunction: 'cubic-bezier(0.34,1.56,0.64,1), ease-in-out',
-    animationIterationCount: '1, infinite',
-    animationFillMode: 'both, none',
-    transform: tilt.x || tilt.y ? `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined,
-    transition: tilt.x || tilt.y ? 'transform 0.1s' : 'transform 0.3s ease',
-  } : is2 ? {
-    background: '#0d0d1a',
-    border: '1px solid rgba(156,163,175,0.30)',
+  // ── card interno (usado em is2/is3/4+) ──────────────────────────────────────
+  const baseStyle2345: React.CSSProperties = is2 ? {
+    background: '#0d0d1a', border: '1px solid rgba(156,163,175,0.30)',
     animationName: 'rank2SlideUp, silverPulse',
-    animationDuration: '0.5s, 3s',
-    animationDelay: '0s, 0.5s',
+    animationDuration: '0.5s, 3s', animationDelay: '0s, 0.5s',
     animationTimingFunction: 'ease, ease-in-out',
-    animationIterationCount: '1, infinite',
-    animationFillMode: 'both, none',
+    animationIterationCount: '1, infinite', animationFillMode: 'both, none',
   } : is3 ? {
-    background: '#0d0d1a',
-    border: '1px solid rgba(205,127,50,0.25)',
+    background: '#0d0d1a', border: '1px solid rgba(205,127,50,0.25)',
     animationName: 'rankFade, bronzePulse',
-    animationDuration: '0.45s, 3s',
-    animationDelay: '0s, 0.5s',
+    animationDuration: '0.45s, 3s', animationDelay: '0s, 0.5s',
     animationTimingFunction: 'ease, ease-in-out',
-    animationIterationCount: '1, infinite',
-    animationFillMode: 'both, none',
+    animationIterationCount: '1, infinite', animationFillMode: 'both, none',
   } : {
-    background: '#0d0d1a',
-    border: '1px solid rgba(201,168,76,0.08)',
+    background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)',
     animation: 'rankFade 0.4s ease both',
   }
 
-  return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        position: 'relative',
-        borderRadius: '20px',
-        padding: '28px 32px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '32px',
-        flexWrap: 'wrap',
-        overflow: is1 ? 'visible' : 'hidden',
-        cursor: is1 ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23e8c96d\' d=\'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z\'/%3E%3C/svg%3E") 12 12, pointer' : undefined,
-        ...cardStyle,
-      }}
-    >
+  // ── conteúdo compartilhado ────────────────────────────────────────────────
+  const content = (
+    <>
       {/* ── 1º: fogos de artifício ── */}
       {is1 && FIREWORKS.map(f => (
         <div key={f.id} style={{
-          position: 'absolute',
-          left: `${f.x}%`, top: `${f.y}%`,
-          width: `${f.s}px`, height: `${f.s}px`,
-          borderRadius: '50%',
+          position: 'absolute', left: `${f.x}%`, top: `${f.y}%`,
+          width: `${f.s}px`, height: `${f.s}px`, borderRadius: '50%',
           background: f.color,
           // @ts-expect-error CSS custom properties
           '--fx': f.fx, '--fy': f.fy, '--fx2': f.fx2, '--fy2': f.fy2,
@@ -391,10 +419,10 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
       {/* ── 1º: metal sheen ── */}
       {is1 && sheenKey > 0 && (
         <div key={sheenKey} style={{
-          position: 'absolute', inset: 0,
+          position: 'absolute', inset: 0, borderRadius: '20px',
           background: 'linear-gradient(120deg, transparent 30%, rgba(255,245,180,0.18) 50%, transparent 70%)',
           animation: 'metalSheen 0.8s ease-out forwards',
-          pointerEvents: 'none', zIndex: 2, borderRadius: '20px',
+          pointerEvents: 'none', zIndex: 2,
         }} />
       )}
 
@@ -415,17 +443,26 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
 
       {/* ── 1º: cursor glow ── */}
       {is1 && glowPos && (
-        <div key={`glow-${glowThrottle.current}`} style={{
-          position: 'absolute',
-          left: glowPos.x, top: glowPos.y,
-          width: '60px', height: '60px',
-          borderRadius: '50%',
+        <div key={`g${glowThrottle.current}`} style={{
+          position: 'absolute', left: glowPos.x, top: glowPos.y,
+          width: '60px', height: '60px', borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(232,201,109,0.45) 0%, transparent 70%)',
           transform: 'translate(-50%, -50%)',
           animation: 'cursorGlow 0.9s ease-out forwards',
           pointerEvents: 'none', zIndex: 3,
         }} />
       )}
+
+      {/* ── 1º: trilha de partículas ── */}
+      {is1 && particles.map(p => (
+        <div key={p.id} style={{
+          position: 'absolute', left: p.x, top: p.y,
+          width: '6px', height: '6px', borderRadius: '50%',
+          background: p.color,
+          animation: 'particleFade 0.6s ease-out forwards',
+          pointerEvents: 'none', zIndex: 4,
+        }} />
+      ))}
 
       {/* ── 2º: linha varredura prata ── */}
       {is2 && (
@@ -445,17 +482,12 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         { left:'78%', color:'#e8a83c', h:22, d:'0.07s' },
       ].map((flame, i) => (
         <div key={i} style={{
-          position: 'absolute',
-          bottom: 0,
-          left: flame.left,
-          width: '10px',
-          height: `${flame.h}px`,
+          position: 'absolute', bottom: 0, left: flame.left,
+          width: '10px', height: `${flame.h}px`,
           background: `radial-gradient(ellipse at bottom, ${flame.color} 0%, transparent 100%)`,
           borderRadius: '50% 50% 20% 20%',
           animation: `flicker 0.4s ease-in-out ${flame.d} infinite alternate`,
-          opacity: 0.55,
-          zIndex: 0,
-          pointerEvents: 'none',
+          opacity: 0.55, zIndex: 0, pointerEvents: 'none',
         }} />
       ))}
 
@@ -465,9 +497,7 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         {/* 2º: estrelas cintilantes */}
         {is2 && STARS.map(i => (
           <div key={i} style={{
-            position: 'absolute',
-            fontSize: '14px',
-            color: '#9ca3af',
+            position: 'absolute', fontSize: '14px', color: '#9ca3af',
             animation: `twinkle 1.4s ease-in-out ${i * 0.22}s infinite`,
             ...[
               { top:'-18px', left:'50%', transform:'translateX(-50%)' },
@@ -480,36 +510,44 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
           }}>✦</div>
         ))}
 
+        {/* Número principal */}
         <div style={{
-          fontFamily: 'var(--ff-display)',
-          lineHeight: 1,
-          fontWeight: 900,
+          fontFamily: 'var(--ff-display)', lineHeight: 1, fontWeight: 900,
           ...(is1 ? {
             fontSize: '80px',
             background: 'linear-gradient(90deg, #c9a84c, #e8c96d, #f5d97a, #e8c96d, #c9a84c)',
             backgroundSize: '200% auto',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             animation: 'num1Bounce 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.1s both, shimmerGold 2.5s linear 1s infinite',
           } : is2 ? {
-            fontSize: '72px',
-            color: '#e2e8f0',
+            fontSize: '72px', color: '#e2e8f0',
             animation: 'rank2SlideUp 0.5s ease both',
           } : is3 ? {
-            fontSize: '68px',
-            color: '#cd7f32',
+            fontSize: '68px', color: '#cd7f32',
             animation: 'num3Flip 0.6s ease 0.1s both',
           } : {
-            fontSize: '56px',
-            color: 'var(--text-muted)',
+            fontSize: '56px', color: 'var(--text-muted)',
             animation: 'rankFade 0.4s ease both',
           }),
         }}>
           {posicao}º
         </div>
 
-        <div style={{ fontSize: is1 ? '28px' : '22px', lineHeight: 1, marginTop: '6px' }}>
+        {/* 1º: reflexo invertido */}
+        {is1 && (
+          <div style={{
+            fontFamily: 'var(--ff-display)', fontSize: '80px', fontWeight: 900,
+            lineHeight: 1, color: '#c9a84c', opacity: 0.12,
+            transform: 'scaleY(-1)',
+            WebkitMaskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
+            maskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
+            marginTop: '-6px', userSelect: 'none', pointerEvents: 'none',
+          }}>
+            {posicao}º
+          </div>
+        )}
+
+        <div style={{ fontSize: is1 ? '28px' : '22px', lineHeight: 1, marginTop: '4px' }}>
           {is1 ? '🏆' : is2 ? '🥈' : is3 ? '🥉' : null}
         </div>
       </div>
@@ -517,22 +555,30 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
       {/* ── Info ── */}
       <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: '160px' }}>
         <p style={{
-          fontFamily: 'var(--ff-display)',
-          fontSize: is1 ? '20px' : '17px',
-          fontWeight: 700,
+          fontFamily: 'var(--ff-display)', fontSize: is1 ? '20px' : '17px', fontWeight: 700,
           color: is1 ? '#e8c96d' : is2 ? '#e2e8f0' : is3 ? '#cd7f32' : 'var(--text-secondary)',
           marginBottom: '4px',
         }}>
           {is1 ? 'Líder de Retenção!' : is2 ? '2º no Ranking' : is3 ? '3º no Ranking' : `${posicao}º no Ranking`}
         </p>
 
-        {/* 1º: texto motivacional com delay */}
+        {/* 1º: badge líder da equipe */}
         {is1 && (
-          <p style={{
-            fontSize: '13px', color: '#c9a84c', marginBottom: '8px',
-            animation: 'motivText 0.5s ease 0.8s both',
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '3px 10px', borderRadius: '99px', marginBottom: '8px',
+            background: 'rgba(201,168,76,0.10)', border: '1px solid rgba(201,168,76,0.30)',
+            fontSize: '11px', fontWeight: 700, color: '#e8c96d', letterSpacing: '0.06em',
+            animation: 'leaderPulse 2s ease-in-out 1.2s infinite',
           }}>
-            Você está no topo! 🏆
+            👑 LÍDER DA EQUIPE
+          </div>
+        )}
+
+        {/* 1º: texto motivacional */}
+        {is1 && (
+          <p style={{ fontSize: '13px', color: '#c9a84c', marginBottom: '8px', animation: 'motivText 0.5s ease 0.8s both' }}>
+            Você está no topo!
           </p>
         )}
 
@@ -552,6 +598,52 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tx. Retenção</span>
         </div>
       </div>
+    </>
+  )
+
+  // ── is1: wrapper beam + inner card ───────────────────────────────────────────
+  if (is1) {
+    return (
+      <div
+        className="rank1-beam"
+        style={{
+          animation: 'rank1Entrance 0.7s cubic-bezier(0.34,1.56,0.64,1) both, borderRotate 3s linear 0.8s infinite',
+        }}
+      >
+        <div
+          ref={cardRef}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          style={{
+            position: 'relative', borderRadius: '20px',
+            padding: '28px 32px', display: 'flex',
+            alignItems: 'center', gap: '32px', flexWrap: 'wrap',
+            overflow: 'visible',
+            background: 'linear-gradient(135deg, #0f0c02 0%, #1a1400 50%, #0a0900 100%)',
+            cursor: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23e8c96d\' d=\'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z\'/%3E%3C/svg%3E") 12 12, pointer',
+            transform: tilt.x || tilt.y ? `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined,
+            transition: tilt.x || tilt.y ? 'transform 0.1s' : 'transform 0.3s ease',
+          }}
+        >
+          {content}
+        </div>
+      </div>
+    )
+  }
+
+  // ── is2 / is3 / 4+ ───────────────────────────────────────────────────────────
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        position: 'relative', borderRadius: '20px',
+        padding: '28px 32px', display: 'flex',
+        alignItems: 'center', gap: '32px', flexWrap: 'wrap',
+        overflow: 'hidden',
+        ...baseStyle2345,
+      }}
+    >
+      {content}
     </div>
   )
 }
