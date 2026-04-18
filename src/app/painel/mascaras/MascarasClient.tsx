@@ -73,9 +73,10 @@ function MascaraCard({ mascara, delay }: { mascara: Mascara; delay: number }) {
       {/* ZONA 1 — Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '16px' }}>
         <span style={{
-          fontFamily: 'var(--ff-display)', fontSize: '15px', fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: '0.04em',
-          color: 'var(--text-primary)', lineHeight: 1.2,
+          fontFamily: 'var(--ff-display)', fontSize: '15px', fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2,
+          background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         }}>
           {mascara.fila}
         </span>
