@@ -121,6 +121,15 @@ export default function MeuKPIClient({
   posicaoRanking, meuTxRet, totalNoRanking,
 }: MeuKPIProps) {
   const basicosKPI = basicos.map(m => kpis.find(k => k.nome_coluna === m.nome_coluna)).filter(Boolean) as KPIItem[]
+  const is1page = posicaoRanking === 1
+  const [sheenPageKey, setSheenPageKey] = useState(0)
+
+  useEffect(() => {
+    if (!is1page) return
+    setSheenPageKey(1)
+    const id = setInterval(() => setSheenPageKey(k => k + 1), 45000)
+    return () => clearInterval(id)
+  }, [is1page])
 
   return (
     <>
@@ -141,6 +150,10 @@ export default function MeuKPIClient({
         @keyframes particleFade {
           0%   { transform: translate(-50%,-50%) scale(1.2); opacity: 0.9; }
           100% { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+        }
+        @keyframes diagonalSheen {
+          0%   { transform: translate(-100%, -100%); }
+          100% { transform: translate(100%, 100%); }
         }
         @keyframes leaderPulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); }
@@ -255,6 +268,20 @@ export default function MeuKPIClient({
         }
       `}} />
 
+      {/* ── 1º: sheen diagonal full page ── */}
+      {is1page && sheenPageKey > 0 && (
+        <div key={`sp${sheenPageKey}`} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          pointerEvents: 'none', zIndex: 0, overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', width: '150vw', height: '150vh',
+            background: 'linear-gradient(to bottom right, transparent 35%, rgba(201,168,76,0.04) 42%, rgba(232,201,109,0.09) 50%, rgba(201,168,76,0.04) 58%, transparent 65%)',
+            animation: 'diagonalSheen 2s ease-in-out forwards',
+          }} />
+        </div>
+      )}
+
       <div className="space-y-6">
         {/* ── Seção 1: Ranking ── */}
         <RankingCard posicao={posicaoRanking} txRet={meuTxRet} total={totalNoRanking} />
@@ -290,21 +317,28 @@ export default function MeuKPIClient({
   )
 }
 
-// ── Partículas fogos 1º lugar ──────────────────────────────────────────────────
+// ── Partículas fogos 1º lugar — dois cantos ────────────────────────────────────
 
-const FIREWORKS: { id: number; x: number; y: number; fx: string; fy: string; fx2: string; fy2: string; d: number; s: number; color: string }[] = [
-  { id:0,  x:50, y:50, fx:'-80px', fy:'-90px',  fx2:'-112px', fy2:'-126px', d:0.0,  s:6, color:'#e8c96d' },
-  { id:1,  x:50, y:50, fx:'80px',  fy:'-85px',  fx2:'112px',  fy2:'-119px', d:0.08, s:5, color:'#f5d97a' },
-  { id:2,  x:50, y:50, fx:'-90px', fy:'0px',    fx2:'-126px', fy2:'0px',    d:0.16, s:6, color:'#c9a84c' },
-  { id:3,  x:50, y:50, fx:'90px',  fy:'0px',    fx2:'126px',  fy2:'0px',    d:0.04, s:5, color:'#e8c96d' },
-  { id:4,  x:50, y:50, fx:'-60px', fy:'80px',   fx2:'-84px',  fy2:'112px',  d:0.20, s:6, color:'#f5d97a' },
-  { id:5,  x:50, y:50, fx:'60px',  fy:'80px',   fx2:'84px',   fy2:'112px',  d:0.12, s:5, color:'#c9a84c' },
-  { id:6,  x:20, y:30, fx:'-50px', fy:'-70px',  fx2:'-70px',  fy2:'-98px',  d:0.30, s:4, color:'#e8c96d' },
-  { id:7,  x:80, y:30, fx:'50px',  fy:'-70px',  fx2:'70px',   fy2:'-98px',  d:0.24, s:4, color:'#f5d97a' },
-  { id:8,  x:20, y:70, fx:'-55px', fy:'60px',   fx2:'-77px',  fy2:'84px',   d:0.36, s:4, color:'#c9a84c' },
-  { id:9,  x:80, y:70, fx:'55px',  fy:'60px',   fx2:'77px',   fy2:'84px',   d:0.18, s:4, color:'#e8c96d' },
-  { id:10, x:50, y:20, fx:'0px',   fy:'-80px',  fx2:'0px',    fy2:'-112px', d:0.10, s:5, color:'#f5d97a' },
-  { id:11, x:50, y:80, fx:'0px',   fy:'75px',   fx2:'0px',    fy2:'105px',  d:0.28, s:5, color:'#c9a84c' },
+interface FWParticle { id: number; fx: string; fy: string; fx2: string; fy2: string; d: number; s: number; color: string }
+
+// Grupo A — canto superior esquerdo, explode para cima-direita
+const FW_A: FWParticle[] = [
+  { id:0, fx:'50px',  fy:'-70px', fx2:'70px',  fy2:'-98px',  d:0.0,  s:5, color:'#e8c96d' },
+  { id:1, fx:'20px',  fy:'-80px', fx2:'28px',  fy2:'-112px', d:0.10, s:4, color:'#f5d97a' },
+  { id:2, fx:'75px',  fy:'-40px', fx2:'105px', fy2:'-56px',  d:0.20, s:5, color:'#c9a84c' },
+  { id:3, fx:'60px',  fy:'-60px', fx2:'84px',  fy2:'-84px',  d:0.30, s:4, color:'#e8c96d' },
+  { id:4, fx:'35px',  fy:'-75px', fx2:'49px',  fy2:'-105px', d:0.15, s:5, color:'#f5d97a' },
+  { id:5, fx:'80px',  fy:'-25px', fx2:'112px', fy2:'-35px',  d:0.25, s:4, color:'#c9a84c' },
+]
+
+// Grupo B — canto inferior direito, explode para baixo-esquerda
+const FW_B: FWParticle[] = [
+  { id:6,  fx:'-50px', fy:'70px',  fx2:'-70px',  fy2:'98px',  d:0.05, s:5, color:'#e8c96d' },
+  { id:7,  fx:'-20px', fy:'80px',  fx2:'-28px',  fy2:'112px', d:0.18, s:4, color:'#f5d97a' },
+  { id:8,  fx:'-75px', fy:'40px',  fx2:'-105px', fy2:'56px',  d:0.28, s:5, color:'#c9a84c' },
+  { id:9,  fx:'-60px', fy:'60px',  fx2:'-84px',  fy2:'84px',  d:0.35, s:4, color:'#e8c96d' },
+  { id:10, fx:'-35px', fy:'75px',  fx2:'-49px',  fy2:'105px', d:0.12, s:5, color:'#f5d97a' },
+  { id:11, fx:'-80px', fy:'25px',  fx2:'-112px', fy2:'35px',  d:0.22, s:4, color:'#c9a84c' },
 ]
 
 const STARS = [0, 1, 2, 3, 4, 5]
@@ -403,18 +437,37 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
   // ── conteúdo compartilhado ────────────────────────────────────────────────
   const content = (
     <>
-      {/* ── 1º: fogos de artifício ── */}
-      {is1 && FIREWORKS.map(f => (
-        <div key={f.id} style={{
-          position: 'absolute', left: `${f.x}%`, top: `${f.y}%`,
-          width: `${f.s}px`, height: `${f.s}px`, borderRadius: '50%',
-          background: f.color,
-          // @ts-expect-error CSS custom properties
-          '--fx': f.fx, '--fy': f.fy, '--fx2': f.fx2, '--fy2': f.fy2,
-          animation: `firework 1.6s ease-out ${f.d}s infinite`,
-          pointerEvents: 'none', zIndex: 0,
-        }} />
-      ))}
+      {/* ── 1º: fogos canto superior esquerdo ── */}
+      {is1 && (
+        <div style={{ position: 'absolute', top: 10, left: 10, pointerEvents: 'none', zIndex: 0 }}>
+          {FW_A.map(f => (
+            <div key={f.id} style={{
+              position: 'absolute', left: 0, top: 0,
+              width: `${f.s}px`, height: `${f.s}px`, borderRadius: '50%',
+              background: f.color,
+              // @ts-expect-error CSS custom properties
+              '--fx': f.fx, '--fy': f.fy, '--fx2': f.fx2, '--fy2': f.fy2,
+              animation: `firework 1.6s ease-out ${f.d}s infinite`,
+            }} />
+          ))}
+        </div>
+      )}
+
+      {/* ── 1º: fogos canto inferior direito ── */}
+      {is1 && (
+        <div style={{ position: 'absolute', bottom: 10, right: 10, pointerEvents: 'none', zIndex: 0 }}>
+          {FW_B.map(f => (
+            <div key={f.id} style={{
+              position: 'absolute', left: 0, top: 0,
+              width: `${f.s}px`, height: `${f.s}px`, borderRadius: '50%',
+              background: f.color,
+              // @ts-expect-error CSS custom properties
+              '--fx': f.fx, '--fy': f.fy, '--fx2': f.fx2, '--fy2': f.fy2,
+              animation: `firework 1.6s ease-out ${f.d}s infinite`,
+            }} />
+          ))}
+        </div>
+      )}
 
       {/* ── 1º: metal sheen ── */}
       {is1 && sheenKey > 0 && (
