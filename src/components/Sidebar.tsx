@@ -241,11 +241,15 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
         Meus Registros
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: meusRegExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: meusRegExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/meu-abs" onClick={onClose}
             className={pathname === '/painel/meu-abs' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <CalendarDays size={15} /> Meu ABS
+          </Link>
+          <Link href="/painel/meu-diario" onClick={onClose}
+            className={pathname === '/painel/meu-diario' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <BookOpen size={15} /> Meu Diário
           </Link>
         </div>
       </div>
@@ -346,11 +350,15 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
         Meus Registros
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: meusRegExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: meusRegExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/meu-abs" onClick={onClose}
             className={pathname === '/painel/meu-abs' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <CalendarDays size={15} /> Meu ABS
+          </Link>
+          <Link href="/painel/meu-diario" onClick={onClose}
+            className={pathname === '/painel/meu-diario' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <BookOpen size={15} /> Meu Diário
           </Link>
         </div>
       </div>
@@ -406,11 +414,15 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
         Meus Registros
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: meusRegExp ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: meusRegExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/meu-abs" onClick={onClose}
             className={pathname === '/painel/meu-abs' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <CalendarDays size={15} /> Meu ABS
+          </Link>
+          <Link href="/painel/meu-diario" onClick={onClose}
+            className={pathname === '/painel/meu-diario' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <BookOpen size={15} /> Meu Diário
           </Link>
         </div>
       </div>
