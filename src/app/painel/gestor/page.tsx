@@ -1,4 +1,4 @@
-import { requireGestor } from '@/lib/auth'
+import { requireGestorOuAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, formatarDataCurta, encontrarColunaIdent, matchCelulaOperador } from '@/lib/sheets'
 import { getRVGestorConfig, calcularRVGestor, segParaMMSSGestor } from '@/lib/rv-gestor'
@@ -118,7 +118,7 @@ const COLS_COMP = [
 // ── Página ────────────────────────────────────────────────────────────────────
 
 export default async function GestorPage() {
-  const profile = await requireGestor()
+  const profile = await requireGestorOuAdmin()
 
   const planilha = await getPlanilhaAtiva().catch(() => null)
 

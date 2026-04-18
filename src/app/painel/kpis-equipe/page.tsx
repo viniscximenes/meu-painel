@@ -1,4 +1,4 @@
-import { requireGestor } from '@/lib/auth'
+import { requireGestorOuAdmin } from '@/lib/auth'
 import { getMetas, computarKPIs, type KPIItem } from '@/lib/kpi'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, extrairDataAtualizacao, formatarDataCurta, matchCelulaOperador } from '@/lib/sheets'
 import { getAppConfig } from '@/lib/app-config'
@@ -15,7 +15,7 @@ export type DadosOperador = {
 }
 
 export default async function KPIsEquipePage() {
-  const profile = await requireGestor()
+  const profile = await requireGestorOuAdmin()
 
   const [planilha, metas, limiteRaw] = await Promise.all([
     getPlanilhaAtiva().catch(() => null),

@@ -1,4 +1,4 @@
-import { requireGestor } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { getRVConfigRaw } from '@/lib/rv'
 import { getMetas } from '@/lib/kpi'
@@ -7,7 +7,7 @@ import { SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function RVConfigPage() {
-  const profile = await requireGestor()
+  const profile = await requireAdmin()
   const [raw, metas] = await Promise.all([getRVConfigRaw(), getMetas()])
 
   return (

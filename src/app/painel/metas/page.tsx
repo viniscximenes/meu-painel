@@ -1,4 +1,4 @@
-import { requireGestor } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import { getMetas } from '@/lib/kpi'
 import { getPlanilhaAtiva, buscarLinhasPlanilha } from '@/lib/sheets'
 import PainelShell from '@/components/PainelShell'
@@ -7,7 +7,7 @@ import { Target, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function MetasPage() {
-  const profile = await requireGestor()
+  const profile = await requireAdmin()
 
   const [metas, planilha] = await Promise.all([getMetas(), getPlanilhaAtiva()])
 

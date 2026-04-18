@@ -1,4 +1,4 @@
-import { requireGestor } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import { listarPlanilhas } from '@/lib/sheets'
 import { getAppConfig } from '@/lib/app-config'
 import { getRVGestorConfigRaw } from '@/lib/rv-gestor'
@@ -9,7 +9,7 @@ import RVGestorConfigClient from './RVGestorConfigClient'
 import { Database, TrendingUp } from 'lucide-react'
 
 export default async function ConfigPage() {
-  const profile = await requireGestor()
+  const profile = await requireAdmin()
 
   const [planilhas, limiteRaw, gestorConfigRaw] = await Promise.all([
     listarPlanilhas(),

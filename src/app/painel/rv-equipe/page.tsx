@@ -1,4 +1,4 @@
-import { requireGestor } from '@/lib/auth'
+import { requireGestorOuAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { getMetas, computarKPIs, type KPIItem, type Status } from '@/lib/kpi'
@@ -24,7 +24,7 @@ function globalStatus(kpis: KPIItem[]): Status {
 }
 
 export default async function RVEquipePage() {
-  const profile = await requireGestor()
+  const profile = await requireGestorOuAdmin()
 
   const [planilha, metas, rvConfig] = await Promise.all([
     getPlanilhaAtiva(),

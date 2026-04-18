@@ -1,4 +1,4 @@
-import { requireGestor } from '@/lib/auth'
+import { requireGestorOuAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import { buscarGLPIs, type GLPIItem } from '@/lib/glpi'
@@ -6,7 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 import GLPIClient from './GLPIClient'
 
 export default async function GLPIPage() {
-  const profile  = await requireGestor()
+  const profile  = await requireGestorOuAdmin()
   const planilha = await getPlanilhaAtiva().catch(() => null)
 
   const mesAnoLabel = new Date()
