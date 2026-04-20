@@ -1,49 +1,29 @@
 'use client'
 
 import { useState } from 'react'
-import { type KPIItem } from '@/lib/kpi-utils'
-import { formatMetricValue } from '@/lib/kpi-utils'
+import type { KpiHistoricoMes } from '@/lib/historico-kpi'
 import {
   ChevronDown, Clock, Shield, XCircle, Package, CalendarX,
-  Activity, BarChart2, CheckCircle2, AlertCircle, MinusCircle,
+  Activity, BarChart2, UserX,
 } from 'lucide-react'
 
-// ── Tipos ─────────────────────────────────────────────────────────────────────
-
-export interface MesHistorico {
-  planilhaNome:    string
-  mesLabel:        string
-  dataAtualizacao: string | null
-  kpis:            KPIItem[]
-  complementares:  { label: string; valor: string }[]
-}
+// ── Tipos públicos ─────────────────────────────────────────────────────────────
 
 export interface Ultimos3MesesProps {
-  meses: MesHistorico[]
+  meses: KpiHistoricoMes[]
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_COLOR  = { verde: '#4ade80', amarelo: '#facc15', vermelho: '#f87171', neutro: '#94a3b8' }
-const STATUS_BG     = { verde: 'rgba(74,222,128,0.06)', amarelo: 'rgba(250,204,21,0.06)', vermelho: 'rgba(248,113,113,0.06)', neutro: 'rgba(148,163,184,0.04)' }
-const STATUS_BORDER = { verde: 'rgba(74,222,128,0.15)', amarelo: 'rgba(250,204,21,0.15)', vermelho: 'rgba(248,113,113,0.15)', neutro: 'rgba(148,163,184,0.10)' }
-
-function KPIIcon({ label }: { label: string }) {
+function kpiIcon(label: string) {
   const l = label.toLowerCase()
   if (l.includes('retenc') || l.includes('retenç')) return <Shield size={14} />
   if (l.includes('tma') || l.includes('tempo'))      return <Clock size={14} />
-  if (l.includes('cancel') || l.includes('churn'))   return <XCircle size={14} />
+  if (l.includes('churn') || l.includes('cancel'))   return <XCircle size={14} />
   if (l.includes('pedido'))                          return <Package size={14} />
   if (l.includes('abs') || l.includes('ausên'))      return <CalendarX size={14} />
   if (l.includes('indisp'))                          return <Activity size={14} />
   return <BarChart2 size={14} />
-}
-
-function StatusIcon({ status }: { status: KPIItem['status'] }) {
-  if (status === 'verde')    return <CheckCircle2 size={12} style={{ color: STATUS_COLOR.verde }} />
-  if (status === 'amarelo')  return <AlertCircle  size={12} style={{ color: STATUS_COLOR.amarelo }} />
-  if (status === 'vermelho') return <AlertCircle  size={12} style={{ color: STATUS_COLOR.vermelho }} />
-  return <MinusCircle size={12} style={{ color: STATUS_COLOR.neutro }} />
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -60,46 +40,106 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── Card de um KPI ────────────────────────────────────────────────────────────
+// ── Card de KPI principal ─────────────────────────────────────────────────────
 
-function KPICard({ kpi }: { kpi: KPIItem }) {
-  const cor    = STATUS_COLOR[kpi.status]
-  const fundo  = STATUS_BG[kpi.status]
-  const borda  = STATUS_BORDER[kpi.status]
-  const valor  = formatMetricValue(kpi.valor, kpi.unidade)
-
+function PrincipalCard({ label, valor, critico }: { label: string; valor: string; critico: boolean }) {
+  const semDados = valor === '—'
   return (
     <div style={{
-      background:   fundo,
-      border:       `1px solid ${borda}`,
+      background:   critico ? '#150e0e' : 'var(--bg-card)',
+      border:       critico ? '1px solid rgba(248,113,113,0.25)' : '1px solid rgba(201,168,76,0.08)',
       borderRadius: '10px',
       padding:      '12px 14px',
       display:      'flex', flexDirection: 'column', gap: '6px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ color: 'rgba(244,212,124,0.7)', flexShrink: 0 }}><KPIIcon label={kpi.label} /></span>
-        <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)' }}>
-          {kpi.label}
+        <span style={{ color: critico ? 'rgba(248,113,113,0.65)' : 'rgba(244,212,124,0.65)', flexShrink: 0 }}>{kpiIcon(label)}</span>
+        <span style={{
+          fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em',
+          textTransform: 'uppercase', color: 'rgba(255,255,255,0.50)',
+        }}>
+          {label}
         </span>
-        <span style={{ marginLeft: 'auto', flexShrink: 0 }}><StatusIcon status={kpi.status} /></span>
       </div>
-      <span style={{ fontSize: '22px', fontWeight: 700, lineHeight: 1, color: cor, fontVariantNumeric: 'tabular-nums' }}>
+      <span style={{
+        fontSize: '22px', fontWeight: 700, lineHeight: 1,
+        color: semDados ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.92)',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
         {valor}
       </span>
     </div>
   )
 }
 
-// ── Seção de um mês ────────────────────────────────────────────────────────────
+// ── Seção complementares (colapsável) ─────────────────────────────────────────
 
-function MesSection({ mes, defaultOpen }: { mes: MesHistorico; defaultOpen: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
-  const basicos = mes.kpis.filter(k => k.basico)
+function ComplementaresSection({ itens }: { itens: { label: string; valor: string }[] }) {
+  const [open, setOpen] = useState(false)
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.02)',
-      border: '1px solid rgba(201,168,76,0.10)',
+      background: 'var(--bg-elevated)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: '10px',
+      overflow: 'hidden',
+    }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '10px 14px', background: 'transparent', border: 'none',
+          cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <span style={{
+          fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em',
+          textTransform: 'uppercase', color: 'rgba(244,212,124,0.7)', flex: 1,
+        }}>
+          Dados Complementares
+        </span>
+        <ChevronDown
+          size={13}
+          style={{
+            color: 'var(--text-muted)', flexShrink: 0,
+            transition: 'transform 0.3s ease',
+            transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+          }}
+        />
+      </button>
+      <div style={{
+        maxHeight: open ? '300px' : '0px',
+        overflow: 'hidden',
+        transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)',
+      }}>
+        <div style={{
+          padding: '0 14px 12px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: '8px 16px',
+        }}>
+          {itens.map(c => (
+            <div key={c.label} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.40)', flexShrink: 0 }}>{c.label}</span>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', textAlign: 'right' }}>{c.valor}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Seção de um mês ────────────────────────────────────────────────────────────
+
+function MesSection({ mes, defaultOpen }: { mes: KpiHistoricoMes; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
+
+  return (
+    <div style={{
+      background: 'var(--bg-card)',
+      border: '1px solid rgba(201,168,76,0.08)',
       borderRadius: '12px',
       overflow: 'hidden',
     }}>
@@ -113,7 +153,7 @@ function MesSection({ mes, defaultOpen }: { mes: MesHistorico; defaultOpen: bool
           cursor: 'pointer', textAlign: 'left',
         }}
       >
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <span style={{
             fontFamily: 'var(--ff-display)',
             fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -122,9 +162,24 @@ function MesSection({ mes, defaultOpen }: { mes: MesHistorico; defaultOpen: bool
           }}>
             {mes.mesLabel}
           </span>
-          {mes.dataAtualizacao && (
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '10px' }}>
-              atualizado {mes.dataAtualizacao}
+          {mes.emAndamento && (
+            <span style={{
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+              padding: '2px 8px', borderRadius: '4px',
+              background: 'rgba(244,212,124,0.08)', border: '1px solid rgba(244,212,124,0.25)',
+              color: '#d4a935',
+            }}>
+              em andamento
+            </span>
+          )}
+          {!mes.encontrado && (
+            <span style={{
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+              padding: '2px 8px', borderRadius: '99px',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+              color: 'rgba(255,255,255,0.35)',
+            }}>
+              sem dados
             </span>
           )}
         </div>
@@ -146,8 +201,24 @@ function MesSection({ mes, defaultOpen }: { mes: MesHistorico; defaultOpen: bool
       }}>
         <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* KPIs principais */}
-          {basicos.length > 0 && (
+          {/* Operador não estava na empresa neste mês */}
+          {!mes.encontrado && (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+              padding: '24px 0', textAlign: 'center',
+            }}>
+              <UserX size={32} style={{ color: 'rgba(255,255,255,0.18)' }} />
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.45)', margin: 0 }}>
+                Você não estava na empresa neste mês
+              </p>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+                Nenhuma linha encontrada em {mes.planilhaNome}.
+              </p>
+            </div>
+          )}
+
+          {/* KPIs Principais */}
+          {mes.encontrado && mes.principais.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <SectionLabel>KPIs Principais</SectionLabel>
               <div style={{
@@ -155,38 +226,14 @@ function MesSection({ mes, defaultOpen }: { mes: MesHistorico; defaultOpen: bool
                 gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
                 gap: '8px',
               }}>
-                {basicos.map(k => <KPICard key={k.nome_coluna} kpi={k} />)}
+                {mes.principais.map(k => <PrincipalCard key={k.label} label={k.label} valor={k.valor} critico={k.critico} />)}
               </div>
             </div>
           )}
 
-          {/* Dados do mês */}
-          {mes.complementares.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <SectionLabel>Dados do Mês</SectionLabel>
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                gap: '8px 16px',
-              }}>
-                {mes.complementares.map(c => (
-                  <div key={c.label} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline' }}>
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', flexShrink: 0 }}>{c.label}</span>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', textAlign: 'right' }}>{c.valor}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {basicos.length === 0 && mes.complementares.length === 0 && (
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>
-              Sem dados disponíveis para este mês.
-            </p>
+          {/* Complementares */}
+          {mes.encontrado && mes.complementares.length > 0 && (
+            <ComplementaresSection itens={mes.complementares} />
           )}
         </div>
       </div>
@@ -201,7 +248,7 @@ export default function Ultimos3MesesClient({ meses }: Ultimos3MesesProps) {
     return (
       <div style={{
         padding: '48px 24px', textAlign: 'center',
-        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--bg-card)', border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: '12px',
       }}>
         <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
@@ -231,7 +278,7 @@ export default function Ultimos3MesesClient({ meses }: Ultimos3MesesProps) {
       `}</style>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {meses.map((m, i) => (
-          <div key={m.planilhaNome} className="h-mes">
+          <div key={`${m.mes}-${m.ano}`} className="h-mes">
             <MesSection mes={m} defaultOpen={i === 0} />
           </div>
         ))}

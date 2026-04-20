@@ -69,7 +69,7 @@ function matchEmail(emailPlanilha: string, username: string): boolean {
 }
 
 // Taxa / percentual: aceita 0.685 ou 68.5%
-function parsePct(raw: string | undefined): number | null {
+export function parsePct(raw: string | undefined): number | null {
   if (!raw) return null
   const s = raw.toString().replace(/\s/g, '').replace(',', '.')
   if (s.startsWith('#') || s === '') return null
@@ -78,13 +78,13 @@ function parsePct(raw: string | undefined): number | null {
   return n <= 1 ? n * 100 : n
 }
 
-function formatPct(n: number): string {
+export function formatPct(n: number): string {
   const r = Math.round(n * 10) / 10
   return r % 1 === 0 ? `${r}%` : `${r.toFixed(1)}%`
 }
 
 // TMA: hh:mm:ss → segundos (0 = sem dados → null)
-function parseTMA(raw: string | undefined): number | null {
+export function parseTMA(raw: string | undefined): number | null {
   if (!raw) return null
   const s = raw.toString().trim()
   if (!s || s.startsWith('#')) return null
@@ -97,7 +97,7 @@ function parseTMA(raw: string | undefined): number | null {
   return secs === 0 ? null : secs
 }
 
-function formatTMA(secs: number): string {
+export function formatTMA(secs: number): string {
   const h = Math.floor(secs / 3600)
   const m = Math.floor((secs % 3600) / 60)
   const s = Math.floor(secs % 60)
@@ -106,7 +106,7 @@ function formatTMA(secs: number): string {
 }
 
 // Inteiro: cancelados
-function parseInt_(raw: string | undefined): number | null {
+export function parseInt_(raw: string | undefined): number | null {
   if (raw === undefined || raw === null || raw === '') return null
   const s = raw.toString().trim()
   if (s.startsWith('#') || s === '') return null
@@ -114,15 +114,21 @@ function parseInt_(raw: string | undefined): number | null {
   return isNaN(n) ? null : n
 }
 
-function formatInt(n: number): string {
+export function formatInt(n: number): string {
   return Math.round(n).toString()
 }
 
 // ── Emails da equipe ativa ────────────────────────────────────────────────────
-// Lê coluna A da planilha ativa (aba principal) e retorna Set de emails normalizados.
-// Usado para filtrar operadores de fora da equipe nas abas de quartil.
 
-async function getEmailsEquipeAtiva(): Promise<Set<string>> {
+/**
+ * Retorna Set<string> com prefixos de email dos operadores presentes na planilha ativa
+ * (coluna A, normalizado: trim + lowercase + só a parte antes do @).
+ *
+ * USADO POR: telas de histórico futuras (Evolução, Por Mês) que precisam filtrar
+ * ex-operadores ao comparar meses anteriores.
+ * NÃO USADO NO MEU QUARTIL — quartil mostra rank da retenção inteira (toda Alloha).
+ */
+export async function getEmailsEquipeAtiva(): Promise<Set<string>> {
   try {
     const planilha = await getPlanilhaAtiva()
     if (!planilha) {
@@ -193,7 +199,6 @@ async function lerQuartilTopico(
   config: QuartilTopicoConfig,
   spreadsheetId: string,
   username: string,
-  emailsEquipe: Set<string>,
 ): Promise<QuartilTopico> {
   const vazio: QuartilTopico = {
     id: config.id, nomeTopico: config.nomeTopico,
@@ -230,18 +235,8 @@ async function lerQuartilTopico(
 
     if (!lista.length) return { ...vazio, dataAtualizacao }
 
-    // Filtrar para apenas operadores da equipe ativa (quando o set não está vazio)
-    const listaEquipe = emailsEquipe.size > 0
-      ? lista.filter(op => {
-          const prefixo = op.email.toLowerCase().trim().split('@')[0]
-          return emailsEquipe.has(prefixo)
-        })
-      : lista
-
-    if (!listaEquipe.length) return { ...vazio, dataAtualizacao }
-
-    // Sort estável: empates mantêm ordem original da planilha
-    const ordenados = [...listaEquipe].sort((a, b) =>
+    // Sort estável sobre TODOS os operadores Alloha (sem filtro de equipe)
+    const ordenados = [...lista].sort((a, b) =>
       config.sortOrder === 'desc' ? b.metrica - a.metrica : a.metrica - b.metrica
     )
     const rankIdx = ordenados.findIndex(op => matchEmail(op.email, username))
@@ -253,7 +248,7 @@ async function lerQuartilTopico(
       dataAtualizacao,
       operadorAtual:   found ? { email: found.email, metrica: found.metrica, metricaFormatada: found.metricaFormatada, quartil: found.quartil } : null,
       rankGlobal:      rankIdx >= 0 ? rankIdx + 1 : null,
-      totalOperadores: listaEquipe.length,
+      totalOperadores: lista.length,
     }
   } catch (e) {
     console.error(`[lerQuartilTopico:${config.id}]`, e)
@@ -267,6 +262,5 @@ export async function lerTodosQuartis(
   spreadsheetId: string,
   username: string,
 ): Promise<QuartilTopico[]> {
-  const emailsEquipe = await getEmailsEquipeAtiva()
-  return Promise.all(TOPICOS.map(c => lerQuartilTopico(c, spreadsheetId, username, emailsEquipe)))
+  return Promise.all(TOPICOS.map(c => lerQuartilTopico(c, spreadsheetId, username)))
 }

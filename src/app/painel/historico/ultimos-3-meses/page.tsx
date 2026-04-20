@@ -1,31 +1,13 @@
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { getMetas, computarKPIs } from '@/lib/kpi'
-import { normalizarChave } from '@/lib/kpi-utils'
-import {
-  getUltimasNPlanilhasHistorico,
-  buscarLinhasPlanilha,
-  encontrarColunaIdent,
-  matchCelulaOperador,
-  formatarDataCurta,
-  extrairDataAtualizacao,
-} from '@/lib/sheets'
+import { getPlanilhaAtiva, getUltimasNPlanilhasHistorico } from '@/lib/sheets'
+import { lerKpiHistoricoPlanilha } from '@/lib/historico-kpi'
+import { lerKpiLegadoParaHistorico } from '@/lib/meu-kpi-extractor'
+import { getMetas } from '@/lib/kpi'
 import PainelShell from '@/components/PainelShell'
-import Ultimos3MesesClient, { type MesHistorico, type Ultimos3MesesProps } from './Ultimos3MesesClient'
+import Ultimos3MesesClient from './Ultimos3MesesClient'
+import type { Ultimos3MesesProps } from './Ultimos3MesesClient'
 import { AlertTriangle, History } from 'lucide-react'
-
-const COLUNAS_COMPLEMENTARES = [
-  '% Variação Ticket','Retidos Brutos','Retidos Líquidos 15d',
-  'Tx. Retenção Líquida 15d (%)','Atendidas','Transfer (%)','Short Call (%)',
-  'Rechamada D+7 (%)','Tx. Tabulação (%)','CSAT','Engajamento',
-  'Tempo Projetado','Tempo de Login','Logins Mês','NR17 (%)','Pessoal','Pessoal (%)',
-  'Outras Pausas','Outras Pausas (%)',
-]
-
-const MESES_PT = [
-  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
-]
 
 export const dynamic = 'force-dynamic'
 
@@ -35,67 +17,43 @@ export default async function Ultimos3MesesPage() {
   const profile = await getProfile()
   if (profile.role === 'gestor') redirect('/painel')
 
-  const [planilhas, metas] = await Promise.all([
+  const [planilhaAtiva, planilhasHistorico, metas] = await Promise.all([
+    getPlanilhaAtiva(),
     getUltimasNPlanilhasHistorico(3),
-    getMetas().catch(() => []),
+    getMetas(),
   ])
 
   let erroGeral: string | null = null
   let dadosProps: Ultimos3MesesProps | null = null
 
   try {
-    const mesesData = await Promise.all(
-      planilhas.map(async (planilha): Promise<MesHistorico> => {
-        const mesLabel = planilha.referencia_mes && planilha.referencia_ano
-          ? `${MESES_PT[planilha.referencia_mes - 1]} ${planilha.referencia_ano}`
-          : planilha.nome
-
-        try {
-          const { headers, rows } = await buscarLinhasPlanilha(
-            planilha.spreadsheet_id,
-            planilha.aba,
-            100,
-          )
-
-          if (!headers.length) {
-            return { planilhaNome: planilha.nome, mesLabel, dataAtualizacao: null, kpis: [], complementares: [] }
-          }
-
-          const col = encontrarColunaIdent(headers)
-          const dataAtualizacao = extrairDataAtualizacao(rows)
-          const meuRow = rows.find(r => matchCelulaOperador(r[col] ?? '', profile.username, profile.nome))
-
-          if (!meuRow) {
-            return { planilhaNome: planilha.nome, mesLabel, dataAtualizacao: dataAtualizacao ? formatarDataCurta(dataAtualizacao) : null, kpis: [], complementares: [] }
-          }
-
-          const kpis = computarKPIs(headers, meuRow, metas)
-
-          const complementares = COLUNAS_COMPLEMENTARES
-            .map(nome => {
-              const key = normalizarChave(nome)
-              const idx = headers.findIndex(h => normalizarChave(h) === key)
-              return { label: nome, valor: idx >= 0 ? (meuRow[idx] ?? '—') : '—' }
-            })
-            .filter(d => d.valor !== '—' && d.valor !== '')
-
-          return {
-            planilhaNome: planilha.nome,
-            mesLabel,
-            dataAtualizacao: dataAtualizacao ? formatarDataCurta(dataAtualizacao) : null,
-            kpis,
-            complementares,
-          }
-        } catch {
-          return { planilhaNome: planilha.nome, mesLabel, dataAtualizacao: null, kpis: [], complementares: [] }
+    const historicos = await Promise.all(
+      planilhasHistorico.map(p => {
+        const ehAtiva = planilhaAtiva?.id === p.id
+        if (ehAtiva) {
+          return lerKpiLegadoParaHistorico(p, profile.username, profile.nome, metas)
         }
+        return lerKpiHistoricoPlanilha(p, profile.username, profile.nome, metas)
       })
     )
 
-    dadosProps = { meses: mesesData }
+    // Se a planilha ativa não está na lista histórica, insere no topo
+    const ativaJaInclusa = planilhaAtiva && planilhasHistorico.some(p => p.id === planilhaAtiva.id)
+    let meses = historicos
+
+    if (planilhaAtiva && !ativaJaInclusa) {
+      const mesAtiva = await lerKpiLegadoParaHistorico(
+        planilhaAtiva, profile.username, profile.nome, metas
+      )
+      meses = [mesAtiva, ...historicos]
+    }
+
+    dadosProps = { meses }
   } catch (e) {
     erroGeral = e instanceof Error ? e.message : 'Erro desconhecido'
   }
+
+  const totalMeses = dadosProps?.meses.length ?? planilhasHistorico.length
 
   return (
     <PainelShell profile={profile} title="Histórico" iconName="History">
@@ -121,7 +79,7 @@ export default async function Ultimos3MesesPage() {
           </span>
           <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            {planilhas.length} {planilhas.length === 1 ? 'mês disponível' : 'meses disponíveis'}
+            {totalMeses} {totalMeses === 1 ? 'mês disponível' : 'meses disponíveis'}
           </span>
         </div>
 
