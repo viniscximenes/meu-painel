@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Meu Painel',
-  description: 'Painel de controle de operadores',
+  title: 'HALO — Sistema de Gestão Angelicais',
+  description: 'HALO — Sistema interno de gestão operacional e acompanhamento de metas.',
   icons: { icon: '/favicon.ico' },
 }
 

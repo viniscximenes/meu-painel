@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { X, ClipboardList, Save, AlertTriangle, CheckCircle, Copy, Check } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 import { SINALIZACOES, NOTAS, STATUS_INFO } from '@/lib/monitoria-utils'
 import type { Monitoria } from '@/lib/monitoria-utils'
 import { atualizarMonitoriaAction } from './actions'
@@ -349,7 +350,7 @@ export default function EditarMonitoriaModal({ monitoria, operadores, onFechar, 
             style={{ minWidth: '150px', opacity: saving || sucesso ? 0.9 : 1 }}
           >
             {saving ? (
-              <span className="w-4 h-4 rounded-full border-2 border-[#050508]/30 border-t-[#050508] animate-spin" />
+              <HaloSpinner size="sm" />
             ) : sucesso ? (
               <CheckCircle size={15} />
             ) : (

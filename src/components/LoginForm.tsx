@@ -3,11 +3,16 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, LogIn, User, Lock } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
+
+const TEAMS_URL =
+  'https://teams.cloud.microsoft/l/chat/0/0?users=caio.vsilva@alloha.com&message=Ol%C3%A1%20Caio%2C%20preciso%20de%20ajuda%20com%20meu%20acesso%20ao%20HALO'
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rememberMe, setRememberMe] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -33,8 +38,9 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Usuário */}
-      <div>
+
+      {/* ── Campo Usuário ── */}
+      <div className="login-stagger-5">
         <label
           htmlFor="username"
           className="block text-xs font-semibold mb-2 uppercase"
@@ -64,15 +70,25 @@ export default function LoginForm() {
         </div>
       </div>
 
-      {/* Senha */}
-      <div>
-        <label
-          htmlFor="password"
-          className="block text-xs font-semibold mb-2 uppercase"
-          style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
-        >
-          Senha
-        </label>
+      {/* ── Campo Senha ── */}
+      <div className="login-stagger-6">
+        <div className="flex items-center justify-between mb-2">
+          <label
+            htmlFor="password"
+            className="block text-xs font-semibold uppercase"
+            style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
+          >
+            Senha
+          </label>
+          <a
+            href={TEAMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="forgot-link"
+          >
+            Esqueci minha senha
+          </a>
+        </div>
         <div className="relative">
           <Lock
             size={15}
@@ -92,7 +108,7 @@ export default function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors p-1 rounded"
+            className="btn-eye-toggle absolute right-3 top-1/2 -translate-y-1/2 transition-colors p-1 rounded"
             style={{ color: 'var(--text-muted)' }}
             aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--gold-light)' }}
@@ -103,7 +119,7 @@ export default function LoginForm() {
         </div>
       </div>
 
-      {/* Erro */}
+      {/* ── Mensagem de erro ── */}
       {error && (
         <div
           className="flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm animate-shake"
@@ -113,6 +129,7 @@ export default function LoginForm() {
             color: '#f87171',
           }}
           role="alert"
+          aria-live="assertive"
         >
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -121,25 +138,39 @@ export default function LoginForm() {
         </div>
       )}
 
-      {/* Botão */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="btn-primary w-full mt-2"
-        style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem' }}
-      >
-        {loading ? (
-          <>
-            <span className="spinner-premium" style={{ width: '18px', height: '18px' }} />
-            Entrando...
-          </>
-        ) : (
-          <>
-            <LogIn size={17} />
-            Entrar
-          </>
-        )}
-      </button>
+      {/* ── Checkbox + Botão submit ── */}
+      <div className="login-stagger-7 space-y-4 pt-1">
+
+        {/* Checkbox manter conectado */}
+        <label className="login-checkbox">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          <span className="login-checkbox-label">Manter conectado por 7 dias</span>
+        </label>
+
+        {/* Botão principal */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-login"
+        >
+          {loading ? (
+            <>
+              <HaloSpinner size="sm" />
+              Entrando...
+            </>
+          ) : (
+            <>
+              <LogIn size={16} />
+              Acessar
+            </>
+          )}
+        </button>
+
+      </div>
     </form>
   )
 }

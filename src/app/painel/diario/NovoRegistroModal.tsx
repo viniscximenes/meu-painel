@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { X, BookOpen, Save, AlertTriangle, CheckCircle } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { TIPOS_REGISTRO, hojeFormatado, parseTempo, type TipoRegistro } from '@/lib/diario-utils'
 import { salvarRegistroDiarioAction } from './actions'
@@ -301,7 +302,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
             style={{ minWidth: '140px', opacity: saving || sucesso ? 0.9 : 1 }}
           >
             {saving ? (
-              <span className="w-4 h-4 rounded-full border-2 border-[#050508]/30 border-t-[#050508] animate-spin" />
+              <HaloSpinner size="sm" />
             ) : sucesso ? (
               <CheckCircle size={15} />
             ) : (

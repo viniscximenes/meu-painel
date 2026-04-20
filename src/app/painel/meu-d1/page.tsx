@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, matchCelulaOperador } from '@/lib/sheets'
 import { lerAbaD1, matchEmailD1 } from '@/lib/d1-sheets'
 import { getAppConfig } from '@/lib/app-config'
+import { getRVConfig } from '@/lib/rv'
 import PainelShell from '@/components/PainelShell'
 import MeuD1Client from './MeuD1Client'
 import type { MeuD1Props } from './MeuD1Client'
@@ -11,25 +12,22 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
+// TODO: mover para rv_config quando campo dedicado for criado
+const META_RETENCAO = 66
 
-// ── Dias úteis (seg–sáb) do mês ───────────────────────────────────────────────
+const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
 
 function calcDiasUteis(ano: number, mes: number): { total: number; passados: number; restantes: number } {
   const hoje      = new Date()
   const diaHoje   = hoje.getDate()
   const diasNoMes = new Date(ano, mes, 0).getDate()
-
-  let total    = 0
-  let passados = 0
-
+  let total = 0, passados = 0
   for (let d = 1; d <= diasNoMes; d++) {
     const dow = new Date(ano, mes - 1, d).getDay()
     if (dow === 0) continue
     total++
     if (d <= diaHoje) passados++
   }
-
   return { total, passados, restantes: Math.max(0, total - passados) }
 }
 
@@ -40,25 +38,24 @@ function parseNumKpi(v: string | undefined): number {
   return isNaN(n) ? 0 : n
 }
 
-// ── Parse "DD/MM/YYYY HH:MM:SS" → { data, hora } ─────────────────────────────
-
 function parseAtualizacao(raw: string | null): { data: string | null; hora: string | null } {
   if (!raw) return { data: null, hora: null }
   const parts = raw.trim().split(/\s+/)
-  const data  = parts[0] || null
-  const hora  = parts[1]?.slice(0, 5) || null
-  return { data, hora }
+  return { data: parts[0] || null, hora: parts[1]?.slice(0, 5) || null }
 }
 
 export default async function MeuD1Page() {
   const profile = await getProfile()
   if (profile.role === 'gestor') redirect('/painel')
 
-  const [planilha, limiteRaw] = await Promise.all([
+  const [planilha, rvConfig, limiteRaw] = await Promise.all([
     getPlanilhaAtiva().catch(() => null),
+    getRVConfig().catch(() => null),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
   ])
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
+  // TODO: criar campo dedicado em rv_config; por ora usa churnMeta (cancelados mensais do bônus)
+  const metaCanceladosMes = rvConfig?.churnMeta && rvConfig.churnMeta > 0 ? rvConfig.churnMeta : 90
 
   const agora    = new Date()
   const mesAtual = agora.getMonth() + 1
@@ -68,7 +65,7 @@ export default async function MeuD1Page() {
   if (!planilha) {
     return (
       <PainelShell profile={profile} title="D-1" iconName="TrendingUp">
-        <div style={cssVars} className="space-y-4">
+        <div style={cssVars} className="space-y-4 login-grid-bg">
           <GoldLine />
           <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
             <strong>Planilha não configurada</strong>
@@ -91,15 +88,10 @@ export default async function MeuD1Page() {
       lerAbaD1(planilha.spreadsheet_id).catch(() => null),
     ])
 
-    const parsed  = parseAtualizacao(d1Data?.ultimaAtualizacao ?? null)
-    horaAtualiz   = parsed.hora
-    dataAtualiz   = parsed.data
+    const parsed = parseAtualizacao(d1Data?.ultimaAtualizacao ?? null)
+    horaAtualiz  = parsed.hora
+    dataAtualiz  = parsed.data
 
-    // ── KPI acumulado (colunas 1-based conforme spec) ──────────────────────────
-    // col 5  = Pedidos       → índice 4
-    // col 9  = Cancelados    → índice 8
-    // col 15 = Retidos Brutos → índice 14
-    // col 18 = Tx. Retenção % → índice 17
     const col    = encontrarColunaIdent(kpiData.headers)
     const meuRow = kpiData.rows.find(r => matchCelulaOperador(r[col] ?? '', profile.username, profile.nome))
 
@@ -109,36 +101,26 @@ export default async function MeuD1Page() {
     const taxaKpiRaw    = parseNumKpi(meuRow?.[17])
     const taxaKpi       = taxaKpiRaw > 1 ? taxaKpiRaw : taxaKpiRaw * 100
 
-    // ── D-1 do operador ────────────────────────────────────────────────────────
-    // Col B (idx 1) = Retidos, C (idx 2) = Cancelados, D (idx 3) = Pedidos
-    const meuD1 = d1Data?.operadores.find(op =>
-      matchEmailD1(op.email, profile.username, profile.nome)
-    ) ?? null
-
-    const semDadosD1   = !meuD1 || meuD1.txRetencao === null
-    const canceladosD1 = meuD1?.cancelados ?? 0   // col B
-    const retidosD1    = meuD1?.retidos    ?? 0   // col C
-    const pedidosD1    = meuD1?.pedidos    ?? 0   // col D
-    // col E — taxa do dia lida direto da planilha, normalizada para %
+    const meuD1       = d1Data?.operadores.find(op => matchEmailD1(op.email, profile.username, profile.nome)) ?? null
+    const semDadosD1  = !meuD1 || meuD1.txRetencao === null
+    const canceladosD1 = meuD1?.cancelados ?? 0
+    const retidosD1    = meuD1?.retidos    ?? 0
+    const pedidosD1    = meuD1?.pedidos    ?? 0
     const txD1Raw      = meuD1?.txRetencao ?? null
     const txD1         = txD1Raw !== null ? (txD1Raw > 1 ? txD1Raw : txD1Raw * 100) : null
 
-    // ── Estimado (KPI + D1) ────────────────────────────────────────────────────
     const retidosEst    = retidosKpi    + retidosD1
     const canceladosEst = canceladosKpi + canceladosD1
     const pedidosEst    = pedidosKpi    + pedidosD1
     const taxaEst       = pedidosEst > 0 ? (retidosEst / pedidosEst) * 100 : taxaKpi
     const deltaTaxa     = taxaEst - taxaKpi
 
-    // ── Projeção mensal ────────────────────────────────────────────────────────
-    const { total: diasUteisNoMes, passados: diasPassados, restantes: diasRestantes } =
-      calcDiasUteis(anoAtual, mesAtual)
+    const { passados: diasPassados, restantes: diasRestantes } = calcDiasUteis(anoAtual, mesAtual)
 
-    const retidosFaltam66         = 0.66 * pedidosEst - retidosEst
-    const retidosPorDiaNecessario = diasRestantes > 0 ? retidosFaltam66 / diasRestantes : retidosFaltam66
-    const jaEstaNaMeta            = taxaEst >= 66
+    const retidosFaltaMeta        = (META_RETENCAO / 100) * pedidosEst - retidosEst
+    const retidosPorDiaNecessario = diasRestantes > 0 ? retidosFaltaMeta / diasRestantes : retidosFaltaMeta
+    const jaEstaNaMeta            = taxaEst >= META_RETENCAO
 
-    // ── Cenário 1: projeção ao ritmo atual ─────────────────────────────────────
     const mediaDiariaRetidos = diasPassados > 0 ? retidosEst / diasPassados : 0
     const mediaDiariaPedidos = diasPassados > 0 ? pedidosEst / diasPassados : 0
     const retidosProjetados  = retidosEst + mediaDiariaRetidos * diasRestantes
@@ -147,88 +129,33 @@ export default async function MeuD1Page() {
       ? (retidosProjetados / pedidosProjetados) * 100
       : taxaEst
 
-    // ── Cenário 2: máx cancelados/dia para bônus 63.6% ────────────────────────
-    const canceladosPermitidosFim  = pedidosProjetados * (1 - 0.66)
-    const canceladosPermitidosRest = canceladosPermitidosFim - canceladosEst
-    const maxCanceladosDiaBon      = diasRestantes > 0
-      ? canceladosPermitidosRest / diasRestantes
-      : canceladosPermitidosRest
+    // Máx cancelamentos/dia pela regra de cancelados mensais (churnMeta)
+    const restamCancelados = metaCanceladosMes - canceladosEst
+    let maxCanceladosDia: number | null
+    if (restamCancelados <= 0) {
+      maxCanceladosDia = null
+    } else if (diasRestantes <= 0) {
+      maxCanceladosDia = restamCancelados
+    } else {
+      const calc = restamCancelados / diasRestantes
+      maxCanceladosDia = calc < 1 ? 1 : Math.floor(calc)
+    }
 
     dadosProps = {
-      nomeOperador:            profile.nome,
-      mesLabel,
-      horaAtualiz,
-      dataAtualiz,
       retidosKpi, canceladosKpi, pedidosKpi, taxaKpi,
-      retidosD1, canceladosD1, pedidosD1, semDadosD1,
+      retidosD1, canceladosD1, pedidosD1, semDadosD1, txD1,
       retidosEst, canceladosEst, pedidosEst, taxaEst, deltaTaxa,
-      diasUteisNoMes, diasPassados, diasRestantes,
-      retidosPorDiaNecessario, jaEstaNaMeta,
-      taxaProjetada, maxCanceladosDiaBon,
-      txD1,
+      taxaProjetada, maxCanceladosDia, metaCanceladosMes,
+      horaAtualiz, dataAtualiz,
     }
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido'
   }
 
-  const nomeDisplay = dadosProps?.nomeOperador.split(' ').slice(0, 2).join(' ')
-
   return (
     <PainelShell profile={profile} title="D-1" iconName="TrendingUp">
-      <div style={cssVars} className="space-y-4">
+      <div style={cssVars} className="space-y-4 login-grid-bg">
         <GoldLine />
-
-        {/* Header */}
-        <div style={{
-          background: 'var(--void2)',
-          border: '1px solid rgba(201,168,76,0.1)',
-          borderRadius: '14px',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap',
-        }}>
-          <span style={{
-            fontFamily: 'var(--ff-display)',
-            fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
-            background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>
-            D-1
-          </span>
-          <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-          <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-            {nomeDisplay}
-          </span>
-          <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mesLabel}</span>
-
-          {/* Hora de atualização em destaque */}
-          {horaAtualiz && (
-            <>
-              <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  última atualização
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                  <span style={{
-                    fontFamily: 'var(--ff-display)', fontSize: '20px', fontWeight: 700, lineHeight: 1,
-                    color: 'var(--gold)',
-                  }}>
-                    {horaAtualiz}
-                  </span>
-                  {dataAtualiz && (
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                      {dataAtualiz}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
 
         {erroSheets && (
           <div className="flex items-start gap-3 rounded-xl border px-4 py-3"

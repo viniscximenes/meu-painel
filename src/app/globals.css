@@ -14,6 +14,27 @@
   --gold-border:     rgba(201,168,76,0.35);
   --gold-border-dim: rgba(201,168,76,0.08);
 
+  --halo-gold:   #c9a84c;
+  --halo-silver: #c0c0c0;
+  --halo-bronze: #cd7f32;
+
+  --halo-silver-bg:         #1a1a24;
+  --halo-silver-bg-deeper:  #0f0f16;
+  --halo-silver-number:     #8a8aa0;
+  --halo-silver-border:     #c0c0d0;
+  --halo-silver-light:      #e8e8e8;
+
+  --halo-bronze-bg:         #2a1d10;
+  --halo-bronze-bg-deeper:  #1a1208;
+  --halo-bronze-number:     #a67848;
+  --halo-bronze-border:     #d8935a;
+  --halo-bronze-light:      #e8a66a;
+
+  --halo-blue-bg:      #0d1824;
+  --halo-blue-number:  #38bdf8;
+  --halo-blue-border:  #7dd3fc;
+  --halo-blue-light:   #bae6fd;
+
   --bg-base:     #050508;
   --bg-surface:  #0c1018;
   --bg-card:     #101520;
@@ -725,7 +746,7 @@
   100% { transform: scale(0)   rotate(-10deg);  opacity: 0; }
 }
 
-/* ── Cursor dourado — operadores/aux ─────────────────────────────────────────── */
+/* ── Cursores gradativos do pódio — operadores/aux ───────────────────────────── */
 body.cursor-gold,
 body.cursor-gold * {
   cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%23c9a84c" stroke="%23f5e0a0" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, auto;
@@ -738,6 +759,30 @@ body.cursor-gold input[type="submit"] {
   cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%23c9a84c" stroke="%23f5e0a0" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, pointer;
 }
 
+body.cursor-silver,
+body.cursor-silver * {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%238a8aa0" stroke="%23e8e8e8" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, auto;
+}
+body.cursor-silver a,
+body.cursor-silver button,
+body.cursor-silver [role="button"],
+body.cursor-silver input[type="button"],
+body.cursor-silver input[type="submit"] {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%238a8aa0" stroke="%23e8e8e8" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, pointer;
+}
+
+body.cursor-bronze,
+body.cursor-bronze * {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%23a67848" stroke="%23d8935a" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, auto;
+}
+body.cursor-bronze a,
+body.cursor-bronze button,
+body.cursor-bronze [role="button"],
+body.cursor-bronze input[type="button"],
+body.cursor-bronze input[type="submit"] {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M4 2L4 20L8 16L11 22L14 20L11 14L18 14Z" fill="%23a67848" stroke="%23d8935a" stroke-width="1" stroke-linejoin="round"/></svg>') 2 2, pointer;
+}
+
 /* ── prefers-reduced-motion ─────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -747,4 +792,295 @@ body.cursor-gold input[type="submit"] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LOGIN — Efeitos especiais
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── CSS custom property animável para o halo rotacionante ── */
+@property --halo-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ── Keyframes do halo ── */
+@keyframes rotateHalo {
+  to { --halo-angle: 360deg; }
+}
+
+/* ── Keyframe do breathing glow do logo ── */
+@keyframes logoBreath {
+  0%, 100% {
+    box-shadow:
+      0 8px 32px rgba(201,168,76,0.35),
+      0 0 60px rgba(201,168,76,0.10);
+  }
+  50% {
+    box-shadow:
+      0 8px 52px rgba(201,168,76,0.65),
+      0 0 100px rgba(201,168,76,0.30);
+  }
+}
+
+/* ── Wrapper do card com borda animada (conic-gradient) ──────────────────────
+   Técnica: ::before com inset:0 + padding:2px + mask exclui o content-box,
+   expondo apenas o anel de 2px como borda visível. O conic-gradient rotaciona
+   via @property --halo-angle, mantendo o conteúdo interno intocado.
+   ─────────────────────────────────────────────────────────────────────────── */
+.login-halo-wrapper {
+  position: relative;
+}
+
+.login-halo-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: 24px;
+  background: conic-gradient(
+    from var(--halo-angle),
+    transparent 45%,
+    rgba(244,212,124,0.30) 58%,
+    rgba(244,212,124,0.80) 70%,
+    rgba(212,169,53,1.00)  78%,
+    rgba(244,212,124,0.95) 84%,
+    rgba(244,212,124,0.40) 92%,
+    transparent 100%
+  );
+  animation: rotateHalo 8s linear infinite;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Logo breathing glow ── */
+.logo-breath {
+  animation: logoBreath 3s ease-in-out infinite;
+}
+
+/* ── Entrada em cascata — stagger de 100ms entre elementos ── */
+.login-stagger-1 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.00s both; }
+.login-stagger-2 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.10s both; }
+.login-stagger-3 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.20s both; }
+.login-stagger-4 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.30s both; }
+.login-stagger-5 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.40s both; }
+.login-stagger-6 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.50s both; }
+.login-stagger-7 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.60s both; }
+.login-stagger-8 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.70s both; }
+.login-stagger-9 { animation: fadeInUp 0.55s cubic-bezier(0.4,0,0.2,1) 0.80s both; }
+
+/* ── Botão primário de login — gradiente dourado sólido, máximo destaque ── */
+.btn-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  border-radius: 10px;
+  font-family: var(--ff-display);
+  font-size: 0.775rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #f4d47c 0%, #d4a935 48%, #b8911a 100%);
+  color: #0a0e14;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 4px 24px rgba(212,169,53,0.42),
+    0 1px 0 rgba(255,255,255,0.14) inset;
+}
+
+.btn-login::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.20) 0%, transparent 55%);
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.btn-login:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #fae38c 0%, #e0b52a 48%, #c4981e 100%);
+  box-shadow:
+    0 8px 36px rgba(212,169,53,0.58),
+    0 1px 0 rgba(255,255,255,0.18) inset;
+}
+
+.btn-login:active {
+  transform: scale(0.98) translateY(0);
+  box-shadow:
+    0 2px 12px rgba(212,169,53,0.30),
+    0 1px 0 rgba(255,255,255,0.10) inset;
+}
+
+.btn-login:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 16px rgba(212,169,53,0.20);
+}
+
+/* ── Link "clique aqui" para contato via Teams ── */
+.teams-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--gold-light);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.teams-link:hover {
+  color: var(--gold-bright);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Link discreto "Esqueci minha senha" ── */
+.forgot-link {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.02em;
+}
+
+.forgot-link:hover {
+  color: var(--gold-light);
+}
+
+/* ── Checkbox customizado do login ── */
+.login-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.login-checkbox input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition:
+    background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-checkbox input[type="checkbox"]:hover {
+  border-color: rgba(201,168,76,0.6);
+  box-shadow: 0 0 0 3px rgba(201,168,76,0.08);
+}
+
+.login-checkbox input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #f4d47c 0%, #d4a935 100%);
+  border-color: #d4a935;
+  box-shadow: 0 0 0 3px rgba(201,168,76,0.15);
+}
+
+.login-checkbox input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #0a0e14;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.login-checkbox input[type="checkbox"]:focus-visible {
+  outline: 2px solid rgba(201,168,76,0.6);
+  outline-offset: 2px;
+}
+
+.login-checkbox-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-checkbox:hover .login-checkbox-label {
+  color: var(--text-secondary);
+}
+
+/* ── Focus-visible: garantia de outline para todos os elementos focaveis ──────
+   O seletor global :focus-visible em :root já cobre a maioria dos elementos,
+   mas inputs usam outline:none — aqui reforçamos cada elemento explicitamente.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Inputs: anel dourado no foco por teclado (box-shadow para não quebrar border-radius) */
+.input:focus-visible {
+  border-color: rgba(201,168,76,0.7);
+  box-shadow:
+    0 0 0 3px rgba(201,168,76,0.18),
+    0 0 0 1px rgba(201,168,76,0.4);
+  outline: none;
+}
+
+/* Botão login: anel mais forte, visível mesmo sobre o gradiente dourado */
+.btn-login:focus-visible {
+  outline: 2px solid rgba(244,212,124,0.9);
+  outline-offset: 3px;
+  box-shadow:
+    0 8px 36px rgba(212,169,53,0.55),
+    0 0 0 4px rgba(201,168,76,0.20);
+}
+
+/* Link "Esqueci minha senha" */
+.forgot-link:focus-visible {
+  outline: 2px solid rgba(201,168,76,0.6);
+  outline-offset: 3px;
+  border-radius: 3px;
+  color: var(--gold-light);
+}
+
+/* Link "clique aqui" do Teams */
+.teams-link:focus-visible {
+  outline: 2px solid rgba(201,168,76,0.6);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* Botão de toggle de visibilidade da senha */
+.btn-eye-toggle:focus-visible {
+  outline: 2px solid rgba(201,168,76,0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+  color: var(--gold-light);
+}
+
+/* Botão de ação das telas companheiras (sessão expirada, 404) */
+.btn-halo-action:focus-visible {
+  outline: 2px solid rgba(244,212,124,0.9);
+  outline-offset: 3px;
+  box-shadow:
+    0 8px 36px rgba(212,169,53,0.55),
+    0 0 0 4px rgba(201,168,76,0.20);
 }

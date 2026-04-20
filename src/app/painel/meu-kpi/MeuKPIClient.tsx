@@ -1,11 +1,17 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
-import { type KPIItem, type Meta } from '@/lib/kpi-utils'
+import { useState, useEffect, useMemo } from 'react'
+import {
+  type KPIItem, type Meta,
+  formatMetricValue, sufixoUnidade,
+  calcularDiasUteisNoMes, calcularRitmoNecessario,
+} from '@/lib/kpi-utils'
+import { useMotivationalMessage } from '@/hooks/useMotivationalMessages'
 import {
   Clock, Shield, XCircle, Package, CalendarX, Activity,
-  BarChart2, TrendingUp, AlertTriangle, CheckCircle2,
+  BarChart2, TrendingUp, AlertTriangle, CheckCircle2, ChevronRight, Crown,
 } from 'lucide-react'
+import { setCursorStyle } from '@/components/CursorProvider'
 
 export interface MeuKPIProps {
   kpis:            KPIItem[]
@@ -18,6 +24,9 @@ export interface MeuKPIProps {
   planilhaNome:    string
   dataAtualizacao: string | null
   mesLabel:        string
+  vizinhoAcima?:   { posicao: number; txRet: number }
+  vizinhoAbaixo?:  { posicao: number; txRet: number }
+  txRetLider?:     number
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,101 +53,349 @@ function formatSeg(s: number): string {
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
 }
 
-function focoEmMelhorar(kpi: KPIItem): string | null {
-  if (!kpi.meta || kpi.status === 'verde') return null
-  const alvo = kpi.meta.verde_inicio > 0 ? kpi.meta.verde_inicio : kpi.meta.valor_meta
-  const label = kpi.label.toLowerCase()
-
-  if (kpi.meta.tipo === 'maior_melhor') {
-    const falta = alvo - kpi.valorNum
-    if (falta <= 0) return null
-    if (label.includes('retenc') || label.includes('retenç')) return `Retenha mais ${falta.toFixed(1)}% de clientes`
-    if (label.includes('pedido')) return `Aumente ${Math.ceil(falta)} pedidos para atingir a meta`
-    return `Aumente ${falta.toFixed(1)}${kpi.unidade ? ' ' + kpi.unidade : ''} para atingir a meta`
-  } else {
-    const excesso = kpi.valorNum - alvo
-    if (excesso <= 0) return null
-    if (label.includes('tma') || label.includes('tempo')) return `Reduza ${formatSeg(excesso)} por atendimento`
-    if (label.includes('abs') || label.includes('ausên')) return `Reduza ${excesso.toFixed(2)}% de ausência`
-    if (label.includes('indisp'))  return `Reduza ${excesso.toFixed(2)}% de inatividade`
-    if (label.includes('cancel') || label.includes('churn')) return `Reduza ${Math.ceil(excesso)} cancelamentos`
-    return `Reduza ${excesso.toFixed(1)}${kpi.unidade ? ' ' + kpi.unidade : ''}`
-  }
+function contextLabel(kpi: KPIItem): string | null {
+  const t = kpi.meta?.tipoAcumulo ?? 'acumulavel'
+  if (t === 'acumulavel') return 'Acumulado do mês'
+  if (t === 'media') return 'Média do mês'
+  return null
 }
 
-function focoAmarelo(kpi: KPIItem): string | null {
-  if (!kpi.meta || kpi.status !== 'amarelo') return null
-  const label = kpi.label.toLowerCase()
-  const meta = kpi.meta
-  const v = kpi.valorNum
-  const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
-
-  if (label.includes('retenc') || label.includes('retenç')) {
-    const dist = v - 60
-    if (dist <= 0) return 'Atenção: você está muito próximo de sair da meta!'
-    return `Faltam ${dist.toFixed(1)}% para ficar abaixo da meta`
-  }
-
-  if (meta.tipo === 'maior_melhor') {
-    const limiarVermelho = limite * 0.8
-    const dist = v - limiarVermelho
-    if (dist <= 0) return 'Atenção: muito próximo de sair da meta!'
-    if (label.includes('pedido')) return `Faltam ${Math.ceil(dist)} pedidos para perder a meta`
-    return `Faltam ${dist.toFixed(1)}${kpi.unidade ? ' ' + kpi.unidade : ''} para perder a meta`
-  } else {
-    const dist = limite - v
-    if (dist <= 0) return 'Atenção: muito próximo de sair da meta!'
-    if (label.includes('abs') || label.includes('ausên')) return `Mais ${dist.toFixed(2)}% de ausência e você perde a meta`
-    if (label.includes('indisp')) return `Mais ${dist.toFixed(1)}% e você perde a meta`
-    if (label.includes('cancel') || label.includes('churn')) return `Mais ${Math.ceil(dist)} cancelamentos e você perde a meta`
-    if (label.includes('tma') || label.includes('tempo')) return `Mais ${formatSeg(dist)} por atendimento e você perde a meta`
-    return `Mais ${dist.toFixed(1)}${kpi.unidade ? ' ' + kpi.unidade : ''} e você perde a meta`
-  }
+function isTempoKPI(kpi: KPIItem): boolean {
+  const u = (kpi.meta?.unidade ?? '').trim().toLowerCase()
+  const l = kpi.label.toLowerCase()
+  return ['seg', 's', 'segundos', 'tempo', 'mm:ss', 'hh:mm', 'hh:mm:ss'].includes(u) ||
+    l.includes('tma') || l.includes('tempo')
 }
 
-function distanciaMeta(kpi: KPIItem): string {
+function formatarMetaRodape(meta: Meta): string {
+  const alvo = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
+  const prefix = meta.tipo === 'menor_melhor' ? '≤' : ''
+  const u = meta.unidade.trim().toLowerCase()
+  const l = meta.label.toLowerCase()
+  const isT = ['seg', 's', 'segundos', 'tempo', 'mm:ss', 'hh:mm', 'hh:mm:ss'].includes(u) ||
+    l.includes('tma') || l.includes('tempo')
+  const fmtAlvo = isT ? formatSeg(alvo) : formatMetricValue(String(alvo), meta.unidade)
+  return `${prefix}${fmtAlvo}`
+}
+
+function formatarDistancia(kpi: KPIItem): string {
   if (!kpi.meta) return ''
   const alvo = kpi.meta.verde_inicio > 0 ? kpi.meta.verde_inicio : kpi.meta.valor_meta
-  const diff = kpi.meta.tipo === 'maior_melhor' ? kpi.valorNum - alvo : alvo - kpi.valorNum
-  const sign = diff >= 0 ? '+' : ''
-  const label = kpi.label.toLowerCase()
-  if (label.includes('tma') || label.includes('tempo')) return `${sign}${formatSeg(Math.abs(diff))}`
-  return `${sign}${diff.toFixed(1)}${kpi.unidade ? ' ' + kpi.unidade : ''}`
+  const diff = kpi.valorNum - alvo
+  const absDiff = Math.abs(diff)
+  const isT = isTempoKPI(kpi)
+  const isPercent = ['%', 'porcentagem'].includes(kpi.meta.unidade.trim().toLowerCase())
+  const diffFmt = isT
+    ? formatSeg(absDiff)
+    : formatMetricValue(String(Math.round(absDiff * 100) / 100), kpi.meta.unidade)
+
+  if (kpi.meta.tipo === 'maior_melhor') {
+    return diff >= 0 ? `+${diffFmt} de folga` : `\u2212${diffFmt} para bater`
+  } else {
+    if (diff > 0) return `+${diffFmt} acima`
+    if (diff < 0) return isPercent ? 'Dentro do limite' : `${diffFmt} abaixo do limite`
+    return 'No limite'
+  }
 }
 
-function formatMeta(meta: Meta): string {
-  const alvo = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
-  const label = meta.label.toLowerCase()
-  if (label.includes('tma') || label.includes('tempo')) return formatSeg(alvo)
-  return `${alvo}${meta.unidade ? ' ' + meta.unidade : ''}`
+function calcBarWidth(kpi: KPIItem): number {
+  if (!kpi.meta) return 0
+  const alvo = kpi.meta.verde_inicio > 0 ? kpi.meta.verde_inicio : kpi.meta.valor_meta
+  if (alvo <= 0) return kpi.valorNum === 0 ? 100 : 0
+  if (kpi.meta.tipo === 'maior_melhor') {
+    return Math.min((kpi.valorNum / alvo) * 100, 120)
+  } else {
+    if (kpi.valorNum <= 0) return 100
+    return Math.min((alvo / kpi.valorNum) * 100, 100)
+  }
 }
+
+function calcTMAAlvo(
+  tmaAtualSeg: number,
+  metaTMASeg: number,
+  atendidasPassadas: number,
+  diasDecorridos: number,
+  diasRestantes: number,
+): { tmaAlvoSeg: number; ligacoesFuturas: number } | null {
+  if (atendidasPassadas <= 0 || diasDecorridos <= 0) return null
+  const mediaDiaria = atendidasPassadas / diasDecorridos
+  const ligacoesFuturas = Math.round(mediaDiaria * diasRestantes)
+  if (ligacoesFuturas <= 0) return null
+  const totalFim = atendidasPassadas + ligacoesFuturas
+  const tmaAlvoSeg = (metaTMASeg * totalFim - tmaAtualSeg * atendidasPassadas) / ligacoesFuturas
+  if (tmaAlvoSeg < 0 || tmaAlvoSeg < metaTMASeg * 0.5) return null
+  return { tmaAlvoSeg, ligacoesFuturas }
+}
+
+function calcDiasEvitarPausa(excesso: number, diasRestantes: number): number {
+  return Math.min(Math.ceil(excesso * 1.5), Math.round(diasRestantes))
+}
+
+function acaoRodape(
+  kpi: KPIItem,
+  diasDecorridos: number,
+  diasRestantes: number,
+  motivMsg: string | null,
+  atendidas?: number,
+): string {
+  if (kpi.status === 'verde') return motivMsg ?? 'Meta batida com folga'
+  if (!kpi.meta) return ''
+
+  const tipoAcumulo = kpi.meta.tipoAcumulo ?? 'acumulavel'
+  const isT = isTempoKPI(kpi)
+  const label = kpi.label.toLowerCase()
+  const isPedido = label.includes('pedido')
+  const isIndisp = label.includes('indisp')
+  const isAbs = label.includes('abs') || label.includes('ausên')
+  const isCancel = label.includes('cancel') || label.includes('churn')
+  const alvo = kpi.meta.verde_inicio > 0 ? kpi.meta.verde_inicio : kpi.meta.valor_meta
+  const diasInt = Math.round(diasRestantes)
+
+  // TMA — cálculo especializado, independente do tipoAcumulo no banco
+  if (isT) {
+    if (atendidas && atendidas > 0 && diasDecorridos > 0) {
+      const res = calcTMAAlvo(kpi.valorNum, alvo, atendidas, diasDecorridos, diasRestantes)
+      if (res) return `\u2264${formatSeg(res.tmaAlvoSeg)} em ~${res.ligacoesFuturas} lig`
+    }
+    return 'Foque em abaixar o TMA'
+  }
+
+  // Indisponibilidade — cálculo especializado, independente do tipoAcumulo no banco
+  if (isIndisp) {
+    const excesso = kpi.valorNum - alvo
+    if (excesso > 0) {
+      const dias = calcDiasEvitarPausa(excesso, diasRestantes)
+      if (dias >= diasInt) return 'Minimize pausas no mês'
+      return `Sem pausas part. por ${dias} dias`
+    }
+    return 'Mantenha o ritmo atual'
+  }
+
+  if (tipoAcumulo === 'pontual') return 'Mantenha o ritmo'
+
+  // ABS
+  if (isAbs) {
+    if (kpi.status === 'amarelo') return 'Próximo do limite de ausências'
+    return diasInt > 0 ? `Evite faltas por mais ${diasInt} dias` : 'Minimize ausências'
+  }
+
+  // Acumulável
+  const info = calcularRitmoNecessario(kpi.valorNum, kpi.meta, diasDecorridos, diasRestantes)
+
+  if (info.impossivel) {
+    if (isPedido) return 'Foque no próximo mês'
+    if (isCancel) return 'Minimize cancelamentos'
+    return 'Mantenha o ritmo do mês'
+  }
+
+  if (info.ritmoNecessario !== null && info.ritmoNecessario > 0 && diasInt > 0) {
+    if (isPedido) {
+      const n = Math.ceil(info.ritmoNecessario)
+      return kpi.status === 'amarelo'
+        ? `~${n}/dia para bater a meta`
+        : `~${n}/dia por ${diasInt} dias`
+    }
+    if (isCancel) {
+      const max = Math.floor(info.ritmoNecessario)
+      return `\u2264${max} canc/dia`
+    }
+    const ritmoFmt = formatMetricValue(String(info.ritmoNecessario), kpi.meta.unidade)
+    return kpi.meta.tipo === 'menor_melhor' ? `Max ~${ritmoFmt}/dia` : `~${ritmoFmt}/dia`
+  }
+
+  if (info.projecaoFechamento !== null) {
+    const pct = alvo > 0 ? Math.round((info.projecaoFechamento / alvo) * 100) : 0
+    return `Proj: ${pct}% da meta`
+  }
+
+  return kpi.status === 'amarelo' ? 'Próximo do limite' : 'Aguardando dados'
+}
+
+// ── Alerta Inteligente — tipos e helpers ──────────────────────────────────────
+
+type TipoAlerta = 'critico' | 'atencao' | 'oportunidade' | 'celebracao'
+
+interface AlertaInteligente {
+  tipo:       TipoAlerta
+  texto:      string
+  prioridade: number  // within-type sort — lower = more urgent
+}
+
+const ALERTA_CONFIG: Record<TipoAlerta, { color: string; bg: string; border: string }> = {
+  critico:      { color: '#f87171', bg: 'rgba(248,113,113,0.04)', border: '#f87171' },
+  atencao:      { color: '#f59e0b', bg: 'rgba(245,158,11,0.04)',  border: '#f59e0b' },
+  oportunidade: { color: '#38bdf8', bg: 'rgba(56,189,248,0.04)',  border: '#38bdf8' },
+  celebracao:   { color: '#22c55e', bg: 'rgba(34,197,94,0.04)',   border: '#22c55e' },
+}
+
+const TIPO_ORDER: Record<TipoAlerta, number> = { critico: 0, atencao: 1, oportunidade: 2, celebracao: 3 }
+
+function gerarTextoCritico(kpi: KPIItem, alvo: number): string {
+  const label = kpi.label.toLowerCase()
+  if (isTempoKPI(kpi)) {
+    const diff = Math.abs(kpi.valorNum - alvo)
+    return `Seu TMA está ${formatSeg(diff)} acima da meta`
+  }
+  if (kpi.meta?.tipo === 'menor_melhor') {
+    const diff = kpi.valorNum - alvo
+    if (diff > 0) {
+      const diffFmt = formatMetricValue(String(Math.round(diff * 100) / 100), kpi.meta.unidade)
+      if (label.includes('indisp')) return `Sua indisponibilidade está ${diffFmt} acima do limite`
+      return `Sua ${kpi.label} está ${diffFmt} acima do limite`
+    }
+  } else if (kpi.meta) {
+    const diff = alvo - kpi.valorNum
+    if (diff > 0) {
+      const diffFmt = formatMetricValue(String(Math.round(diff)), kpi.meta.unidade)
+      if (label.includes('pedido')) return `Você está ${diffFmt} abaixo da meta em Pedidos`
+      return `Você está ${diffFmt} abaixo da meta em ${kpi.label}`
+    }
+  }
+  return `${kpi.label} fora da meta — atenção urgente`
+}
+
+/** Gera até 3 alertas acionáveis, priorizados por tipo e desvio. Função pura. */
+export function gerarAlertasOperador(
+  kpis: KPIItem[],
+  posicaoRanking: number,
+  vizinhoAcima?: { posicao: number; txRet: number },
+  meuTxRet?: number,
+): AlertaInteligente[] {
+  const candidatos: AlertaInteligente[] = []
+
+  // CRÍTICO: KPIs vermelho, ordenados por desvio proporcional decrescente
+  for (const kpi of kpis.filter(k => k.status === 'vermelho')) {
+    if (!kpi.meta) continue
+    const alvo = kpi.meta.verde_inicio > 0 ? kpi.meta.verde_inicio : kpi.meta.valor_meta
+    if (alvo <= 0) continue
+    const propDev = Math.abs(kpi.valorNum - alvo) / alvo
+    candidatos.push({ tipo: 'critico', texto: gerarTextoCritico(kpi, alvo), prioridade: -propDev })
+  }
+
+  // ATENÇÃO: KPIs amarelo
+  for (const kpi of kpis.filter(k => k.status === 'amarelo')) {
+    candidatos.push({
+      tipo: 'atencao',
+      texto: `Você está próximo do limite em ${kpi.label} — ritmo de atenção`,
+      prioridade: 0,
+    })
+  }
+
+  // OPORTUNIDADE: gap até vizinho acima < 1.5 p.p.
+  if (vizinhoAcima && meuTxRet !== undefined && posicaoRanking > 1) {
+    const gap = vizinhoAcima.txRet - meuTxRet
+    if (gap > 0 && gap < 1.5) {
+      candidatos.push({
+        tipo: 'oportunidade',
+        texto: `Você está a ${gap.toFixed(1)} p.p. de subir para ${vizinhoAcima.posicao}º lugar`,
+        prioridade: gap,
+      })
+    }
+  }
+
+  // CELEBRAÇÃO: KPIs verdes
+  const verdes = kpis.filter(k => k.status === 'verde')
+  if (verdes.length > 0) {
+    candidatos.push({
+      tipo: 'celebracao',
+      texto: verdes.length === 1
+        ? `Meta principal batida em ${verdes[0].label} este mês`
+        : `${verdes.length} metas principais batidas este mês`,
+      prioridade: -verdes.length,
+    })
+  }
+
+  candidatos.sort((a, b) => {
+    const td = TIPO_ORDER[a.tipo] - TIPO_ORDER[b.tipo]
+    return td !== 0 ? td : a.prioridade - b.prioridade
+  })
+
+  return candidatos.slice(0, 3)
+}
+
+/**
+ * Seleciona os 3 KPIs Principais mais relevantes para o Modo Visão Rápida.
+ * Prioridade: fora_da_meta (maior desvio) → atenção → na_meta.
+ * NOTA: quando Tx. Retenção for promovida a KPI Principal (basico === true),
+ * reativar a seleção via KPIS_VISAO_RAPIDA_KEYWORDS aqui.
+ */
+export function selecionarKPIsVisaoRapida(kpisPrincipais: KPIItem[]): KPIItem[] {
+  const ESTADO_ORDER: Record<string, number> = { vermelho: 0, amarelo: 1, verde: 2, neutro: 3 }
+
+  return [...kpisPrincipais]
+    .sort((a, b) => {
+      const so = (ESTADO_ORDER[a.status] ?? 3) - (ESTADO_ORDER[b.status] ?? 3)
+      if (so !== 0) return so
+      if (a.status === 'vermelho' && b.status === 'vermelho' && a.meta && b.meta) {
+        const aAlvo = a.meta.verde_inicio > 0 ? a.meta.verde_inicio : a.meta.valor_meta
+        const bAlvo = b.meta.verde_inicio > 0 ? b.meta.verde_inicio : b.meta.valor_meta
+        const aDev = aAlvo > 0 ? Math.abs(a.valorNum - aAlvo) / aAlvo : 0
+        const bDev = bAlvo > 0 ? Math.abs(b.valorNum - bAlvo) / bAlvo : 0
+        return bDev - aDev
+      }
+      return 0
+    })
+    .slice(0, 3)
+}
+
+const LS_KEY_VISAO_RAPIDA = 'halo:meu-kpi:visao-rapida'
 
 // ── Componente Principal ──────────────────────────────────────────────────────
 
 export default function MeuKPIClient({
   kpis, basicos, complementares,
   posicaoRanking, meuTxRet, totalNoRanking,
+  vizinhoAcima, vizinhoAbaixo, txRetLider,
 }: MeuKPIProps) {
   const basicosKPI = basicos.map(m => kpis.find(k => k.nome_coluna === m.nome_coluna)).filter(Boolean) as KPIItem[]
   const is1 = posicaoRanking === 1
-  const is2page = posicaoRanking === 2
 
-  const [sheenPageKey,   setSheenPageKey]   = useState(0)
-  const [sheenSilverKey, setSheenSilverKey] = useState(0)
+  const diasInfo = useMemo(() => {
+    const agora = new Date()
+    return calcularDiasUteisNoMes(agora.getFullYear(), agora.getMonth() + 1)
+  }, [])
+
+  const atendidas = useMemo(() => {
+    const raw = complementares.find(c => c.label === 'Atendidas')?.valor ?? ''
+    const n = parseFloat(raw.replace(/[^\d.,]/g, '').replace(',', '.'))
+    return isNaN(n) ? 0 : n
+  }, [complementares])
+
+  // Informa CursorProvider da posição no pódio (1º=ouro, 2º=prata, 3º=bronze)
+  // Sem cleanup no unmount: cursor persiste ao navegar entre telas do painel.
+  // Limpeza ocorre apenas no logout (Header.tsx).
+  useEffect(() => {
+    if (posicaoRanking === 1) setCursorStyle('gold')
+    else if (posicaoRanking === 2) setCursorStyle('silver')
+    else if (posicaoRanking === 3) setCursorStyle('bronze')
+    else setCursorStyle(null)
+  }, [posicaoRanking])
+
+  // Visão Rápida — SSR-safe: inicia false, sincroniza com localStorage após mount
+  const [visaoRapida, setVisaoRapida] = useState(false)
 
   useEffect(() => {
-    if (!is1) return
-    setSheenPageKey(1)
-    const id = setInterval(() => setSheenPageKey(k => k + 1), 45000)
-    return () => clearInterval(id)
-  }, [is1])
+    try { setVisaoRapida(localStorage.getItem(LS_KEY_VISAO_RAPIDA) === '1') } catch {}
+    const handler = (e: Event) => {
+      setVisaoRapida((e as CustomEvent<{ active: boolean }>).detail.active)
+    }
+    window.addEventListener('halo:visao-rapida-changed', handler)
+    return () => window.removeEventListener('halo:visao-rapida-changed', handler)
+  }, [])
 
-  useEffect(() => {
-    if (!is2page) return
-    setSheenSilverKey(1)
-    const id = setInterval(() => setSheenSilverKey(k => k + 1), 45000)
-    return () => clearInterval(id)
-  }, [is2page])
+  const alertas = useMemo(
+    () => gerarAlertasOperador(basicosKPI, posicaoRanking, vizinhoAcima, meuTxRet),
+    // kpis e basicos são props estáticas por render; deps granulares evitam re-cálculo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [kpis, basicos, posicaoRanking, vizinhoAcima, meuTxRet],
+  )
+
+  const kpisVisaoRapida = useMemo(
+    () => selecionarKPIsVisaoRapida(basicosKPI),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [kpis, basicos],
+  )
+  const kpisVisiveis = visaoRapida ? kpisVisaoRapida : basicosKPI
 
   return (
     <>
@@ -156,13 +413,9 @@ export default function MeuKPIClient({
         @keyframes borderRotate {
           to { --angle: 360deg; }
         }
-        @keyframes particleFade {
-          0%   { transform: translate(-50%,-50%) scale(1.2); opacity: 0.9; }
-          100% { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
-        }
-        @keyframes diagonalSheen {
-          0%   { transform: translate(-100%, -100%); }
-          100% { transform: translate(100%, 100%); }
+        @keyframes breathe {
+          0%, 100% { opacity: 0.4; }
+          50%       { opacity: 0.7; }
         }
         @keyframes leaderPulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); }
@@ -200,6 +453,65 @@ export default function MeuKPIClient({
             transparent 175deg
           );
         }
+        .rank3-beam {
+          padding: 2px;
+          border-radius: 22px;
+          background: conic-gradient(
+            from var(--angle),
+            transparent 0deg,
+            rgba(166,120,72,0.3) 55deg,
+            rgba(205,127,50,0.65) 85deg,
+            rgba(216,147,90,0.85) 90deg,
+            rgba(205,127,50,0.65) 95deg,
+            rgba(166,120,72,0.3) 125deg,
+            transparent 175deg
+          );
+        }
+        .rank-beam-base {
+          padding: 2px;
+          border-radius: 22px;
+          background: conic-gradient(
+            from var(--angle),
+            transparent 0deg,
+            rgba(201,168,76,0.06) 55deg,
+            rgba(201,168,76,0.14) 85deg,
+            rgba(201,168,76,0.18) 90deg,
+            rgba(201,168,76,0.14) 95deg,
+            rgba(201,168,76,0.06) 125deg,
+            transparent 175deg
+          );
+        }
+        @keyframes motivFadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .subsecao-btn {
+          all: unset;
+          box-sizing: border-box;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 7px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .subsecao-btn:hover { background: rgba(201,168,76,0.04); }
+        .subsecao-btn:focus-visible { outline: 1px solid rgba(201,168,76,0.3); outline-offset: 2px; }
+
+        .subsecao-content {
+          display: grid;
+          grid-template-rows: 0fr;
+          transition: grid-template-rows 250ms cubic-bezier(0.4,0,0.2,1);
+        }
+        .subsecao-content.open { grid-template-rows: 1fr; }
+        .subsecao-inner { overflow: hidden; min-height: 0; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .subsecao-content { transition: none; }
+          .subsecao-btn { transition: none; }
+        }
 
         @media (prefers-reduced-motion: no-preference) {
 
@@ -227,14 +539,6 @@ export default function MeuKPIClient({
             20%  { opacity: 1; }
             60%  { transform: translate(var(--fx), var(--fy)) scale(1);  opacity: 1; }
             100% { transform: translate(var(--fx2), var(--fy2)) scale(0); opacity: 0; }
-          }
-          @keyframes metalSheen {
-            0%   { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-          }
-          @keyframes cursorGlow {
-            0%   { transform: scale(0); opacity: 0.6; }
-            100% { transform: scale(3); opacity: 0; }
           }
           @keyframes motivText {
             0%   { opacity: 0; transform: translateY(8px); }
@@ -293,70 +597,42 @@ export default function MeuKPIClient({
           @keyframes num3Flip      { from { opacity:0; } to { opacity:1; } }
           @keyframes rankFade      { from { opacity:0; } to { opacity:1; } }
         }
+
+        .alerta-dot {
+          all: unset;
+          width: 6px; height: 6px; border-radius: 50%;
+          cursor: pointer; flex-shrink: 0; box-sizing: border-box;
+          display: inline-block;
+        }
+        .alerta-dot:focus-visible { outline: 1px solid rgba(255,255,255,0.5); outline-offset: 2px; }
       `}} />
 
-      {/* ── Sheen diagonal ouro fixed — cobre só o <main> ── */}
-      {is1 && sheenPageKey > 0 && (
-        <div key={sheenPageKey} style={{
-          position: 'fixed', inset: 0,
-          clipPath: 'inset(0 0 0 240px)',
-          pointerEvents: 'none', zIndex: 9990,
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', width: '150vw', height: '150vh',
-            top: '-25vh', left: '-25vw',
-            background: 'linear-gradient(to bottom right, transparent 35%, rgba(201,168,76,0.04) 42%, rgba(232,201,109,0.08) 50%, rgba(201,168,76,0.04) 58%, transparent 65%)',
-            animation: 'diagonalSheen 2s ease-in-out forwards',
-          }} />
-        </div>
-      )}
+      <div className="login-grid-bg space-y-6" style={{ borderRadius: '16px', padding: '4px' }}>
+        {/* ── Alerta Inteligente ── */}
+        {alertas.length > 0 && <AlertaBanner alertas={alertas} />}
 
-      {/* ── Sheen diagonal prata fixed — cobre só o <main> ── */}
-      {is2page && sheenSilverKey > 0 && (
-        <div key={`s${sheenSilverKey}`} style={{
-          position: 'fixed', inset: 0,
-          clipPath: 'inset(0 0 0 240px)',
-          pointerEvents: 'none', zIndex: 9990,
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', width: '150vw', height: '150vh',
-            top: '-25vh', left: '-25vw',
-            background: 'linear-gradient(to bottom right, transparent 35%, rgba(192,192,192,0.03) 42%, rgba(232,232,232,0.06) 50%, rgba(192,192,192,0.03) 58%, transparent 65%)',
-            animation: 'diagonalSheen 2s ease-in-out forwards',
-          }} />
-        </div>
-      )}
-
-      <div className="space-y-6">
         {/* ── Seção 1: Ranking ── */}
-        <RankingCard posicao={posicaoRanking} txRet={meuTxRet} total={totalNoRanking} />
+        <div className="login-stagger-1">
+          <RankingCard posicao={posicaoRanking} txRet={meuTxRet} total={totalNoRanking} vizinhoAcima={vizinhoAcima} vizinhoAbaixo={vizinhoAbaixo} txRetLider={txRetLider ?? 0} />
+        </div>
 
         {/* ── Seção 2: KPIs Principais ── */}
-        {basicosKPI.length > 0 && (
-          <div className="space-y-3">
+        {kpisVisiveis.length > 0 && (
+          <div className="login-stagger-2 space-y-3">
             <SectionTitle>KPIs Principais</SectionTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-              {basicosKPI.map((kpi, i) => (
-                <KPICard key={kpi.nome_coluna} kpi={kpi} delay={i * 80} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '14px' }}>
+              {kpisVisiveis.map((kpi, i) => (
+                <KPICard key={kpi.nome_coluna} kpi={kpi} delay={i * 80} cardIndex={i} diasInfo={diasInfo} atendidas={atendidas} podioPos={posicaoRanking <= 3 && posicaoRanking > 0 ? posicaoRanking as 1|2|3 : undefined} />
               ))}
             </div>
           </div>
         )}
 
-        {/* ── Seção 3: Dados Complementares ── */}
-        {complementares.length > 0 && (
-          <div className="space-y-3">
+        {/* ── Seção 3: Dados do Mês (oculto em Visão Rápida) ── */}
+        {!visaoRapida && (
+          <div className="login-stagger-3 space-y-3">
             <SectionTitle>Dados do Mês</SectionTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
-              {complementares.map(({ label, valor }) => (
-                <div key={label} style={{ background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.06)', borderRadius: '12px', padding: '10px 12px' }}>
-                  <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px', lineHeight: 1.3 }}>{label}</p>
-                  <p style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{valor}</p>
-                </div>
-              ))}
-            </div>
+            <DadosDoMes complementares={complementares} />
           </div>
         )}
       </div>
@@ -364,76 +640,57 @@ export default function MeuKPIClient({
   )
 }
 
-// ── Partículas fogos 1º lugar — dois cantos ────────────────────────────────────
-
-interface FWParticle { id: number; fx: string; fy: string; fx2: string; fy2: string; d: number; s: number; color: string }
-
-const FW_A: FWParticle[] = [
-  { id:0, fx:'50px',  fy:'-70px', fx2:'70px',  fy2:'-98px',  d:0.0,  s:5, color:'#e8c96d' },
-  { id:1, fx:'20px',  fy:'-80px', fx2:'28px',  fy2:'-112px', d:0.10, s:4, color:'#f5d97a' },
-  { id:2, fx:'75px',  fy:'-40px', fx2:'105px', fy2:'-56px',  d:0.20, s:5, color:'#c9a84c' },
-  { id:3, fx:'60px',  fy:'-60px', fx2:'84px',  fy2:'-84px',  d:0.30, s:4, color:'#e8c96d' },
-  { id:4, fx:'35px',  fy:'-75px', fx2:'49px',  fy2:'-105px', d:0.15, s:5, color:'#f5d97a' },
-  { id:5, fx:'80px',  fy:'-25px', fx2:'112px', fy2:'-35px',  d:0.25, s:4, color:'#c9a84c' },
-]
-
-const FW_B: FWParticle[] = [
-  { id:6,  fx:'-50px', fy:'70px',  fx2:'-70px',  fy2:'98px',  d:0.05, s:5, color:'#e8c96d' },
-  { id:7,  fx:'-20px', fy:'80px',  fx2:'-28px',  fy2:'112px', d:0.18, s:4, color:'#f5d97a' },
-  { id:8,  fx:'-75px', fy:'40px',  fx2:'-105px', fy2:'56px',  d:0.28, s:5, color:'#c9a84c' },
-  { id:9,  fx:'-60px', fy:'60px',  fx2:'-84px',  fy2:'84px',  d:0.35, s:4, color:'#e8c96d' },
-  { id:10, fx:'-35px', fy:'75px',  fx2:'-49px',  fy2:'105px', d:0.12, s:5, color:'#f5d97a' },
-  { id:11, fx:'-80px', fy:'25px',  fx2:'-112px', fy2:'35px',  d:0.22, s:4, color:'#c9a84c' },
-]
-
-// Cristais 2º lugar
-const CRYSTALS = [
-  { left: '8%',  delay: '0s',   dur: '2.5s' },
-  { left: '18%', delay: '0.3s', dur: '2.8s' },
-  { left: '30%', delay: '0.7s', dur: '2.4s' },
-  { left: '42%', delay: '1.1s', dur: '2.6s' },
-  { left: '55%', delay: '0.5s', dur: '2.9s' },
-  { left: '67%', delay: '1.4s', dur: '2.5s' },
-  { left: '78%', delay: '0.9s', dur: '2.7s' },
-  { left: '90%', delay: '0.2s', dur: '2.4s' },
-]
-
-const STARS = [0, 1, 2, 3, 4, 5]
-const STAR_SIZES  = [10, 14, 12, 8, 11, 9]
-const STAR_COLORS = ['#e8e8e8', '#c0c0c0', '#d4d4d4', '#a0a0a0', '#e0e0e0', '#b8b8b8']
-const STAR_DURS   = [1.6, 1.2, 1.8, 1.4, 1.0, 1.7]
-
 // ── Ranking Card ──────────────────────────────────────────────────────────────
 
-function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number; total: number }) {
-  const is1 = posicao === 1
-  const is2 = posicao === 2
-  const is3 = posicao === 3
+// TODO: badge de movimento de ranking (↑↓) quando houver histórico de posições salvo.
+// Comparação sugerida: posicao atual vs posicao no início do mês.
+// Requer: mecanismo de snapshot diário da lista ordenada de operadores.
+function RankingCard({ posicao, txRet, total, vizinhoAcima, vizinhoAbaixo, txRetLider }: {
+  posicao: number
+  txRet: number
+  total: number
+  vizinhoAcima?:  { posicao: number; txRet: number }
+  vizinhoAbaixo?: { posicao: number; txRet: number }
+  txRetLider:     number
+}) {
+  if (posicao === 0) {
+    return (
+      <div style={{
+        background: '#0d0d1a',
+        border: '1px solid rgba(201,168,76,0.08)',
+        borderRadius: '20px',
+        padding: '28px 32px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '20px',
+        animation: 'rankFade 0.4s ease both',
+      }}>
+        <div style={{
+          width: '56px', height: '56px', borderRadius: '16px', flexShrink: 0,
+          background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <BarChart2 size={24} style={{ color: 'var(--text-muted)' }} />
+        </div>
+        <div>
+          <p style={{ fontFamily: 'var(--ff-display)', fontSize: '16px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+            Sem posição no ranking
+          </p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            Seus dados ainda não foram encontrados no ranking de Tx. Retenção deste mês.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-  const cardRef      = useRef<HTMLDivElement>(null)
-  const glowThrottle = useRef<number>(0)
-  const particleId   = useRef(0)
-  const [tilt,      setTilt]      = useState({ x: 0, y: 0 })
-  const [sheenKey,  setSheenKey]  = useState(0)
-  const [sheenKey2, setSheenKey2] = useState(0)
-  const [glowPos,   setGlowPos]   = useState<{ x: number; y: number } | null>(null)
-  const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
+  const is1    = posicao === 1
+  const is2    = posicao === 2
+  const is3    = posicao === 3
+  const isLast = posicao > 0 && posicao === total
 
-  // Metal sheen periódico — 1º lugar
-  useEffect(() => {
-    if (!is1) return
-    setSheenKey(1)
-    const id = setInterval(() => setSheenKey(k => k + 1), 45000)
-    return () => clearInterval(id)
-  }, [is1])
-
-  // Metal sheen periódico — 2º lugar
-  useEffect(() => {
-    if (!is2) return
-    setSheenKey2(1)
-    const id = setInterval(() => setSheenKey2(k => k + 1), 45000)
-    return () => clearInterval(id)
-  }, [is2])
+  const gapAcima  = vizinhoAcima  ? (vizinhoAcima.txRet  - txRet).toFixed(1) : null
+  const gapAbaixo = vizinhoAbaixo ? (txRet - vizinhoAbaixo.txRet).toFixed(1) : null
 
   // Fanfarra Web Audio — 1º lugar
   useEffect(() => {
@@ -456,198 +713,48 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     return () => clearTimeout(timer)
   }, [is1])
 
-  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    if ((!is1 && !is2) || !cardRef.current) return
-    const rect = cardRef.current.getBoundingClientRect()
-    const px = e.clientX - rect.left
-    const py = e.clientY - rect.top
-
-    const cx = rect.width / 2
-    const cy = rect.height / 2
-    setTilt({ x: ((py - cy) / cy) * -2, y: ((px - cx) / cx) * 2 })
-
-    if (is1) {
-      // cursor glow (throttle 3s)
-      const now = Date.now()
-      if (now - glowThrottle.current > 3000) {
-        glowThrottle.current = now
-        setGlowPos({ x: px, y: py })
-        setTimeout(() => setGlowPos(null), 900)
-      }
-
-      // trilha de partículas
-      const pid = ++particleId.current
-      setParticles(prev => [...prev.slice(-14), { id: pid, x: px, y: py, color: pid % 2 ? '#c9a84c' : '#e8c96d' }])
-      setTimeout(() => setParticles(prev => prev.filter(p => p.id !== pid)), 600)
-    }
-  }
-
-  function handleMouseLeave() {
-    setTilt({ x: 0, y: 0 })
-  }
-
-  // ── baseStyle para 3º e 4º+ ──────────────────────────────────────────────────
-  const baseStyle345: React.CSSProperties = is3 ? {
-    background: '#0d0d1a', border: '1px solid rgba(205,127,50,0.25)',
-    animationName: 'rankFade, bronzePulse',
-    animationDuration: '0.45s, 3s', animationDelay: '0s, 0.5s',
-    animationTimingFunction: 'ease, ease-in-out',
-    animationIterationCount: '1, infinite', animationFillMode: 'both, none',
-  } : {
-    background: '#0d0d1a', border: '1px solid rgba(201,168,76,0.08)',
-    animation: 'rankFade 0.4s ease both',
-  }
-
   // ── conteúdo compartilhado ────────────────────────────────────────────────
   const content = (
     <>
-      {/* ── 1º: fogos canto superior esquerdo ── */}
-      {is1 && (
-        <div style={{ position: 'absolute', top: 10, left: 10, pointerEvents: 'none', zIndex: 0 }}>
-          {FW_A.map(f => (
-            <div key={f.id} style={{
-              position: 'absolute', left: 0, top: 0,
-              width: `${f.s}px`, height: `${f.s}px`, borderRadius: '50%',
-              background: f.color,
-              // @ts-expect-error CSS custom properties
-              '--fx': f.fx, '--fy': f.fy, '--fx2': f.fx2, '--fy2': f.fy2,
-              animation: `firework 1.6s ease-out ${f.d}s infinite`,
-            }} />
-          ))}
-        </div>
-      )}
-
-      {/* ── 1º: fogos canto inferior direito ── */}
-      {is1 && (
-        <div style={{ position: 'absolute', bottom: 10, right: 10, pointerEvents: 'none', zIndex: 0 }}>
-          {FW_B.map(f => (
-            <div key={f.id} style={{
-              position: 'absolute', left: 0, top: 0,
-              width: `${f.s}px`, height: `${f.s}px`, borderRadius: '50%',
-              background: f.color,
-              // @ts-expect-error CSS custom properties
-              '--fx': f.fx, '--fy': f.fy, '--fx2': f.fx2, '--fy2': f.fy2,
-              animation: `firework 1.6s ease-out ${f.d}s infinite`,
-            }} />
-          ))}
-        </div>
-      )}
-
-      {/* ── 2º: cristais caindo ── */}
-      {is2 && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden', borderRadius: '20px' }}>
-          {CRYSTALS.map((c, i) => (
-            <div key={i} style={{
-              position: 'absolute', top: '10px', left: c.left,
-              width: '4px', height: '4px',
-              background: 'rgba(224,224,224,0.8)',
-              boxShadow: '0 0 4px rgba(255,255,255,0.6)',
-              animation: `crystalFall ${c.dur} ${c.delay} infinite`,
-            }} />
-          ))}
-        </div>
-      )}
-
-      {/* ── 1º: metalSheen periódico confinado ao card ── */}
-      {is1 && sheenKey > 0 && (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '20px', overflow: 'hidden', pointerEvents: 'none', zIndex: 2 }}>
-          <div key={sheenKey}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(120deg, transparent 30%, rgba(255,245,180,0.18) 50%, transparent 70%)',
-              animation: 'metalSheen 0.8s ease-out forwards',
-            }} />
-          </div>
-        </div>
-      )}
-
-      {/* ── 2º: sheen prata periódico confinado ao card ── */}
-      {is2 && sheenKey2 > 0 && (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '20px', overflow: 'hidden', pointerEvents: 'none', zIndex: 2 }}>
-          <div key={sheenKey2}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(120deg, transparent 30%, rgba(232,232,232,0.10) 50%, transparent 70%)',
-              animation: 'metalSheen 0.8s ease-out forwards',
-            }} />
-          </div>
-        </div>
-      )}
-
-      {/* ── 1º: troféus decorativos ao fundo ── */}
-      {is1 && (
-        <>
-          <svg viewBox="0 0 24 24" fill="#e8c96d" style={{ position:'absolute', bottom:'8px', right:'20px', width:72, height:72, opacity:0.05, pointerEvents:'none', zIndex:0 }}>
-            <path d="M7 2h10v2H7V2zM5 4h2v5a5 5 0 0 0 10 0V4h2V2H5v2zm7 11.9V19h-2v2h6v-2h-2v-3.1A7 7 0 0 0 19 9V4H5v5a7 7 0 0 0 7 6.9z"/>
-          </svg>
-          <svg viewBox="0 0 24 24" fill="#e8c96d" style={{ position:'absolute', top:'10px', right:'72px', width:40, height:40, opacity:0.05, pointerEvents:'none', zIndex:0 }}>
-            <path d="M7 2h10v2H7V2zM5 4h2v5a5 5 0 0 0 10 0V4h2V2H5v2zm7 11.9V19h-2v2h6v-2h-2v-3.1A7 7 0 0 0 19 9V4H5v5a7 7 0 0 0 7 6.9z"/>
-          </svg>
-          <svg viewBox="0 0 24 24" fill="#e8c96d" style={{ position:'absolute', top:'50%', left:'6px', transform:'translateY(-50%)', width:28, height:28, opacity:0.04, pointerEvents:'none', zIndex:0 }}>
-            <path d="M7 2h10v2H7V2zM5 4h2v5a5 5 0 0 0 10 0V4h2V2H5v2zm7 11.9V19h-2v2h6v-2h-2v-3.1A7 7 0 0 0 19 9V4H5v5a7 7 0 0 0 7 6.9z"/>
-          </svg>
-        </>
-      )}
-
-      {/* ── 1º: cursor glow ── */}
-      {is1 && glowPos && (
-        <div key={`g${glowThrottle.current}`} style={{
-          position: 'absolute', left: glowPos.x, top: glowPos.y,
-          width: '60px', height: '60px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(232,201,109,0.45) 0%, transparent 70%)',
-          transform: 'translate(-50%, -50%)',
-          animation: 'cursorGlow 0.9s ease-out forwards',
-          pointerEvents: 'none', zIndex: 3,
+      {/* ── Brilho canto sup. direito — semântico por posição ── */}
+      {(is1 || is2 || is3) && (
+        <div style={{
+          position: 'absolute', top: 0, right: 0,
+          width: '200px', height: '120px',
+          background: is1
+            ? 'radial-gradient(ellipse at top right, rgba(201,168,76,0.25) 0%, transparent 70%)'
+            : is2
+              ? 'radial-gradient(ellipse at top right, rgba(192,192,192,0.18) 0%, transparent 70%)'
+              : 'radial-gradient(ellipse at top right, rgba(205,127,50,0.18) 0%, transparent 70%)',
+          borderRadius: '20px',
+          pointerEvents: 'none', zIndex: 0,
+          opacity: 0.4,
+          animation: is1 ? 'breathe 3s ease-in-out infinite' : undefined,
         }} />
       )}
-
-      {/* ── 1º: trilha de partículas ── */}
-      {is1 && particles.map(p => (
-        <div key={p.id} style={{
-          position: 'absolute', left: p.x, top: p.y,
-          width: '6px', height: '6px', borderRadius: '50%',
-          background: p.color,
-          animation: 'particleFade 0.6s ease-out forwards',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
-      ))}
-
-      {/* ── 3º: chamas ── */}
-      {is3 && [
-        { left:'22%', color:'#cd7f32', h:24, d:'0s' },
-        { left:'50%', color:'#d4942a', h:30, d:'0.13s' },
-        { left:'78%', color:'#e8a83c', h:22, d:'0.07s' },
-      ].map((flame, i) => (
-        <div key={i} style={{
-          position: 'absolute', bottom: 0, left: flame.left,
-          width: '10px', height: `${flame.h}px`,
-          background: `radial-gradient(ellipse at bottom, ${flame.color} 0%, transparent 100%)`,
-          borderRadius: '50% 50% 20% 20%',
-          animation: `flicker 0.4s ease-in-out ${flame.d} infinite alternate`,
-          opacity: 0.55, zIndex: 0, pointerEvents: 'none',
-        }} />
-      ))}
 
       {/* ── Número ── */}
       <div style={{ position: 'relative', zIndex: 1, flexShrink: 0, textAlign: 'center' }}>
 
-        {/* 2º: estrelas cintilantes prata */}
-        {is2 && STARS.map(i => (
-          <div key={i} style={{
-            position: 'absolute',
-            fontSize: `${STAR_SIZES[i]}px`,
-            color: STAR_COLORS[i],
-            animation: `twinkle ${STAR_DURS[i]}s ease-in-out ${i * 0.28}s infinite`,
-            ...[
-              { top:'-18px', left:'50%', transform:'translateX(-50%)' },
-              { top:'10px',  left:'-22px' },
-              { top:'10px',  right:'-22px' },
-              { bottom:'10px', left:'-20px' },
-              { bottom:'10px', right:'-20px' },
-              { bottom:'-14px', left:'50%', transform:'translateX(-50%)' },
-            ][i],
-          }}>✦</div>
-        ))}
+        {/* ícone de posição acima do número */}
+        {is1 && (
+          <Crown size={28} style={{ color: '#f4d47c', display: 'block', margin: '0 auto 4px' }} />
+        )}
+        {is2 && (
+          <svg width="16" height="16" viewBox="0 0 14 14" style={{ display: 'block', margin: '0 auto 4px' }}>
+            <path d="M7 0 L14 7 L7 14 L0 7 Z" fill="rgba(192,192,192,0.75)" />
+          </svg>
+        )}
+        {is3 && (
+          <svg width="16" height="16" viewBox="0 0 14 14" style={{ display: 'block', margin: '0 auto 4px' }}>
+            <path d="M7 0 L14 7 L7 14 L0 7 Z" fill="rgba(205,127,50,0.75)" />
+          </svg>
+        )}
+        {posicao >= 4 && (
+          <svg width="14" height="14" viewBox="0 0 14 14" style={{ display: 'block', margin: '0 auto 4px' }}>
+            <path d="M7 0 L14 7 L7 14 L0 7 Z" fill="rgba(125,211,252,0.55)" />
+          </svg>
+        )}
 
         {/* Número principal */}
         <div style={{
@@ -664,97 +771,54 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             animation: 'rank2Entrance 0.7s ease-out both',
           } : is3 ? {
-            fontSize: '68px', color: '#cd7f32',
+            fontSize: '68px',
+            background: 'linear-gradient(135deg, #a67848 0%, #d8935a 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             animation: 'num3Flip 0.6s ease 0.1s both',
           } : {
-            fontSize: '56px', color: 'var(--text-muted)',
+            fontSize: '56px',
+            background: 'linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             animation: 'rankFade 0.4s ease both',
           }),
         }}>
           {posicao}º
         </div>
 
-        {/* 1º: reflexo invertido ouro */}
-        {is1 && (
-          <div style={{
-            fontFamily: 'var(--ff-display)', fontSize: '80px', fontWeight: 900,
-            lineHeight: 1, color: '#c9a84c', opacity: 0.12,
-            transform: 'scaleY(-1)',
-            WebkitMaskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
-            maskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
-            marginTop: '-6px', userSelect: 'none', pointerEvents: 'none',
-          }}>
-            {posicao}º
-          </div>
-        )}
-
-        {/* 2º: reflexo invertido prata */}
-        {is2 && (
-          <div style={{
-            fontFamily: 'var(--ff-display)', fontSize: '72px', fontWeight: 900,
-            lineHeight: 1, color: '#c0c0c0', opacity: 0.10,
-            transform: 'scaleY(-1)',
-            WebkitMaskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
-            maskImage: 'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.8) 100%)',
-            marginTop: '-6px', userSelect: 'none', pointerEvents: 'none',
-          }}>
-            {posicao}º
-          </div>
-        )}
-
-        {is3 && (
-          <div style={{ fontSize: '22px', lineHeight: 1, marginTop: '4px' }}>🥉</div>
-        )}
       </div>
 
       {/* ── Info ── */}
       <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: '160px' }}>
+        {/* Vizinho acima — micro */}
+        {vizinhoAcima && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'var(--ff-body)', fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.40)', lineHeight: 1, marginBottom: '5px' }}>
+            <span>{vizinhoAcima.posicao}º</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{vizinhoAcima.txRet.toFixed(1)}%</span>
+            <div style={{ width: '60px', height: '2px', background: 'rgba(255,255,255,0.05)', borderRadius: '1px', flexShrink: 0, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${txRetLider > 0 ? Math.min((vizinhoAcima.txRet / txRetLider) * 100, 100) : 0}%`, background: 'rgba(201,168,76,0.35)', borderRadius: '1px' }} />
+            </div>
+            <span style={{ color: 'rgba(255,255,255,0.28)' }}>+{gapAcima} p.p. à frente</span>
+          </div>
+        )}
+
         <p style={{
           fontFamily: 'var(--ff-display)', fontSize: is1 ? '20px' : '17px', fontWeight: 700,
           color: is1 ? '#e8c96d' : is2 ? '#e8e8e8' : is3 ? '#cd7f32' : 'var(--text-secondary)',
           marginBottom: '4px',
         }}>
-          {is1 ? 'Líder de Retenção!' : is2 ? '2º no Ranking' : is3 ? '3º no Ranking' : `${posicao}º no Ranking`}
+          {is1 ? '1º NO RANKING' : is2 ? '2º no Ranking' : is3 ? '3º no Ranking' : `${posicao}º no Ranking`}
         </p>
 
-        {/* 1º: badge líder da equipe */}
-        {is1 && (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            padding: '3px 10px', borderRadius: '99px', marginBottom: '8px',
-            background: 'rgba(201,168,76,0.10)', border: '1px solid rgba(201,168,76,0.30)',
-            fontSize: '11px', fontWeight: 700, color: '#e8c96d', letterSpacing: '0.06em',
-            animation: 'leaderPulse 2s ease-in-out 1.2s infinite',
-          }}>
-            👑 LÍDER DA EQUIPE
+        {/* Vizinho abaixo — micro */}
+        {vizinhoAbaixo && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'var(--ff-body)', fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.40)', lineHeight: 1, margin: '6px 0 8px' }}>
+            <span>{vizinhoAbaixo.posicao}º</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{vizinhoAbaixo.txRet.toFixed(1)}%</span>
+            <div style={{ width: '60px', height: '2px', background: 'rgba(255,255,255,0.05)', borderRadius: '1px', flexShrink: 0, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${txRetLider > 0 ? Math.min((vizinhoAbaixo.txRet / txRetLider) * 100, 100) : 0}%`, background: 'rgba(201,168,76,0.35)', borderRadius: '1px' }} />
+            </div>
+            <span style={{ color: 'rgba(255,255,255,0.28)' }}>{gapAbaixo} p.p. atrás</span>
           </div>
-        )}
-
-        {/* 2º: badge vice-líder */}
-        {is2 && (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            padding: '3px 10px', borderRadius: '99px', marginBottom: '8px',
-            background: 'rgba(192,192,192,0.10)', border: '1px solid rgba(192,192,192,0.30)',
-            fontSize: '11px', fontWeight: 700, color: '#e8e8e8', letterSpacing: '0.06em',
-            animation: 'silverPulse 2s ease-in-out 1.2s infinite',
-          }}>
-            ✦ VICE-LÍDER
-          </div>
-        )}
-
-        {/* 1º: texto motivacional */}
-        {is1 && (
-          <p style={{ fontSize: '13px', color: '#c9a84c', marginBottom: '8px', animation: 'motivText 0.5s ease 0.8s both' }}>
-            Você está no topo!
-          </p>
-        )}
-
-        {/* 2º: texto motivacional */}
-        {is2 && (
-          <p style={{ fontSize: '13px', color: '#c0c0c0', marginBottom: '8px', animation: 'motivText 0.5s ease 0.8s both' }}>
-            Você está logo atrás do topo!
-          </p>
         )}
 
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
@@ -764,14 +828,22 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '8px',
           padding: '6px 14px', borderRadius: '10px',
-          background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)',
+          background: is1 ? '#0a0800' : is2 ? '#0f0f16' : is3 ? '#1a1208' : 'rgba(201,168,76,0.06)',
+          border: is2 ? '1px solid rgba(192,192,192,0.18)' : is3 ? '1px solid rgba(216,147,90,0.22)' : '1px solid rgba(201,168,76,0.12)',
         }}>
-          <TrendingUp size={13} style={{ color: '#c9a84c' }} />
-          <span style={{ fontSize: '18px', fontWeight: 700, color: '#e8c96d', fontVariantNumeric: 'tabular-nums' }}>
+          <TrendingUp size={13} style={{ color: is2 ? '#c0c0d0' : is3 ? '#d8935a' : '#c9a84c' }} />
+          <span style={{ fontSize: '18px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: is2 ? '#e8e8e8' : is3 ? '#d8935a' : '#e8c96d' }}>
             {txRet.toFixed(1)}%
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tx. Retenção</span>
         </div>
+
+        {/* Mensagem situacional — último lugar */}
+        {isLast && vizinhoAcima && (
+          <p style={{ fontFamily: 'var(--ff-body)', fontSize: '11px', color: 'rgba(255,255,255,0.45)', marginTop: '8px', lineHeight: 1.4 }}>
+            Foco no próximo degrau — {gapAcima} p.p. para subir.
+          </p>
+        )}
       </div>
     </>
   )
@@ -786,18 +858,12 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         }}
       >
         <div
-          ref={cardRef}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
           style={{
             position: 'relative', borderRadius: '20px',
             padding: '28px 32px', display: 'flex',
             alignItems: 'center', gap: '32px', flexWrap: 'wrap',
-            overflow: 'visible',
+            overflow: 'hidden',
             background: 'linear-gradient(135deg, #0f0c02 0%, #1a1400 50%, #0a0900 100%)',
-            cursor: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23e8c96d\' d=\'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z\'/%3E%3C/svg%3E") 12 12, pointer',
-            transform: tilt.x || tilt.y ? `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined,
-            transition: tilt.x || tilt.y ? 'transform 0.1s' : 'transform 0.3s ease',
           }}
         >
           {content}
@@ -806,7 +872,7 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     )
   }
 
-  // ── is2: wrapper beam prata + inner card ──────────────────────────────────────
+  // ── is2: wrapper beam prata + inner card prateado ────────────────────────────
   if (is2) {
     return (
       <div
@@ -816,20 +882,13 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
         }}
       >
         <div
-          ref={cardRef}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          data-rank="2"
           style={{
             position: 'relative', borderRadius: '20px',
             padding: '28px 32px', display: 'flex',
             alignItems: 'center', gap: '32px', flexWrap: 'wrap',
-            overflow: 'visible',
-            background: '#0a0f1a',
-            border: '1px solid rgba(192,192,192,0.2)',
-            cursor: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23c0c0c0\' stroke=\'%23e8e8e8\' stroke-width=\'0.5\' d=\'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z\'/%3E%3C/svg%3E") 12 12, pointer',
-            transform: tilt.x || tilt.y ? `perspective(600px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined,
-            transition: tilt.x || tilt.y ? 'transform 0.1s' : 'transform 0.3s ease',
+            overflow: 'hidden',
+            background: '#1a1a24',
+            border: '1px solid #c0c0d0',
           }}
         >
           {content}
@@ -838,93 +897,264 @@ function RankingCard({ posicao, txRet, total }: { posicao: number; txRet: number
     )
   }
 
-  // ── is3 / 4+ ───────────────────────────────────────────────────────────────────
+  // ── is3: wrapper beam bronze + inner card bronze ──────────────────────────────
+  if (is3) {
+    return (
+      <div
+        className="rank3-beam"
+        style={{
+          animation: 'rankFade 0.45s ease both, borderRotate 6s linear 0.5s infinite',
+        }}
+      >
+        <div
+          style={{
+            position: 'relative', borderRadius: '20px',
+            padding: '28px 32px', display: 'flex',
+            alignItems: 'center', gap: '32px', flexWrap: 'wrap',
+            overflow: 'hidden',
+            background: '#2a1d10',
+            border: '1px solid #d8935a',
+            animationName: 'bronzePulse',
+            animationDuration: '3s',
+            animationDelay: '0.5s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
+          }}
+        >
+          {content}
+        </div>
+      </div>
+    )
+  }
+
+  // ── 4+: wrapper beam sutil ────────────────────────────────────────────────────
   return (
     <div
-      ref={cardRef}
+      className="rank-beam-base"
+      style={{ animation: 'rankFade 0.4s ease both, borderRotate 10s linear 0.5s infinite' }}
+    >
+      <div
+        style={{
+          position: 'relative', borderRadius: '20px',
+          padding: '28px 32px', display: 'flex',
+          alignItems: 'center', gap: '32px', flexWrap: 'wrap',
+          overflow: 'hidden',
+          background: '#0d0d1a',
+          border: '1px solid rgba(201,168,76,0.08)',
+          animation: 'rankFade 0.4s ease both',
+        }}
+      >
+        {content}
+      </div>
+    </div>
+  )
+}
+
+// ── Alerta Inteligente — componentes ─────────────────────────────────────────
+
+function AlertaIcon({ tipo }: { tipo: TipoAlerta }) {
+  const c = ALERTA_CONFIG[tipo].color
+  if (tipo === 'critico') {
+    return (
+      <svg width="14" height="13" viewBox="0 0 14 13" style={{ flexShrink: 0 }}>
+        <path d="M7 1.5L13 12H1L7 1.5Z" fill={c} />
+      </svg>
+    )
+  }
+  if (tipo === 'atencao') {
+    return (
+      <svg width="14" height="13" viewBox="0 0 14 13" fill="none" style={{ flexShrink: 0 }}>
+        <path d="M7 1L13.5 12H0.5L7 1Z" stroke={c} strokeWidth="1.4" strokeLinejoin="round" />
+        <line x1="7" y1="4.5" x2="7" y2="7.5" stroke={c} strokeWidth="1.4" strokeLinecap="round" />
+        <circle cx="7" cy="9.5" r="0.7" fill={c} />
+      </svg>
+    )
+  }
+  if (tipo === 'oportunidade') {
+    return (
+      <svg width="12" height="14" viewBox="0 0 12 14" fill="none" style={{ flexShrink: 0 }}>
+        <line x1="6" y1="13" x2="6" y2="1" stroke={c} strokeWidth="1.4" strokeLinecap="round" />
+        <path d="M2 5L6 1L10 5" stroke={c} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M2 7.5L5.5 11L12 3" stroke={c} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function AlertaBanner({ alertas }: { alertas: AlertaInteligente[] }) {
+  const [activeIdx,    setActiveIdx]    = useState(0)
+  const [isHovered,    setIsHovered]    = useState(false)
+  const [fadeOut,      setFadeOut]      = useState(false)
+  const [prefersReduced, setPrefersReduced] = useState(false)
+
+  useEffect(() => {
+    setPrefersReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  }, [])
+
+  useEffect(() => {
+    if (isHovered || prefersReduced || alertas.length <= 1) return
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null
+    const id = setInterval(() => {
+      setFadeOut(true)
+      fadeTimer = setTimeout(() => {
+        setActiveIdx(prev => (prev + 1) % alertas.length)
+        setFadeOut(false)
+      }, 200)
+    }, 15000)
+    return () => {
+      clearInterval(id)
+      if (fadeTimer) clearTimeout(fadeTimer)
+    }
+  }, [isHovered, prefersReduced, alertas.length])
+
+  function goTo(idx: number) {
+    if (idx === activeIdx) return
+    if (prefersReduced) { setActiveIdx(idx); return }
+    setFadeOut(true)
+    setTimeout(() => { setActiveIdx(idx); setFadeOut(false) }, 200)
+  }
+
+  const safeIdx = Math.min(activeIdx, alertas.length - 1)
+  const alerta  = alertas[safeIdx]
+  const cfg     = ALERTA_CONFIG[alerta.tipo]
+
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
-        position: 'relative', borderRadius: '20px',
-        padding: '28px 32px', display: 'flex',
-        alignItems: 'center', gap: '32px', flexWrap: 'wrap',
-        overflow: 'hidden',
-        ...baseStyle345,
+        display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '0 14px', height: '44px',
+        background: cfg.bg,
+        borderRadius: '10px',
+        border: '1px solid rgba(255,255,255,0.05)',
+        borderLeft: `2px solid ${cfg.border}`,
+        opacity: fadeOut ? 0 : 1,
+        transition: prefersReduced ? 'none' : 'opacity 200ms ease',
       }}
     >
-      {content}
+      <AlertaIcon tipo={alerta.tipo} />
+      <span style={{
+        flex: 1, fontSize: '13px', color: 'rgba(255,255,255,0.88)',
+        fontFamily: 'var(--ff-body)', lineHeight: 1.4,
+      }}>
+        {alerta.texto}
+      </span>
+      {alertas.length > 1 && (
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+          {alertas.map((a, i) => (
+            <button
+              key={i}
+              type="button"
+              className="alerta-dot"
+              onClick={() => goTo(i)}
+              aria-label={`Alerta ${i + 1} de ${alertas.length}`}
+              style={{ background: i === safeIdx ? ALERTA_CONFIG[a.tipo].color : 'rgba(255,255,255,0.20)' }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
-function KPICard({ kpi, delay }: { kpi: KPIItem; delay: number }) {
+interface DiasInfo {
+  diasUteisDecorridos: number
+  diasUteisRestantes: number
+}
+
+function KPICard({ kpi, delay, cardIndex, diasInfo, atendidas, podioPos }: {
+  kpi: KPIItem
+  delay: number
+  cardIndex: number
+  diasInfo: DiasInfo
+  atendidas?: number
+  podioPos?: 1 | 2 | 3
+}) {
   const color  = STATUS_COLOR[kpi.status]
   const bg     = STATUS_BG[kpi.status]
   const border = STATUS_BORDER[kpi.status]
-  const foco        = focoEmMelhorar(kpi)
-  const alertaAm    = focoAmarelo(kpi)
-  const dist   = kpi.meta ? distanciaMeta(kpi) : null
-  const metaFmt = kpi.meta ? formatMeta(kpi.meta) : null
-  const pct    = kpi.progresso
+
+  const podioBorder = podioPos === 1
+    ? '1px solid var(--halo-gold)'
+    : podioPos === 2
+      ? '1px solid var(--halo-silver)'
+      : podioPos === 3
+        ? '1px solid var(--halo-bronze)'
+        : undefined
+
+  const motivMsg     = useMotivationalMessage(cardIndex)
+  const displayValue = formatMetricValue(kpi.valor, kpi.unidade)
+  const ctxLabel     = contextLabel(kpi)
+  const barWidth     = calcBarWidth(kpi)
+  const metaRodape   = kpi.meta ? formatarMetaRodape(kpi.meta) : null
+  const distancia    = kpi.meta ? formatarDistancia(kpi) : null
+  const acao         = acaoRodape(kpi, diasInfo.diasUteisDecorridos, diasInfo.diasUteisRestantes, motivMsg, atendidas)
+
+  const acaoColor = kpi.status === 'verde'
+    ? 'rgba(74,222,128,0.85)'
+    : kpi.status === 'amarelo'
+      ? 'rgba(250,204,21,0.85)'
+      : 'rgba(248,113,113,0.85)'
 
   return (
     <div style={{
       background: '#0d0d1a',
-      border: `1px solid rgba(201,168,76,0.08)`,
+      border: podioBorder ?? `1px solid rgba(201,168,76,0.08)`,
       borderRadius: '16px',
-      padding: '16px',
+      padding: '20px 22px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '12px',
+      minHeight: '220px',
       animation: `kpiCardIn 0.4s ease both`,
       animationDelay: `${delay}ms`,
     }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg, border: `1px solid ${border}`, color, flexShrink: 0 }}>
+      {/* ── Zona 1: Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg, border: `1px solid ${border}`, color, flexShrink: 0 }}>
             {kpiIcon(kpi.label)}
           </div>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{kpi.label}</span>
+          <span
+            title={kpi.label}
+            style={{ fontFamily: 'var(--ff-display)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          >
+            {kpi.label.toLowerCase().includes('indisp') ? 'Indisp.' : kpi.label}
+          </span>
         </div>
-        <span style={{ fontSize: '9px', fontWeight: 700, padding: '3px 8px', borderRadius: '99px', textTransform: 'uppercase', letterSpacing: '0.08em', background: bg, color, border: `1px solid ${border}`, flexShrink: 0, whiteSpace: 'nowrap' }}>
-          {STATUS_LABEL[kpi.status]}
-        </span>
-      </div>
-
-      {/* Valor principal */}
-      <div>
-        <span style={{
-          fontFamily: 'var(--ff-display)',
-          fontSize: '36px',
-          fontWeight: 800,
-          lineHeight: 1,
-          color,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {kpi.valor}
-        </span>
-        {kpi.unidade && kpi.status !== 'neutro' && (
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginLeft: '4px' }}>{kpi.unidade}</span>
+        {kpi.status !== 'neutro' && (
+          <span style={{ fontFamily: 'var(--ff-body)', fontSize: '10px', fontWeight: 700, padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.06em', background: bg, color, border: `1px solid ${border}`, flexShrink: 0, whiteSpace: 'nowrap' }}>
+            {STATUS_LABEL[kpi.status]}
+          </span>
         )}
       </div>
 
-      {/* Barra de progresso */}
+      {/* ── Zona 2: Valor principal ── */}
+      <div style={{ flex: 1, marginBottom: '14px' }}>
+        <span style={{ fontFamily: 'var(--ff-body)', fontSize: '48px', fontWeight: 600, lineHeight: 1, color: 'rgba(255,255,255,0.95)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', display: 'block' }}>
+          {displayValue}
+        </span>
+        {ctxLabel && (
+          <span style={{ fontFamily: 'var(--ff-body)', fontSize: '11px', color: 'rgba(255,255,255,0.38)', marginTop: '4px', display: 'block' }}>
+            {ctxLabel}
+          </span>
+        )}
+      </div>
+
+      {/* ── Zona 3: Barra ── */}
       {kpi.meta && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-              {pct >= 100
-                ? 'Meta atingida'
-                : `${pct}% da meta atingida`}
-            </span>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Meta: {metaFmt}</span>
-          </div>
-          <div style={{ height: '8px', borderRadius: '99px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{ height: '4px', borderRadius: '99px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
             <div style={{
               height: '100%',
-              width: `${Math.min(pct, 100)}%`,
+              width: `${Math.min(barWidth, 100)}%`,
               borderRadius: '99px',
               background: kpi.status === 'verde'
                 ? 'linear-gradient(90deg, #16a34a, #4ade80)'
@@ -934,31 +1164,221 @@ function KPICard({ kpi, delay }: { kpi: KPIItem; delay: number }) {
               transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
             }} />
           </div>
-          {dist && (
-            <p style={{ fontSize: '10px', color: kpi.status === 'verde' ? '#4ade80' : 'var(--text-muted)', marginTop: '4px' }}>
-              Distância da meta: <strong style={{ color: kpi.status === 'verde' ? '#4ade80' : color }}>{dist}</strong>
-            </p>
+        </div>
+      )}
+
+      {/* ── Zona 4: Rodapé (linha única) ── */}
+      {kpi.meta && metaRodape && (
+        <div
+          title={`Meta: ${metaRodape}${distancia ? ` · ${distancia}` : ''}${acao ? ` · ${acao}` : ''}`}
+          style={{ fontFamily: 'var(--ff-body)', fontSize: '10.5px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}
+        >
+          <span>Meta: {metaRodape}</span>
+          {distancia && (
+            <>
+              <span style={{ opacity: 0.35 }}> · </span>
+              <span>{distancia}</span>
+            </>
+          )}
+          {acao && (
+            <>
+              <span style={{ opacity: 0.35 }}> · </span>
+              <span key={motivMsg ?? '__init__'} style={{ color: acaoColor, animation: kpi.status === 'verde' && motivMsg ? 'motivFadeIn 0.2s ease both' : undefined }}>
+                {acao}
+              </span>
+            </>
           )}
         </div>
       )}
 
-      {/* Mensagem de status */}
-      {kpi.status === 'amarelo' && alertaAm ? (
-        <div style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.18)', borderRadius: '10px', padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-          <AlertTriangle size={12} style={{ color: '#facc15', flexShrink: 0, marginTop: '1px' }} />
-          <span style={{ fontSize: '11px', color: '#fde047', lineHeight: 1.4 }}>{alertaAm}</span>
-        </div>
-      ) : kpi.status === 'vermelho' && foco ? (
-        <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)', borderRadius: '10px', padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-          <AlertTriangle size={12} style={{ color: '#f87171', flexShrink: 0, marginTop: '1px' }} />
-          <span style={{ fontSize: '11px', color: '#fca5a5', lineHeight: 1.4 }}>{foco}</span>
-        </div>
-      ) : kpi.status === 'verde' ? (
-        <div style={{ background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.12)', borderRadius: '10px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <CheckCircle2 size={12} style={{ color: '#4ade80', flexShrink: 0 }} />
-          <span style={{ fontSize: '11px', color: '#86efac' }}>Dentro da meta — continue assim!</span>
-        </div>
-      ) : null}
+    </div>
+  )
+}
+
+// ── Dados do Mês — subseções colapsáveis ────────────────────────────────────
+
+const LS_KEY_SUBSECOES = 'halo:meu-kpi:subsecoes-expandidas'
+
+type SubsecoesState = {
+  ganhos:        boolean
+  qualidade:     boolean
+  comportamento: boolean
+  presenca:      boolean
+}
+
+const SUBSECOES_DEFAULT: SubsecoesState = {
+  ganhos:        true,
+  qualidade:     false,
+  comportamento: false,
+  presenca:      false,
+}
+
+interface SubsecaoItem { campo: string; displayLabel: string }
+interface SubsecaoConfig { key: keyof SubsecoesState; titulo: string; items: SubsecaoItem[] }
+
+const SUBSECOES_CONFIG: SubsecaoConfig[] = [
+  {
+    key: 'ganhos',
+    titulo: 'GANHOS & RETENÇÃO',
+    items: [
+      { campo: '% Variação Ticket',            displayLabel: 'Ticket' },
+      { campo: 'Tx. Retenção Líquida 15d (%)', displayLabel: 'Tx. Retenção Líquida' },
+      { campo: 'Retidos Brutos',               displayLabel: 'Retidos Brutos' },
+      { campo: 'Retidos Líquidos 15d',         displayLabel: 'Retidos Líquidos' },
+    ],
+  },
+  {
+    key: 'qualidade',
+    titulo: 'QUALIDADE DO ATENDIMENTO',
+    items: [
+      { campo: 'CSAT',              displayLabel: 'CSAT' },
+      { campo: 'Rechamada D+7 (%)', displayLabel: 'Rechamada' },
+      { campo: 'Short Call (%)',    displayLabel: 'Short Call' },
+      { campo: 'Transfer (%)',      displayLabel: 'Transferência' },
+      { campo: 'Atendidas',         displayLabel: 'Atendidas' },
+    ],
+  },
+  {
+    key: 'comportamento',
+    titulo: 'COMPORTAMENTO E PAUSAS',
+    items: [
+      { campo: 'NR17 (%)',          displayLabel: 'NR17' },
+      { campo: 'Pessoal (%)',       displayLabel: 'Pessoal (%)' },
+      { campo: 'Outras Pausas (%)', displayLabel: 'Outras Pausas (%)' },
+      { campo: 'Pessoal',           displayLabel: 'Pessoal' },
+      { campo: 'Outras Pausas',     displayLabel: 'Outras Pausas' },
+      { campo: 'Engajamento',       displayLabel: 'Engajamento' },
+      { campo: 'Tx. Tabulação (%)', displayLabel: 'Tx. Tabulação' },
+    ],
+  },
+  {
+    key: 'presenca',
+    titulo: 'PRESENÇA',
+    items: [
+      { campo: 'Tempo Projetado', displayLabel: 'Tempo Projetado' },
+      { campo: 'Tempo de Login',  displayLabel: 'Tempo de Login' },
+      { campo: 'Logins Mês',      displayLabel: 'Logins Mês' },
+    ],
+  },
+]
+
+function DadosDoMes({ complementares }: { complementares: { label: string; valor: string }[] }) {
+  const [expanded, setExpanded] = useState<SubsecoesState>(SUBSECOES_DEFAULT)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY_SUBSECOES)
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<SubsecoesState>
+        setExpanded(prev => ({ ...prev, ...parsed }))
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  function toggle(key: keyof SubsecoesState) {
+    setExpanded(prev => {
+      const next = { ...prev, [key]: !prev[key] }
+      try { localStorage.setItem(LS_KEY_SUBSECOES, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const lookup = useMemo(
+    () => new Map(complementares.map(c => [c.label, c.valor])),
+    [complementares]
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {SUBSECOES_CONFIG.map(subsecao => {
+        const isOpen = expanded[subsecao.key]
+        return (
+          <div key={subsecao.key}>
+
+            {/* ── Cabeçalho clicável ── */}
+            <button
+              type="button"
+              className="subsecao-btn"
+              onClick={() => toggle(subsecao.key)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  fontFamily: 'var(--ff-display)',
+                  fontSize: '11px', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.12em',
+                  color: '#c9a84c',
+                }}>
+                  {subsecao.titulo}
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.25)', userSelect: 'none' }}>·</span>
+                <span style={{ fontFamily: 'var(--ff-body)', fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>
+                  {subsecao.items.length} indicadores
+                </span>
+              </div>
+              <ChevronRight size={14} style={{
+                color: 'rgba(255,255,255,0.35)',
+                flexShrink: 0,
+                transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 250ms cubic-bezier(0.4,0,0.2,1)',
+              }} />
+            </button>
+
+            {/* ── Conteúdo colapsável ── */}
+            <div className={`subsecao-content${isOpen ? ' open' : ''}`}>
+              <div className="subsecao-inner">
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                  gap: '8px',
+                  padding: '6px 0 10px',
+                }}>
+                  {subsecao.items.map(({ campo, displayLabel }) => {
+                    const rawValor = lookup.get(campo)
+                    const semDados = rawValor === undefined || rawValor === '' || rawValor === '—'
+                    const valor = semDados ? '\u2014' : rawValor!
+                    return (
+                      <div
+                        key={campo}
+                        title={semDados ? 'Sem dados disponíveis ainda' : undefined}
+                        style={{
+                          background: 'rgba(255,255,255,0.02)',
+                          border: '1px solid rgba(201,168,76,0.06)',
+                          borderRadius: '12px',
+                          padding: '10px 12px',
+                          minHeight: '72px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <p style={{
+                          fontFamily: 'var(--ff-display)',
+                          fontSize: '10px', fontWeight: 700,
+                          textTransform: 'uppercase', letterSpacing: '0.06em',
+                          color: 'rgba(255,255,255,0.55)',
+                          lineHeight: 1.3, margin: 0,
+                        }}>
+                          {displayLabel}
+                        </p>
+                        <p style={{
+                          fontFamily: 'var(--ff-body)',
+                          fontSize: '16px', fontWeight: 600,
+                          color: semDados ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.95)',
+                          fontVariantNumeric: 'tabular-nums',
+                          margin: 0, marginTop: '4px',
+                        }}>
+                          {valor}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )
+      })}
     </div>
   )
 }

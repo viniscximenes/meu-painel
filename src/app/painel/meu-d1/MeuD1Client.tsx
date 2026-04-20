@@ -1,179 +1,186 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { AlertTriangle, CheckCircle2, Target, TrendingUp, ChevronDown } from 'lucide-react'
+import React from 'react'
+import { CheckCircle2, TrendingUp, AlertTriangle, Target } from 'lucide-react'
+import { useCountUp } from '@/hooks/useCountUp'
 
 export interface MeuD1Props {
-  nomeOperador: string
-  mesLabel:     string
-  horaAtualiz:  string | null
-  dataAtualiz:  string | null
-
-  // KPI acumulado do mês
   retidosKpi:    number
   canceladosKpi: number
   pedidosKpi:    number
   taxaKpi:       number
 
-  // D-1 dados do dia (col B=cancelados, C=retidos, D=pedidos, E=txRetencao)
   retidosD1:    number
   canceladosD1: number
   pedidosD1:    number
   semDadosD1:   boolean
   txD1:         number | null
 
-  // Estimado (KPI + D1)
   retidosEst:    number
   canceladosEst: number
   pedidosEst:    number
   taxaEst:       number
   deltaTaxa:     number
 
-  // Projeção mensal
-  diasUteisNoMes:          number
-  diasPassados:            number
-  diasRestantes:           number
-  retidosPorDiaNecessario: number
-  jaEstaNaMeta:            boolean
-  taxaProjetada:           number
-  maxCanceladosDiaBon:     number
-}
+  taxaProjetada:     number
 
-// ── CountUp ───────────────────────────────────────────────────────────────────
+  maxCanceladosDia:  number | null   // null = cota esgotada
+  metaCanceladosMes: number
 
-function useCountUp(target: number, duration = 1000) {
-  const [val, setVal] = useState(0)
-  useEffect(() => {
-    if (target === 0) { setVal(0); return }
-    let startTs: number | null = null
-    let raf: number
-    const tick = (ts: number) => {
-      if (!startTs) startTs = ts
-      const prog = Math.min((ts - startTs) / duration, 1)
-      setVal(target * (1 - Math.pow(1 - prog, 3)))
-      if (prog < 1) { raf = requestAnimationFrame(tick) } else { setVal(target) }
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [target, duration])
-  return val
+  horaAtualiz: string | null
+  dataAtualiz: string | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function taxaColor(t: number)  { return t >= 66 ? '#4ade80' : t >= 60 ? '#facc15' : '#f87171' }
-function taxaBg(t: number)     { return t >= 66 ? 'rgba(74,222,128,0.06)' : t >= 60 ? 'rgba(250,204,21,0.06)' : 'rgba(248,113,113,0.06)' }
-function taxaBorder(t: number) { return t >= 66 ? 'rgba(74,222,128,0.15)' : t >= 60 ? 'rgba(250,204,21,0.15)' : 'rgba(248,113,113,0.15)' }
-function fmt1(n: number)       { return n.toFixed(1) }
+function formatDataPorExtenso(raw: string | null): string | null {
+  if (!raw) return null
+  const [dia, mes, ano] = raw.split('/')
+  if (!dia || !mes || !ano) return raw
+  try {
+    return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia))
+      .toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch { return raw }
+}
 
-function Badge({ children, cor, bg, bd }: { children: React.ReactNode; cor: string; bg: string; bd: string }) {
+function getTaxaColor(t: number)  { return t >= 66 ? 'var(--verde)' : t >= 60 ? 'var(--amarelo)' : 'var(--vermelho)' }
+function getTaxaGlow(t: number)   { return t >= 66 ? 'rgba(74,222,128,0.07)' : t >= 60 ? 'rgba(250,204,21,0.07)' : 'rgba(248,113,113,0.07)' }
+function getTaxaBorder(t: number) { return t >= 66 ? 'rgba(74,222,128,0.15)' : t >= 60 ? 'rgba(250,204,21,0.15)' : 'rgba(248,113,113,0.15)' }
+function fmt1(n: number)          { return n.toFixed(1) }
+
+type BadgeState = 'ok' | 'warn' | 'error' | 'muted'
+const BADGE_STYLES: Record<BadgeState, { color: string; bg: string; border: string }> = {
+  ok:    { color: 'var(--verde)',       bg: 'rgba(74,222,128,0.10)',  border: 'rgba(74,222,128,0.20)' },
+  warn:  { color: 'var(--amarelo)',     bg: 'rgba(250,204,21,0.10)',  border: 'rgba(250,204,21,0.20)' },
+  error: { color: 'var(--vermelho)',    bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.20)' },
+  muted: { color: 'var(--text-muted)', bg: 'rgba(148,163,184,0.06)', border: 'rgba(148,163,184,0.12)' },
+}
+
+// ── Shared components ─────────────────────────────────────────────────────────
+
+function Badge({ children, state }: { children: React.ReactNode; state: BadgeState }) {
+  const { color, bg, border } = BADGE_STYLES[state]
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: '4px',
-      fontSize: '11px', fontWeight: 600, padding: '3px 9px', borderRadius: '99px',
-      background: bg, border: `1px solid ${bd}`, color: cor,
+      fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '4px',
+      background: bg, border: `1px solid ${border}`, color,
     }}>
       {children}
     </span>
   )
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{
-      fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
-      letterSpacing: '0.14em', color: 'var(--text-muted)', marginBottom: '10px',
-    }}>
-      {children}
-    </p>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+      <span style={{
+        fontFamily: 'var(--ff-display)', fontSize: '11px', fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(244,212,124,0.7)',
+      }}>
+        {children}
+      </span>
+      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(201,168,76,0.15) 0%, transparent 100%)' }} />
+    </div>
   )
 }
 
-function Fade({ delay, children }: { delay: number; children: React.ReactNode }) {
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ animation: `d1FadeUp 0.5s cubic-bezier(0.22,1,0.36,1) ${delay}ms both` }}>
+    <div style={{
+      background: 'var(--bg-card)', border: '1px solid rgba(201,168,76,0.08)',
+      borderRadius: '12px', padding: '20px',
+    }}>
+      <SectionTitle>{title}</SectionTitle>
       {children}
     </div>
   )
 }
 
-// ── SEÇÃO 1 — Hero: Taxa do dia ───────────────────────────────────────────────
+// ── 1. Hero ───────────────────────────────────────────────────────────────────
 
 function HeroTaxa(p: MeuD1Props) {
-  const txShow  = p.txD1 !== null ? p.txD1 : p.taxaKpi
-  const txAnim  = useCountUp(txShow)
-  const label   = p.txD1 !== null ? 'Taxa de retenção hoje' : 'KPI do mês'
+  const txShow = p.txD1 !== null ? p.txD1 : p.taxaKpi
+  const txAnim = useCountUp(txShow)
+  const label  = p.txD1 !== null ? 'TAXA DE RETENÇÃO HOJE' : 'KPI ACUMULADO DO MÊS'
 
   return (
     <div style={{
-      background: 'var(--void2)',
-      border: `1px solid ${taxaBorder(txShow)}`,
-      borderRadius: '16px',
-      padding: '28px 24px 22px',
+      position: 'relative', overflow: 'hidden',
+      background: 'var(--bg-card)',
+      border: `1px solid ${getTaxaBorder(txShow)}`,
+      borderRadius: '12px',
+      padding: '28px 24px',
       textAlign: 'center',
-      position: 'relative',
-      overflow: 'hidden',
     }}>
-      {/* Glow de fundo */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: `radial-gradient(ellipse 70% 60% at 50% 0%, ${taxaBg(txShow)} 0%, transparent 70%)`,
+        background: `radial-gradient(ellipse 70% 60% at 50% 0%, ${getTaxaGlow(txShow)} 0%, transparent 70%)`,
       }} />
-
       <p style={{
-        fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.16em', color: 'var(--gold)', marginBottom: '12px',
-        position: 'relative',
+        fontSize: '11px', fontWeight: 600, textTransform: 'uppercase',
+        letterSpacing: '0.15em', color: 'rgba(244,212,124,0.7)',
+        marginBottom: '16px', position: 'relative', zIndex: 1,
       }}>
         {label}
       </p>
-
       <p style={{
-        fontFamily: 'var(--ff-display)', fontSize: '80px', fontWeight: 700, lineHeight: 1,
-        color: taxaColor(txShow), position: 'relative',
+        fontSize: '72px', fontWeight: 700, lineHeight: 1,
+        fontVariantNumeric: 'tabular-nums',
+        color: getTaxaColor(txShow),
+        position: 'relative', zIndex: 1,
       }}>
         {fmt1(txAnim)}%
       </p>
 
-      {/* Hora de atualização */}
-      {p.horaAtualiz ? (
-        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', position: 'relative' }}>
-          <span style={{
-            fontFamily: 'var(--ff-display)', fontSize: '18px', fontWeight: 700, color: 'var(--gold)',
-          }}>
-            Atualizado às {p.horaAtualiz}
-          </span>
-          {p.dataAtualiz && (
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{p.dataAtualiz}</span>
-          )}
-        </div>
-      ) : (
-        <p style={{ marginTop: '14px', fontSize: '11px', color: 'var(--text-muted)', position: 'relative' }}>
-          {p.semDadosD1 ? 'Sem dados D-1 hoje — exibindo KPI acumulado' : 'Sem horário de atualização'}
-        </p>
-      )}
+      {/* Timestamp / status */}
+      <div style={{ marginTop: '28px', position: 'relative', zIndex: 1 }}>
+        {p.semDadosD1 ? (
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.50)', textAlign: 'center' }}>
+            Aguardando primeiro report do dia
+          </p>
+        ) : p.horaAtualiz ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)' }}>Último report:</span>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>{p.horaAtualiz}</span>
+            </div>
+            {formatDataPorExtenso(p.dataAtualiz) && (
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>
+                {formatDataPorExtenso(p.dataAtualiz)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.20)', flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)' }}>Último report:</span>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>--:--</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-// ── SEÇÃO 2 — Trio: Retidos / Cancelados / Pedidos ───────────────────────────
+// ── 2. Trio ───────────────────────────────────────────────────────────────────
 
 function TrioCard({ label, valor, cor }: { label: string; valor: number; cor: string }) {
   return (
     <div style={{
-      flex: '1 1 90px', padding: '16px 14px',
-      background: 'var(--void3)',
+      flex: '1 1 0', padding: '16px 12px',
+      background: 'var(--bg-card)',
       border: '1px solid rgba(201,168,76,0.08)',
-      borderRadius: '14px',
-      textAlign: 'center',
+      borderRadius: '12px', textAlign: 'center',
     }}>
       <p style={{
-        fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: '8px',
+        fontSize: '11px', fontWeight: 600, textTransform: 'uppercase',
+        letterSpacing: '0.10em', color: 'rgba(244,212,124,0.7)', marginBottom: '10px',
       }}>
         {label}
       </p>
-      <p style={{ fontFamily: 'var(--ff-display)', fontSize: '36px', fontWeight: 700, color: cor, lineHeight: 1 }}>
+      <p style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: cor }}>
         {valor}
       </p>
     </div>
@@ -181,209 +188,261 @@ function TrioCard({ label, valor, cor }: { label: string; valor: number; cor: st
 }
 
 function TrioIndicadores(p: MeuD1Props) {
-  if (p.semDadosD1) return null
+  if (p.semDadosD1) {
+    return (
+      <div style={{
+        padding: '16px', borderRadius: '12px',
+        background: 'var(--bg-card)', border: '1px solid rgba(201,168,76,0.08)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+      }}>
+        <AlertTriangle size={14} style={{ color: 'var(--text-muted)' }} />
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Sem dados do dia ainda</p>
+      </div>
+    )
+  }
   return (
     <div style={{ display: 'flex', gap: '10px' }}>
-      <TrioCard label="Retidos"    valor={p.retidosD1}    cor="#4ade80" />
-      <TrioCard label="Cancelados" valor={p.canceladosD1} cor="#f87171" />
-      <TrioCard label="Pedidos"    valor={p.pedidosD1}    cor="var(--text-primary)" />
+      <TrioCard label="Retidos"    valor={p.retidosD1}    cor="rgba(134,239,172,0.9)" />
+      <TrioCard label="Cancelados" valor={p.canceladosD1} cor="rgba(252,165,165,0.9)" />
+      <TrioCard label="Pedidos"    valor={p.pedidosD1}    cor="rgba(253,230,138,0.9)" />
     </div>
   )
 }
 
-// ── SEÇÃO 3 — Plano de Ação: 3 cards ─────────────────────────────────────────
+// ── 3. Plano de Ação ──────────────────────────────────────────────────────────
 
-function PlanoCard({
-  icon: Icon, iconColor, numero, unidade, linha, badge,
-}: {
+const VALOR_NUM: React.CSSProperties = {
+  fontSize: '30px', fontWeight: 700, lineHeight: 1,
+  fontVariantNumeric: 'tabular-nums', color: 'rgba(255,255,255,0.95)',
+}
+
+type PlanoCardProps = {
   icon: React.ElementType
-  iconColor: string
-  numero: string
+  titulo: string
+  valor: React.ReactNode
   unidade: string
-  linha: string
+  descricao: string
   badge: React.ReactNode
-}) {
+}
+
+function PlanoCard({ icon: Icon, titulo, valor, unidade, descricao, badge }: PlanoCardProps) {
   return (
     <div style={{
       flex: '1 1 130px', padding: '16px 14px',
-      background: 'var(--void3)',
+      background: 'var(--bg-card)',
       border: '1px solid rgba(201,168,76,0.08)',
-      borderRadius: '14px',
+      borderRadius: '12px',
       display: 'flex', flexDirection: 'column', gap: '8px',
     }}>
-      <Icon size={15} style={{ color: iconColor }} />
-      <div>
-        <p style={{ fontFamily: 'var(--ff-display)', fontSize: '32px', fontWeight: 700, color: iconColor, lineHeight: 1 }}>
-          {numero}
-        </p>
-        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>{unidade}</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Icon size={13} style={{ color: 'rgba(244,212,124,0.7)', flexShrink: 0 }} />
+        <span style={{
+          fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: 'rgba(244,212,124,0.7)',
+        }}>
+          {titulo}
+        </span>
       </div>
-      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{linha}</p>
+      <div>
+        {valor}
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.50)', marginTop: '2px' }}>{unidade}</p>
+      </div>
+      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4, flex: 1 }}>{descricao}</p>
       <div>{badge}</div>
     </div>
   )
 }
 
 function PlanoAcao(p: MeuD1Props) {
-  const taxaProjAnim   = useCountUp(p.taxaProjetada)
-  const retidosNecHoje = Math.ceil(p.retidosPorDiaNecessario)
-  const maxCancelFloor = Math.floor(p.maxCanceladosDiaBon)
-  const bonusPossivel  = p.maxCanceladosDiaBon > 0
+  const taxaProjAnim = useCountUp(p.taxaProjetada)
+  const maxCancDia   = p.maxCanceladosDia
 
-  const projCor       = taxaColor(p.taxaProjetada)
-  const projBadgeBg   = taxaBg(p.taxaProjetada)
-  const projBadgeBd   = taxaBorder(p.taxaProjetada)
-  const projTexto     = p.taxaProjetada >= 66 ? 'Vai bater a meta!' : p.taxaProjetada >= 60 ? 'Próximo da meta' : 'Abaixo da meta'
+  // Badge projeção
+  const projState: BadgeState = p.taxaEst >= p.taxaKpi ? 'ok' : p.taxaEst >= 66 ? 'warn' : 'error'
 
-  const hojeOkCancel  = !p.semDadosD1 && p.canceladosD1 <= maxCancelFloor
-  const c2BadgeCor    = !bonusPossivel ? '#f87171' : hojeOkCancel ? '#4ade80' : '#facc15'
-  const c2BadgeBg     = !bonusPossivel ? 'rgba(248,113,113,0.1)' : hojeOkCancel ? 'rgba(74,222,128,0.1)' : 'rgba(250,204,21,0.1)'
-  const c2BadgeBd     = !bonusPossivel ? 'rgba(248,113,113,0.2)' : hojeOkCancel ? 'rgba(74,222,128,0.2)' : 'rgba(250,204,21,0.2)'
-  const c2BadgeTexto  = !bonusPossivel ? 'Meta impossível' : !p.semDadosD1 ? `Hoje: ${p.canceladosD1} ${hojeOkCancel ? '✓' : '⚠'}` : `Máx ${maxCancelFloor}/dia`
+  // Badge cancelados
+  const cancelBadgeState: BadgeState = (() => {
+    if (p.semDadosD1) return 'muted'
+    if (maxCancDia === null || p.canceladosD1 > maxCancDia) return 'error'
+    if (p.canceladosD1 === maxCancDia) return 'warn'
+    return 'ok'
+  })()
 
-  const hojeOkRetidos = !p.semDadosD1 && p.retidosD1 >= retidosNecHoje
-  const c3BadgeCor    = p.semDadosD1 ? 'var(--text-muted)' : hojeOkRetidos ? '#4ade80' : '#f87171'
-  const c3BadgeBg     = p.semDadosD1 ? 'rgba(148,163,184,0.06)' : hojeOkRetidos ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)'
-  const c3BadgeBd     = p.semDadosD1 ? 'rgba(148,163,184,0.12)' : hojeOkRetidos ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'
-  const c3BadgeTexto  = p.semDadosD1 ? 'Sem dados hoje' : `Você fez ${p.retidosD1} ${hojeOkRetidos ? '✓' : '⚠'}`
+  // Card C — Retidos: nova fórmula baseada nos dados do dia
+  const META = 0.66
+  const pedidosHoje = p.canceladosD1 + p.retidosD1
+  const taxaHoje    = pedidosHoje > 0 ? p.retidosD1 / pedidosHoje : 0
+
+  type RetidosEstado = 'na-meta' | 'abaixo-meta' | 'sem-pedidos'
+  let retidosEstado: RetidosEstado
+  let retidosVal: number | null
+
+  if (pedidosHoje === 0) {
+    retidosEstado = 'sem-pedidos'
+    retidosVal = null
+  } else if (taxaHoje >= META) {
+    retidosEstado = 'na-meta'
+    retidosVal = null
+  } else {
+    const x = (META * p.canceladosD1 - (1 - META) * p.retidosD1) / (1 - META)
+    retidosEstado = 'abaixo-meta'
+    retidosVal = Math.max(1, Math.ceil(x))
+  }
+
+  const retidosBadgeState: BadgeState = retidosEstado === 'na-meta' ? 'ok' : 'error'
+  const retidosUnidade = retidosVal === 1 ? 'retenção necessária' : 'retenções necessárias'
 
   return (
     <div>
-      <SectionHeading>Plano de Ação</SectionHeading>
+      <SectionTitle>Plano de Ação</SectionTitle>
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+
         {/* Card A — Projeção */}
         <PlanoCard
           icon={TrendingUp}
-          iconColor={projCor}
-          numero={`${fmt1(taxaProjAnim)}%`}
-          unidade="projeção ao fim do mês"
-          linha="Se mantiver este ritmo"
-          badge={<Badge cor={projCor} bg={projBadgeBg} bd={projBadgeBd}>{projTexto}</Badge>}
+          titulo="Projeção"
+          valor={<p style={VALOR_NUM}>{fmt1(taxaProjAnim)}%</p>}
+          unidade="ao fim do mês"
+          descricao="Se mantiver este ritmo"
+          badge={
+            <Badge state={projState}>
+              KPI {fmt1(p.taxaKpi)}% → Est {fmt1(p.taxaEst)}%
+            </Badge>
+          }
         />
 
-        {/* Card B — Limite cancelamentos */}
+        {/* Card B — Cancelados máx/dia */}
         <PlanoCard
           icon={AlertTriangle}
-          iconColor={bonusPossivel ? 'var(--gold)' : '#f87171'}
-          numero={bonusPossivel ? String(maxCancelFloor) : '—'}
-          unidade="cancelamentos/dia no máximo"
-          linha={bonusPossivel ? `Para fechar em 66% nos próximos ${p.diasRestantes} dias` : 'Atingir 66% não é mais possível'}
-          badge={<Badge cor={c2BadgeCor} bg={c2BadgeBg} bd={c2BadgeBd}>{c2BadgeTexto}</Badge>}
+          titulo="Cancelados"
+          valor={maxCancDia === null
+            ? <AlertTriangle size={30} style={{ color: 'var(--vermelho)' }} />
+            : <p style={VALOR_NUM}>{maxCancDia}</p>
+          }
+          unidade={maxCancDia === null ? 'cota esgotada' : 'cancelamentos/dia no máximo'}
+          descricao={maxCancDia === null
+            ? 'Segure os cancelados hoje pra não afetar sua Tx. Retenção'
+            : `Pra não passar dos ${p.metaCanceladosMes} do mês`
+          }
+          badge={
+            p.semDadosD1
+              ? <Badge state="muted">Sem dados hoje</Badge>
+              : <Badge state={cancelBadgeState}>
+                  {cancelBadgeState === 'ok'
+                    ? <><CheckCircle2 size={10} />Hoje: {p.canceladosD1}</>
+                    : <><AlertTriangle size={10} />Hoje: {p.canceladosD1}</>
+                  }
+                </Badge>
+          }
         />
 
-        {/* Card C — Retidos necessários hoje */}
+        {/* Card C — Retidos */}
         <PlanoCard
-          icon={Target}
-          iconColor="var(--gold)"
-          numero={p.jaEstaNaMeta ? '✓' : String(retidosNecHoje)}
-          unidade={p.jaEstaNaMeta ? 'já está na meta!' : 'retenções para manter o ritmo'}
-          linha={p.jaEstaNaMeta ? 'Mantenha o ritmo atual' : 'Necessário hoje para fechar em 66%'}
-          badge={<Badge cor={c3BadgeCor} bg={c3BadgeBg} bd={c3BadgeBd}>{c3BadgeTexto}</Badge>}
+          icon={retidosEstado === 'na-meta' ? CheckCircle2 : retidosEstado === 'sem-pedidos' ? Target : Target}
+          titulo="Retidos"
+          valor={
+            retidosEstado === 'na-meta'
+              ? <CheckCircle2 size={30} style={{ color: 'var(--verde)' }} />
+              : retidosEstado === 'sem-pedidos'
+              ? <p style={{ ...VALOR_NUM, color: 'rgba(255,255,255,0.30)' }}>—</p>
+              : <p style={VALOR_NUM}>{retidosVal}</p>
+          }
+          unidade={
+            retidosEstado === 'na-meta' ? 'já está na meta'
+            : retidosEstado === 'sem-pedidos' ? 'sem pedidos ainda hoje'
+            : retidosUnidade
+          }
+          descricao={
+            retidosEstado === 'na-meta' ? 'Mantenha sem cancelar mais'
+            : retidosEstado === 'sem-pedidos' ? 'Aguardando dados do dia'
+            : 'Pra bater 66% hoje'
+          }
+          badge={
+            retidosEstado === 'sem-pedidos' ? null
+            : p.semDadosD1
+              ? <Badge state="muted">Sem dados hoje</Badge>
+              : <Badge state={retidosBadgeState}>
+                  {retidosEstado === 'na-meta'
+                    ? <><CheckCircle2 size={10} />Você fez {p.retidosD1}</>
+                    : <><AlertTriangle size={10} />Você fez {p.retidosD1}</>
+                  }
+                </Badge>
+          }
         />
       </div>
     </div>
   )
 }
 
-// ── SEÇÃO 4 — Comparativo KPI (colapsível) ────────────────────────────────────
+// ── 4. Comparativo ────────────────────────────────────────────────────────────
+
+function KpiTableRow({ label, kpi, est }: { label: string; kpi: string; est: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span style={{ flex: 1, fontSize: '13px', fontWeight: 400, color: 'rgba(255,255,255,0.70)' }}>{label}</span>
+      <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', width: '72px', textAlign: 'right' }}>{kpi}</span>
+      <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', width: '84px', textAlign: 'right' }}>{est}</span>
+    </div>
+  )
+}
 
 function ComparativoKPI(p: MeuD1Props) {
-  const [aberto, setAberto] = useState(false)
-
   return (
-    <div style={{
-      background: 'var(--void3)',
-      border: '1px solid rgba(201,168,76,0.06)',
-      borderRadius: '14px',
-      overflow: 'hidden',
-    }}>
-      <button
-        type="button"
-        onClick={() => setAberto(v => !v)}
-        style={{
-          width: '100%', padding: '12px 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'none', border: 'none', cursor: 'pointer',
-        }}
-      >
+    <SectionCard title="Comparativo com KPI do Mês">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+        <span style={{ flex: 1 }} />
         <span style={{
-          fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)',
-          letterSpacing: '0.06em',
+          fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.10em', color: 'rgba(244,212,124,0.45)', width: '72px', textAlign: 'right',
         }}>
-          Ver comparativo com KPI do mês
+          KPI MÊS
         </span>
-        <ChevronDown
-          size={13}
-          style={{
-            color: 'var(--text-muted)', flexShrink: 0,
-            transition: 'transform 0.3s ease',
-            transform: aberto ? 'rotate(0deg)' : 'rotate(-90deg)',
-          }}
-        />
-      </button>
-
-      <div style={{
-        maxHeight: aberto ? '400px' : '0',
-        overflow: 'hidden',
-        transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)',
-      }}>
-        <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ height: '1px', background: 'rgba(201,168,76,0.06)' }} />
-
-          {/* Linha taxa */}
-          <KpiRow label="Taxa de Retenção" kpi={`${fmt1(p.taxaKpi)}%`} est={p.semDadosD1 ? '—' : `${fmt1(p.taxaEst)}%`} />
-
-          {/* Linhas numéricas */}
-          <KpiRow label="Retidos"    kpi={String(p.retidosKpi)}    est={p.semDadosD1 ? '—' : String(p.retidosEst)} />
-          <KpiRow label="Cancelados" kpi={String(p.canceladosKpi)} est={p.semDadosD1 ? '—' : String(p.canceladosEst)} />
-          <KpiRow label="Pedidos"    kpi={String(p.pedidosKpi)}    est={p.semDadosD1 ? '—' : String(p.pedidosEst)} />
-
-          {!p.semDadosD1 && (
-            <p style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.7, textAlign: 'center' }}>
-              Estimativa = KPI acumulado + dados D-1 de hoje
-            </p>
-          )}
-        </div>
+        <span style={{
+          fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.10em', color: 'rgba(244,212,124,0.45)', width: '84px', textAlign: 'right',
+        }}>
+          ESTIMATIVA
+        </span>
       </div>
-    </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <KpiTableRow label="Taxa de Retenção" kpi={`${fmt1(p.taxaKpi)}%`} est={p.semDadosD1 ? '—' : `${fmt1(p.taxaEst)}%`} />
+        <KpiTableRow label="Retidos"    kpi={String(p.retidosKpi)}    est={p.semDadosD1 ? '—' : String(p.retidosEst)} />
+        <KpiTableRow label="Cancelados" kpi={String(p.canceladosKpi)} est={p.semDadosD1 ? '—' : String(p.canceladosEst)} />
+        <KpiTableRow label="Pedidos"    kpi={String(p.pedidosKpi)}    est={p.semDadosD1 ? '—' : String(p.pedidosEst)} />
+      </div>
+      {!p.semDadosD1 && (
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)', marginTop: '16px', textAlign: 'center' }}>
+          Estimativa = KPI acumulado + dados D-1 de hoje
+        </p>
+      )}
+    </SectionCard>
   )
 }
 
-function KpiRow({ label, kpi, est }: { label: string; kpi: string; est: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{label}</span>
-      <div style={{ display: 'flex', gap: '20px' }}>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '1px' }}>KPI</p>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>{kpi}</p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '1px' }}>Estimativa</p>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{est}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Componente principal ──────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function MeuD1Client(p: MeuD1Props) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes d1FadeUp {
-          from { opacity: 0; transform: translateY(12px); }
+          from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .d1-fade { animation: none !important; }
+        }
       `}} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <Fade delay={0}><HeroTaxa {...p} /></Fade>
-        {!p.semDadosD1 && <Fade delay={60}><TrioIndicadores {...p} /></Fade>}
-        <Fade delay={120}><PlanoAcao {...p} /></Fade>
-        <Fade delay={180}><ComparativoKPI {...p} /></Fade>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {[HeroTaxa, TrioIndicadores, PlanoAcao, ComparativoKPI].map((Comp, i) => (
+          <div
+            key={i}
+            className="d1-fade"
+            style={{ animation: `d1FadeUp 0.45s cubic-bezier(0.22,1,0.36,1) ${i * 60}ms both` }}
+          >
+            <Comp {...p} />
+          </div>
+        ))}
       </div>
     </>
   )

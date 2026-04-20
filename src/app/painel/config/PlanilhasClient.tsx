@@ -4,9 +4,10 @@ import { useState, useTransition } from 'react'
 import { adicionarPlanilha, definirPlanilhaAtiva, removerPlanilha } from './actions'
 import type { Planilha } from '@/lib/sheets'
 import {
-  Plus, Trash2, Check, Loader2, AlertCircle,
+  Plus, Trash2, Check, AlertCircle,
   ExternalLink, ChevronDown, ChevronUp,
 } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 
 export default function PlanilhasClient({ planilhas: inicial }: { planilhas: Planilha[] }) {
   const [planilhas, setPlanilhas] = useState(inicial)
@@ -291,7 +292,7 @@ function NovaForm({
 
       <div className="flex gap-2 pt-1">
         <button type="submit" disabled={pending} className="btn-primary flex items-center gap-1.5 text-sm py-2">
-          {pending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+          {pending ? <HaloSpinner size="sm" /> : <Plus size={14} />}
           Adicionar
         </button>
         <button type="button" onClick={onCancelar} className="btn-ghost flex items-center gap-1.5 text-sm py-2">

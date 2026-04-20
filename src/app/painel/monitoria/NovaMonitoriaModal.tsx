@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { X, ClipboardList, Save, AlertTriangle, CheckCircle } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 import { criarMonitoriaAction } from './actions'
 
 interface Operador { id: number; nome: string; username: string }
@@ -232,7 +233,7 @@ export default function NovaMonitoriaModal({ aberto, operadores, onFechar, onSal
             style={{ minWidth: '150px', opacity: saving || sucesso ? 0.9 : 1 }}
           >
             {saving ? (
-              <span className="w-4 h-4 rounded-full border-2 border-[#050508]/30 border-t-[#050508] animate-spin" />
+              <HaloSpinner size="sm" />
             ) : sucesso ? (
               <CheckCircle size={15} />
             ) : (

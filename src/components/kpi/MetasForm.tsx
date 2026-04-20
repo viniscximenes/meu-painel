@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { salvarMeta, excluirMeta } from '@/app/painel/metas/actions'
 import type { Meta } from '@/lib/kpi-utils'
-import { Plus, Trash2, Edit2, Check, X, Star, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Edit2, Check, X, Star } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 import { ICON_MAP, ICON_NAMES } from '@/lib/kpi-icons'
 
 function sufixoDisplay(unidade: string): string {
@@ -244,7 +245,7 @@ function MetaForm({
 
       <div className="flex gap-2 pt-1">
         <button type="submit" disabled={pending} className="btn-primary flex items-center gap-1.5 text-sm py-2">
-          {pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+          {pending ? <HaloSpinner size="sm" /> : <Check size={14} />}
           Salvar
         </button>
         <button type="button" onClick={onCancelar} className="btn-ghost flex items-center gap-1.5 text-sm py-2">

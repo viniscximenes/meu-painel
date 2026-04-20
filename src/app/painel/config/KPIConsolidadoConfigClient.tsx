@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { salvarKPIConsolidadoConfig } from './actions'
-import { Loader2, Save, TableProperties } from 'lucide-react'
+import { Save, TableProperties } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 
 interface Props {
   limiteInicial: number
@@ -70,7 +71,7 @@ export default function KPIConsolidadoConfigClient({ limiteInicial }: Props) {
             className="btn-primary flex items-center gap-1.5 text-sm py-2"
           >
             {pending
-              ? <Loader2 size={14} className="animate-spin" />
+              ? <HaloSpinner size="sm" />
               : <Save size={14} />
             }
             Salvar

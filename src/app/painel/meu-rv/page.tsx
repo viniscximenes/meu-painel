@@ -1,6 +1,8 @@
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getMetas, computarKPIs } from '@/lib/kpi'
+import { normalizarChave } from '@/lib/kpi-utils'
+import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import {
   getPlanilhaAtiva,
   buscarLinhasPlanilha,
@@ -40,8 +42,8 @@ export default async function MeuRVPage() {
 
   if (!planilha || !rvConfig) {
     return (
-      <PainelShell profile={profile} title="Meu RV" iconName="CircleDollarSign">
-        <div style={cssVars} className="space-y-4">
+      <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
+        <div style={cssVars} className="space-y-4 login-grid-bg">
           <GoldLine />
           <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
             <strong>Planilha não configurada</strong>
@@ -72,8 +74,8 @@ export default async function MeuRVPage() {
 
     if (!meuRow) {
       return (
-        <PainelShell profile={profile} title="Meu RV" iconName="CircleDollarSign">
-          <div style={cssVars} className="space-y-4">
+        <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
+          <div style={cssVars} className="space-y-4 login-grid-bg">
             <GoldLine />
             <EmptyState icon={<AlertTriangle size={24} className="text-amber-400" />}>
               <strong>Dados não encontrados</strong>
@@ -94,6 +96,23 @@ export default async function MeuRVPage() {
       kpis, profile.operador_id ?? 0, mesReferencia, faltasNoMes,
     )
 
+    // Ranking por Tx. Retenção — mesma lógica do Meu KPI
+    const txRetHeader = headers.find(h => {
+      const n = normalizarChave(h)
+      return (n.includes('retenc') || n.includes('retenç')) && !n.includes('15d') && !n.includes('liquid')
+    }) ?? ''
+    const txRetIdx = txRetHeader ? headers.indexOf(txRetHeader) : -1
+    const parseNum = (v: string) => parseFloat(v.replace('%', '').replace(',', '.').trim() || '0') || 0
+    const todosComTxRet = OPERADORES_DISPLAY
+      .map(op => {
+        const r = rows.find(row => matchCelulaOperador(row[col] ?? '', op.username, op.nome))
+        if (!r || txRetIdx < 0) return null
+        return { username: op.username, txRet: parseNum(r[txRetIdx] ?? '0') }
+      })
+      .filter((x): x is { username: string; txRet: number } => x !== null)
+      .sort((a, b) => b.txRet - a.txRet)
+    const posicaoRanking = todosComTxRet.findIndex(r => r.username === profile.username) + 1
+
     dadosProps = {
       resultado,
       nomeOperador: profile.nome,
@@ -101,14 +120,15 @@ export default async function MeuRVPage() {
       dataAtualizacao: dataAtualizacao ? formatarDataCurta(dataAtualizacao) : null,
       absValAtual,
       faltasNoMes,
+      posicaoRanking,
     }
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido'
   }
 
   return (
-    <PainelShell profile={profile} title="Meu RV" iconName="CircleDollarSign">
-      <div style={cssVars} className="space-y-4">
+    <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
+      <div style={cssVars} className="space-y-4 login-grid-bg">
         <GoldLine />
 
         {/* Header */}
@@ -131,10 +151,6 @@ export default async function MeuRVPage() {
             Meu RV
           </span>
           <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-          <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-            {dadosProps?.nomeOperador.split(' ').slice(0, 2).join(' ')}
-          </span>
-          <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mesLabel}</span>
           {dadosProps?.dataAtualizacao && (
             <>
@@ -142,7 +158,7 @@ export default async function MeuRVPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Até <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{dadosProps.dataAtualizacao}</strong>
+                  Sincronizado <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{dadosProps.dataAtualizacao}</strong>
                 </span>
               </div>
             </>

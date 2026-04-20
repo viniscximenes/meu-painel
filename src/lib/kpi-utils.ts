@@ -12,6 +12,7 @@ export interface Meta {
   label: string
   valor_meta: number
   tipo: 'maior_melhor' | 'menor_melhor'
+  tipoAcumulo?: 'acumulavel' | 'media' | 'pontual'
   amarelo_inicio: number
   verde_inicio: number
   unidade: string
@@ -341,4 +342,135 @@ export function normalizarDados(
     if (meta) out[meta.nome_coluna] = val
   }
   return out
+}
+
+// ── Dias úteis ────────────────────────────────────────────────────────────────
+
+/** Peso do dia da semana: Seg–Sex=1, Sáb=0.5, Dom=0 */
+function pesoDia(date: Date): number {
+  const dow = date.getDay() // 0=Dom, 6=Sáb
+  if (dow === 0) return 0
+  if (dow === 6) return 0.5
+  return 1
+}
+
+/**
+ * Calcula dias úteis (ponderados) de um mês.
+ * @param ano  ex: 2026
+ * @param mes  1-12
+ * @returns { diasNoMes, diasUteisTotal, diasUteisDecorridos, diasUteisRestantes }
+ */
+export function calcularDiasUteisNoMes(ano: number, mes: number) {
+  const diasNoMes = new Date(ano, mes, 0).getDate()
+  const hoje = new Date()
+  const diaHoje = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes
+    ? hoje.getDate()
+    : diasNoMes
+
+  let diasUteisTotal = 0
+  let diasUteisDecorridos = 0
+
+  for (let d = 1; d <= diasNoMes; d++) {
+    const peso = pesoDia(new Date(ano, mes - 1, d))
+    diasUteisTotal += peso
+    if (d <= diaHoje) diasUteisDecorridos += peso
+  }
+
+  return {
+    diasNoMes,
+    diasUteisTotal: Math.round(diasUteisTotal * 100) / 100,
+    diasUteisDecorridos: Math.round(diasUteisDecorridos * 100) / 100,
+    diasUteisRestantes: Math.round((diasUteisTotal - diasUteisDecorridos) * 100) / 100,
+  }
+}
+
+// ── Ritmo e projeção ──────────────────────────────────────────────────────────
+
+export interface RitmoInfo {
+  /** Valor que precisa atingir por dia útil restante para bater a meta */
+  ritmoNecessario: number | null
+  /** Projeção de fechamento mantendo ritmo atual */
+  projecaoFechamento: number | null
+  /** true se a meta já foi batida */
+  metaBatida: boolean
+  /** true se não é possível bater a meta com os dias restantes */
+  impossivel: boolean
+}
+
+/**
+ * Calcula ritmo necessário e projeção de fechamento do mês.
+ */
+export function calcularRitmoNecessario(
+  valorAtual: number,
+  meta: Meta,
+  diasUteisDecorridos: number,
+  diasUteisRestantes: number
+): RitmoInfo {
+  const alvo = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
+  const tipoAcumulo = meta.tipoAcumulo ?? 'acumulavel'
+
+  // Métrica pontual: não tem projeção de ritmo (valor é independente do tempo)
+  if (tipoAcumulo === 'pontual') {
+    return { ritmoNecessario: null, projecaoFechamento: null, metaBatida: false, impossivel: false }
+  }
+
+  // Métrica de média: compara valor atual com alvo diretamente
+  if (tipoAcumulo === 'media') {
+    const batida = meta.tipo === 'maior_melhor' ? valorAtual >= alvo : valorAtual <= alvo
+    return { ritmoNecessario: null, projecaoFechamento: valorAtual, metaBatida: batida, impossivel: false }
+  }
+
+  // Acumulável
+  const diasTotais = diasUteisDecorridos + diasUteisRestantes
+  const ritmoAtual = diasUteisDecorridos > 0 ? valorAtual / diasUteisDecorridos : 0
+  const projecaoFechamento = diasTotais > 0
+    ? Math.round(ritmoAtual * diasTotais * 10) / 10
+    : valorAtual
+
+  if (meta.tipo === 'maior_melhor') {
+    const metaBatida = valorAtual >= alvo
+    if (metaBatida) return { ritmoNecessario: 0, projecaoFechamento, metaBatida: true, impossivel: false }
+
+    const restante = alvo - valorAtual
+    if (diasUteisRestantes <= 0) return { ritmoNecessario: null, projecaoFechamento, metaBatida: false, impossivel: true }
+
+    const ritmoNecessario = Math.round((restante / diasUteisRestantes) * 10) / 10
+    return { ritmoNecessario, projecaoFechamento, metaBatida: false, impossivel: false }
+  } else {
+    // menor_melhor (ex: churn): acumulado deve ficar abaixo do alvo
+    const metaBatida = valorAtual <= alvo
+    if (diasUteisRestantes <= 0) return { ritmoNecessario: null, projecaoFechamento, metaBatida, impossivel: !metaBatida }
+
+    // Ritmo máximo permitido por dia para não ultrapassar o alvo
+    const permitidoRestante = alvo - valorAtual
+    if (permitidoRestante <= 0) return { ritmoNecessario: 0, projecaoFechamento, metaBatida: false, impossivel: true }
+
+    const ritmoNecessario = Math.round((permitidoRestante / diasUteisRestantes) * 10) / 10
+    return { ritmoNecessario, projecaoFechamento, metaBatida, impossivel: false }
+  }
+}
+
+// ── Formatação de data de sincronização ──────────────────────────────────────
+
+/**
+ * Formata string de atualização para exibição compacta.
+ * Entrada pode ser "DD/MM/YYYY HH:MM" ou só "DD/MM/YYYY".
+ */
+export function formatarSincronizacao(raw: string | null | undefined): string {
+  if (!raw) return '—'
+  const s = raw.trim()
+  // Detecta padrão com horário "dd/MM/yyyy HH:MM" ou "dd/MM/yyyy HH:MM:SS"
+  const comHora = s.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})/)
+  if (comHora) return `${comHora[1]} às ${comHora[2]}`
+  // Só data
+  const soData = s.match(/^(\d{2}\/\d{2}\/\d{4})/)
+  if (soData) return soData[1]
+  return s
+}
+
+// ── Alias de formatação ───────────────────────────────────────────────────────
+
+/** Alias de formatarExibicao para uso consistente em novos componentes */
+export function formatMetricValue(valor: string, unidade: string): string {
+  return formatarExibicao(valor, unidade)
 }

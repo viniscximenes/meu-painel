@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { BarChart2 } from 'lucide-react'
 
-const TEAMS_URL =
-  'https://teams.cloud.microsoft/l/chat/0/0?users=caio.vsilva@alloha.com&message=Ol%C3%A1%20Caio%2C%20preciso%20de%20ajuda%20com%20meu%20acesso%20ao%20HALO'
+export const metadata = {
+  title: 'Sessão expirada — HALO',
+}
 
-export default function NotFound() {
+export default function SessaoExpiradaPage() {
   return (
     <main
       className="login-grid-bg min-h-screen flex items-center justify-center p-8"
@@ -21,8 +22,8 @@ export default function NotFound() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ position: 'absolute', top: '-15%', right: '-10%', width: '700px', height: '700px', background: 'radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%)', borderRadius: '50%', animation: 'meshFloat 10s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%)', borderRadius: '50%', animation: 'meshFloat 12s ease-in-out infinite reverse' }} />
+        <div style={{ position: 'absolute', top: '-15%', right: '-10%', width: '700px', height: '700px', background: 'radial-gradient(circle, rgba(234,179,8,0.06) 0%, transparent 70%)', borderRadius: '50%', animation: 'meshFloat 10s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(201,168,76,0.05) 0%, transparent 70%)', borderRadius: '50%', animation: 'meshFloat 12s ease-in-out infinite reverse' }} />
       </div>
 
       {/* ── Coluna central ── */}
@@ -73,27 +74,37 @@ export default function NotFound() {
             style={{ position: 'relative', zIndex: 1 }}
           >
 
-            {/* Número 404 */}
-            <div className="login-stagger-3">
-              <span
+            {/* Ícone de relógio */}
+            <div className="login-stagger-3 flex justify-center mb-5">
+              <div
                 style={{
-                  display: 'block',
-                  fontFamily: 'var(--ff-display)',
-                  fontSize: '72px',
-                  fontWeight: 800,
-                  lineHeight: 1,
-                  letterSpacing: '-0.04em',
-                  background: 'linear-gradient(135deg, #f4d47c 0%, #d4a935 50%, #b8911a 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  marginBottom: '0.25rem',
-                  opacity: 0.9,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  background: 'rgba(234,179,8,0.08)',
+                  border: '1px solid rgba(234,179,8,0.20)',
                 }}
-                aria-hidden="true"
               >
-                404
-              </span>
+                <svg
+                  width="26" height="26"
+                  viewBox="0 0 24 24" fill="none"
+                  stroke="url(#clockGrad)" strokeWidth="1.75"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <linearGradient id="clockGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#f4d47c" />
+                      <stop offset="100%" stopColor="#d4a935" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
             </div>
 
             {/* Título e mensagem */}
@@ -101,7 +112,7 @@ export default function NotFound() {
               <h2
                 style={{
                   fontFamily: 'var(--ff-display)',
-                  fontSize: '1.125rem',
+                  fontSize: '1.25rem',
                   fontWeight: 700,
                   background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--gold-light) 100%)',
                   WebkitBackgroundClip: 'text',
@@ -111,7 +122,7 @@ export default function NotFound() {
                   marginBottom: '0.625rem',
                 }}
               >
-                <span className="sr-only">Erro 404 — </span>Página não encontrada
+                Sessão expirada
               </h2>
               <p
                 style={{
@@ -122,14 +133,14 @@ export default function NotFound() {
                   margin: '0 auto',
                 }}
               >
-                A página que você tentou acessar não existe ou foi movida.
+                Por segurança, sua sessão foi encerrada após período de inatividade. Faça login novamente para continuar.
               </p>
             </div>
 
-            {/* Botão primário */}
-            <div className="login-stagger-5 space-y-3">
+            {/* Botão */}
+            <div className="login-stagger-5">
               <Link
-                href="/"
+                href="/login"
                 className="btn-login btn-halo-action"
                 style={{ textDecoration: 'none' }}
               >
@@ -140,34 +151,12 @@ export default function NotFound() {
                   strokeLinecap="round" strokeLinejoin="round"
                   aria-hidden="true"
                 >
-                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
                 </svg>
-                Voltar ao Início
+                Voltar ao Login
               </Link>
-
-              {/* Link secundário */}
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Precisa de ajuda?{' '}
-                <a
-                  href={TEAMS_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="teams-link"
-                >
-                  <svg
-                    width="11" height="11"
-                    viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    style={{ display: 'inline', verticalAlign: 'middle', marginBottom: '1px' }}
-                    aria-hidden="true"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  {' '}Contate o administrador
-                </a>
-              </p>
             </div>
 
           </div>

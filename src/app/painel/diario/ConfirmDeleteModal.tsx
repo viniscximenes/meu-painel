@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react'
 import { X, Trash2, AlertTriangle } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 import type { DiarioRegistro, TipoRegistro } from '@/lib/diario-utils'
 import { formatarDataCompleta } from '@/lib/diario-utils'
 import { deletarRegistroDiarioAction } from './actions'
@@ -135,7 +136,7 @@ export default function ConfirmDeleteModal({ registro, onFechar, onApagado, onEr
             style={{ minWidth: '110px' }}
           >
             {pending ? (
-              <span className="w-4 h-4 rounded-full border-2 border-red-400/30 border-t-red-400 animate-spin" />
+              <HaloSpinner size="sm" />
             ) : (
               <Trash2 size={14} />
             )}

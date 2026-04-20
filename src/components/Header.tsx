@@ -1,9 +1,14 @@
 'use client'
 
 import { logout } from '@/app/login/actions'
+import { setCursorStyle } from '@/components/CursorProvider'
 import { Profile } from '@/types'
-import { Menu, LogOut, BarChart2, UserCircle, Users, Banknote, CircleDollarSign, TrendingUp, CalendarDays, Ticket, Calculator, Link2, ClipboardCopy } from 'lucide-react'
-import { getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
+import {
+  Menu, LogOut, BarChart2, UserCircle, Users, Banknote,
+  CircleDollarSign, TrendingUp, CalendarDays, Ticket,
+  Calculator, Link2, ClipboardCopy, Gauge, Target, Wallet,
+} from 'lucide-react'
+import { getIniciaisNome } from '@/lib/operadores'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -18,6 +23,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Calculator,
   Link2,
   ClipboardCopy,
+  Gauge,
+  Target,
+  Wallet,
 }
 
 interface HeaderProps {
@@ -25,6 +33,15 @@ interface HeaderProps {
   title: string
   onMenuClick: () => void
   iconName?: string
+}
+
+const AVATAR_STYLE_HALO: React.CSSProperties = {
+  background: '#0a0e14',
+  border: '1px solid rgba(201,168,76,0.5)',
+  color: '#f4d47c',
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.05em',
 }
 
 export default function Header({ profile, title, onMenuClick, iconName }: HeaderProps) {
@@ -65,7 +82,7 @@ export default function Header({ profile, title, onMenuClick, iconName }: Header
           className="logo-shimmer w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
           style={{ boxShadow: '0 4px 16px rgba(201,168,76,0.30)' }}
         >
-          <Icon size={14} className="text-[#050508]" />
+          <Icon size={14} strokeWidth={1.5} className="text-[#050508]" />
         </div>
         <h1
           className="font-semibold tracking-tight"
@@ -89,32 +106,24 @@ export default function Header({ profile, title, onMenuClick, iconName }: Header
           style={{ borderLeft: '1px solid rgba(201,168,76,0.10)' }}
         >
           <div className="text-right">
-            <p
-              className="text-xs font-semibold leading-none"
-              style={{
-                background: 'linear-gradient(135deg, var(--gold-light) 0%, var(--gold-bright) 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
+            <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', lineHeight: 1 }}>
               {profile.nome.split(' ')[0]}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.50)', marginTop: '3px' }}>
               {profile.username}
             </p>
           </div>
 
-          {/* Avatar com ring dourado pulsante */}
+          {/* Avatar HALO: fundo preto + borda dourada */}
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border-2 avatar-ring-gold"
-            style={getAvatarStyle(profile.operador_id ?? 14)}
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={AVATAR_STYLE_HALO}
           >
             {getIniciaisNome(profile.nome)}
           </div>
 
           <span className={`badge ${profile.role === 'gestor' ? 'badge-gestor' : 'badge-operador'}`}>
-            {profile.role === 'gestor' ? 'Gestor' : 'Op.'}
+            {profile.role === 'gestor' ? 'Gestor' : 'Operador'}
           </span>
         </div>
 
@@ -124,6 +133,7 @@ export default function Header({ profile, title, onMenuClick, iconName }: Header
             className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium transition-all"
             style={{ color: 'var(--text-muted)' }}
             aria-label="Sair da conta"
+            onClick={() => setCursorStyle(null)}
             onMouseEnter={(e) => {
               const el = e.currentTarget as HTMLElement
               el.style.color = '#f87171'

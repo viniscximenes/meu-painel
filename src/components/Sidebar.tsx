@@ -8,7 +8,7 @@ import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   LayoutDashboard, ChevronDown, BarChart2,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays, Ticket, User, CircleDollarSign, TrendingUp, Calculator, Link2, ClipboardCopy,
+  CalendarDays, Ticket, Gauge, Wallet, TrendingUp, Calculator, Link2, ClipboardCopy,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -86,7 +86,7 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
               className="text-gold-gradient font-bold text-sm tracking-wide"
               style={{ fontFamily: 'var(--ff-display)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
             >
-              Meu Painel
+              HALO
             </span>
             <p
               className="text-[10px] mt-0.5 tracking-widest uppercase"
@@ -128,13 +128,20 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
             }}
           >
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border-2 avatar-ring-gold"
-              style={getAvatarStyle(profile.operador_id ?? 14)}
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{
+                background: '#0a0e14',
+                border: '1px solid rgba(201,168,76,0.5)',
+                color: '#f4d47c',
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+              }}
             >
               {getIniciaisNome(profile.nome)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+              <p className="truncate" style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', lineHeight: 1 }}>
                 {profile.nome.split(' ').slice(0, 2).join(' ')}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -227,15 +234,15 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
 
       <Link href="/painel/meu-kpi" onClick={onClose}
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <User size={15} /> Meu KPI
+        <Gauge size={15} strokeWidth={1.5} /> Meu KPI
       </Link>
       <Link href="/painel/meu-rv" onClick={onClose}
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <CircleDollarSign size={15} /> Meu RV
+        <Wallet size={15} strokeWidth={1.5} /> Meu RV
       </Link>
       <Link href="/painel/meu-d1" onClick={onClose}
         className={pathname === '/painel/meu-d1' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <TrendingUp size={15} /> D-1
+        <TrendingUp size={15} strokeWidth={1.5} /> D-1
       </Link>
 
       <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
@@ -358,15 +365,15 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
 
       <Link href="/painel/meu-kpi" onClick={onClose}
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <User size={15} /> Meu KPI
+        <Gauge size={15} strokeWidth={1.5} /> Meu KPI
       </Link>
       <Link href="/painel/meu-rv" onClick={onClose}
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <CircleDollarSign size={15} /> Meu RV
+        <Wallet size={15} strokeWidth={1.5} /> Meu RV
       </Link>
       <Link href="/painel/meu-d1" onClick={onClose}
         className={pathname === '/painel/meu-d1' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <TrendingUp size={15} /> D-1
+        <TrendingUp size={15} strokeWidth={1.5} /> D-1
       </Link>
 
       <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
@@ -444,15 +451,15 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
 
       <Link href="/painel/meu-kpi" onClick={onClose}
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <User size={15} /> Meu KPI
+        <Gauge size={15} strokeWidth={1.5} /> Meu KPI
       </Link>
       <Link href="/painel/meu-rv" onClick={onClose}
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <CircleDollarSign size={15} /> Meu RV
+        <Wallet size={15} strokeWidth={1.5} /> Meu RV
       </Link>
       <Link href="/painel/meu-d1" onClick={onClose}
         className={pathname === '/painel/meu-d1' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <TrendingUp size={15} /> D-1
+        <TrendingUp size={15} strokeWidth={1.5} /> D-1
       </Link>
 
       <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>

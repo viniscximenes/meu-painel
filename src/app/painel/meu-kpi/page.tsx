@@ -14,6 +14,7 @@ import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { getAppConfig } from '@/lib/app-config'
 import PainelShell from '@/components/PainelShell'
 import MeuKPIClient, { type MeuKPIProps } from './MeuKPIClient'
+import VisaoRapidaToggle from '@/components/VisaoRapidaToggle'
 import { AlertTriangle, Settings } from 'lucide-react'
 import Link from 'next/link'
 
@@ -21,7 +22,7 @@ const COLUNAS_COMPLEMENTARES = [
   '% Variação Ticket','Retidos Brutos','Retidos Líquidos 15d',
   'Tx. Retenção Líquida 15d (%)','Atendidas','Transfer (%)','Short Call (%)',
   'Rechamada D+7 (%)','Tx. Tabulação (%)','CSAT','Engajamento',
-  'Tempo Projetado','Tempo de Login','NR17 (%)','Pessoal','Pessoal (%)',
+  'Tempo Projetado','Tempo de Login','Logins Mês','NR17 (%)','Pessoal','Pessoal (%)',
   'Outras Pausas','Outras Pausas (%)',
 ]
 
@@ -48,7 +49,7 @@ export default async function MeuKPIPage() {
 
   if (!planilha) {
     return (
-      <PainelShell profile={profile} title="Meu KPI" iconName="UserCircle">
+      <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
         <div style={cssVars} className="space-y-4">
           <GoldLine />
           <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
@@ -74,7 +75,7 @@ export default async function MeuKPIPage() {
 
     if (!meuRow) {
       return (
-        <PainelShell profile={profile} title="Meu KPI" iconName="UserCircle">
+        <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
           <div style={cssVars} className="space-y-4">
             <GoldLine />
             <EmptyState icon={<AlertTriangle size={24} className="text-amber-400" />}>
@@ -113,6 +114,15 @@ export default async function MeuKPIPage() {
     const posicaoRanking = todosComTxRet.findIndex(r => r.username === profile.username) + 1
     const meuTxRet = todosComTxRet.find(r => r.username === profile.username)?.txRet ?? 0
     const totalNoRanking = todosComTxRet.length
+    const txRetLider = todosComTxRet[0]?.txRet ?? 0
+
+    const myIdx = posicaoRanking > 0 ? posicaoRanking - 1 : -1
+    const vizinhoAcima = myIdx > 0
+      ? { posicao: myIdx, txRet: todosComTxRet[myIdx - 1].txRet }
+      : undefined
+    const vizinhoAbaixo = myIdx >= 0 && myIdx < totalNoRanking - 1
+      ? { posicao: myIdx + 2, txRet: todosComTxRet[myIdx + 1].txRet }
+      : undefined
 
     // Dados complementares
     const complementares = COLUNAS_COMPLEMENTARES
@@ -134,13 +144,16 @@ export default async function MeuKPIPage() {
       planilhaNome: planilha.nome,
       dataAtualizacao: dataAtualizacao ? formatarDataCurta(dataAtualizacao) : null,
       mesLabel,
+      vizinhoAcima,
+      vizinhoAbaixo,
+      txRetLider,
     }
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido'
   }
 
   return (
-    <PainelShell profile={profile} title="Meu KPI" iconName="UserCircle">
+    <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
       <div style={cssVars} className="space-y-4">
         <GoldLine />
 
@@ -166,10 +179,6 @@ export default async function MeuKPIPage() {
               Meu KPI
             </span>
             <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-            <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-              {dadosProps?.nomeOperador.split(' ').slice(0, 2).join(' ')}
-            </span>
-            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mesLabel}</span>
             {dadosProps?.dataAtualizacao && (
               <>
@@ -177,12 +186,13 @@ export default async function MeuKPIPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Até <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{dadosProps.dataAtualizacao}</strong>
+                    Sincronizado <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{dadosProps.dataAtualizacao}</strong>
                   </span>
                 </div>
               </>
             )}
           </div>
+          {dadosProps && <VisaoRapidaToggle />}
         </div>
 
         {erroSheets && (

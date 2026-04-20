@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Save, Plus, Trash2, CheckCircle, AlertTriangle, ShieldAlert, Check, X } from 'lucide-react'
+import { HaloSpinner } from '@/components/HaloSpinner'
 import type { FaixaRV, RVConfigRaw, PenalidadeRV, DescontoIndividual } from '@/lib/rv-utils'
 import { mmssParaSeg, segParaMMSS, formatBRL } from '@/lib/rv-utils'
 import type { Meta } from '@/lib/kpi-utils'
@@ -535,7 +536,7 @@ export default function RVConfigForm({ raw, metas }: { raw: RVConfigRaw; metas: 
           style={{ opacity: saving ? 0.75 : 1, minWidth: '180px' }}
         >
           {saving ? (
-            <span className="w-4 h-4 rounded-full border-2 border-[#050508]/30 border-t-[#050508] animate-spin" />
+            <HaloSpinner size="sm" />
           ) : ok ? (
             <CheckCircle size={15} />
           ) : (
