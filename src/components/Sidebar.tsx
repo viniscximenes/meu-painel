@@ -6,9 +6,10 @@ import { useState } from 'react'
 import { Profile } from '@/types'
 import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
-  LayoutDashboard, ChevronDown, BarChart2,
+  LayoutDashboard, ChevronDown, BarChart2, BarChart3,
   Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
   CalendarDays, Ticket, Gauge, Wallet, TrendingUp, Calculator, Link2, ClipboardCopy,
+  History, LineChart, FolderOpen, Clock,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -345,6 +346,10 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
             className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
             <Database size={15} /> Planilhas
           </Link>
+          <Link href="/painel/config/historico" onClick={onClose}
+            className={pathname === '/painel/config/historico' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            <Clock size={15} /> Histórico Config
+          </Link>
         </div>
       </div>
     </div>
@@ -442,9 +447,6 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
 /* ── Operador nav ────────────────────────────────────────────────────────────── */
 
 function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string; onClose: () => void }) {
-  const [meusRegExp,     setMeusRegExp]     = useState(false)
-  const [meusAcessosExp, setMeusAcessosExp] = useState(true)
-
   return (
     <div className="space-y-0.5">
       <NavLabel>Meus Dados Gerais</NavLabel>
@@ -452,6 +454,10 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
       <Link href="/painel/meu-kpi" onClick={onClose}
         className={pathname === '/painel/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
         <Gauge size={15} strokeWidth={1.5} /> Meu KPI
+      </Link>
+      <Link href="/painel/meu-quartil" onClick={onClose}
+        className={pathname === '/painel/meu-quartil' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <BarChart3 size={15} strokeWidth={1.5} /> Meu Quartil
       </Link>
       <Link href="/painel/meu-rv" onClick={onClose}
         className={pathname === '/painel/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
@@ -462,42 +468,27 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
         <TrendingUp size={15} strokeWidth={1.5} /> D-1
       </Link>
 
-      <NavLabelCollapsible expanded={meusAcessosExp} onToggle={() => setMeusAcessosExp(v => !v)}>
-        Meus Acessos
-      </NavLabelCollapsible>
+      <NavLabel>Histórico</NavLabel>
 
-      <div style={{ maxHeight: meusAcessosExp ? '400px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <div className="space-y-0.5">
-          <Link href="/painel/calculadora-rv" onClick={onClose}
-            className={pathname === '/painel/calculadora-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Calculator size={15} /> Calculadora RV
-          </Link>
-          <Link href="/painel/links" onClick={onClose}
-            className={pathname === '/painel/links' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Link2 size={15} /> Links
-          </Link>
-          <Link href="/painel/mascaras" onClick={onClose}
-            className={pathname === '/painel/mascaras' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <ClipboardCopy size={15} /> Máscaras
-          </Link>
-        </div>
+      <Link href="/painel/historico/ultimos-3-meses" onClick={onClose}
+        className={pathname === '/painel/historico/ultimos-3-meses' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <History size={15} strokeWidth={1.5} /> Últimos 3 Meses
+      </Link>
+      <div
+        className="sidebar-item-inactive"
+        style={{ opacity: 0.4, cursor: 'default', pointerEvents: 'none' }}
+        aria-disabled="true"
+      >
+        <LineChart size={15} strokeWidth={1.5} /> Evolução
+        <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Em breve</span>
       </div>
-
-      <NavLabelCollapsible expanded={meusRegExp} onToggle={() => setMeusRegExp(v => !v)}>
-        Meus Registros
-      </NavLabelCollapsible>
-
-      <div style={{ maxHeight: meusRegExp ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <div className="space-y-0.5">
-          <Link href="/painel/meu-abs" onClick={onClose}
-            className={pathname === '/painel/meu-abs' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <CalendarDays size={15} /> Meu ABS
-          </Link>
-          <Link href="/painel/meu-diario" onClick={onClose}
-            className={pathname === '/painel/meu-diario' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <BookOpen size={15} /> Meu Diário
-          </Link>
-        </div>
+      <div
+        className="sidebar-item-inactive"
+        style={{ opacity: 0.4, cursor: 'default', pointerEvents: 'none' }}
+        aria-disabled="true"
+      >
+        <FolderOpen size={15} strokeWidth={1.5} /> Por Mês
+        <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Em breve</span>
       </div>
     </div>
   )

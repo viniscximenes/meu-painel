@@ -1,6 +1,6 @@
 'use server'
 
-import { requireGestor, requireAdmin, getProfile } from '@/lib/auth'
+import { requireAdmin, getProfile } from '@/lib/auth'
 import { addPlanilha, ativarPlanilha, deletarPlanilha, atualizarPlanilha } from '@/lib/sheets'
 import { setAppConfig } from '@/lib/app-config'
 import { criarLink, excluirLink, atualizarLink } from '@/lib/links'
@@ -8,17 +8,19 @@ import { criarMascara, atualizarMascara, excluirMascara } from '@/lib/mascaras'
 import { revalidatePath } from 'next/cache'
 
 export async function adicionarPlanilha(formData: FormData) {
-  await requireGestor()
+  await requireAdmin()
   const nome           = (formData.get('nome') as string).trim()
   const spreadsheet_id = (formData.get('spreadsheet_id') as string).trim()
   const aba            = (formData.get('aba') as string).trim()
+  const ativar         = formData.get('ativar') === 'true'
   if (!nome || !spreadsheet_id) throw new Error('Nome e ID são obrigatórios')
-  await addPlanilha(nome, spreadsheet_id, aba)
+  const id = await addPlanilha(nome, spreadsheet_id, aba)
+  if (ativar) await ativarPlanilha(id)
   revalidatePath('/painel/config')
 }
 
 export async function definirPlanilhaAtiva(formData: FormData) {
-  await requireGestor()
+  await requireAdmin()
   const id = (formData.get('id') as string).trim()
   if (!id) throw new Error('ID inválido')
   await ativarPlanilha(id)
@@ -30,7 +32,7 @@ export async function definirPlanilhaAtiva(formData: FormData) {
 }
 
 export async function removerPlanilha(formData: FormData) {
-  await requireGestor()
+  await requireAdmin()
   const id = (formData.get('id') as string).trim()
   if (!id) throw new Error('ID inválido')
   await deletarPlanilha(id)
@@ -38,7 +40,7 @@ export async function removerPlanilha(formData: FormData) {
 }
 
 export async function editarPlanilha(formData: FormData) {
-  await requireGestor()
+  await requireAdmin()
   const id             = (formData.get('id') as string).trim()
   const nome           = (formData.get('nome') as string).trim()
   const spreadsheet_id = (formData.get('spreadsheet_id') as string).trim()
@@ -49,7 +51,7 @@ export async function editarPlanilha(formData: FormData) {
 }
 
 export async function salvarKPIConsolidadoConfig(limiteLinhas: number): Promise<void> {
-  await requireGestor()
+  await requireAdmin()
   const valor = Math.max(10, Math.min(500, limiteLinhas))
   await setAppConfig('kpi_consolidado_limite_linhas', String(valor))
   revalidatePath('/painel/config')

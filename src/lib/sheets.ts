@@ -37,6 +37,8 @@ export interface Planilha {
   aba: string           // aba/tab dentro da planilha; vazio = primeira aba
   ativa: boolean
   created_at: string
+  referencia_mes: number | null
+  referencia_ano: number | null
 }
 
 export interface LinhasPlanilha {
@@ -82,9 +84,15 @@ export async function addPlanilha(
   nome: string,
   spreadsheet_id: string,
   aba: string
-): Promise<void> {
+): Promise<string> {
   const db = createAdminClient()
-  await db.from('planilhas').insert({ nome, spreadsheet_id, aba, ativa: false })
+  const { data, error } = await db
+    .from('planilhas')
+    .insert({ nome, spreadsheet_id, aba, ativa: false })
+    .select('id')
+    .single()
+  if (error) throw error
+  return (data as { id: string }).id
 }
 
 export async function ativarPlanilha(id: string): Promise<void> {
@@ -105,6 +113,61 @@ export async function atualizarPlanilha(
 export async function deletarPlanilha(id: string): Promise<void> {
   const db = createAdminClient()
   await db.from('planilhas').delete().eq('id', id)
+}
+
+export async function associarReferencia(
+  id: string,
+  mes: number | null,
+  ano: number | null,
+): Promise<void> {
+  const db = createAdminClient()
+  await db.from('planilhas').update({ referencia_mes: mes, referencia_ano: ano }).eq('id', id)
+}
+
+export async function listarPlanilhasHistorico(): Promise<Planilha[]> {
+  try {
+    const db = createAdminClient()
+    const { data } = await db
+      .from('planilhas')
+      .select('*')
+      .not('referencia_mes', 'is', null)
+      .order('referencia_ano', { ascending: false })
+      .order('referencia_mes', { ascending: false })
+    return (data ?? []) as Planilha[]
+  } catch {
+    return []
+  }
+}
+
+export async function getPlanilhaPorMes(mes: number, ano: number): Promise<Planilha | null> {
+  try {
+    const db = createAdminClient()
+    const { data } = await db
+      .from('planilhas')
+      .select('*')
+      .eq('referencia_mes', mes)
+      .eq('referencia_ano', ano)
+      .single()
+    return (data ?? null) as Planilha | null
+  } catch {
+    return null
+  }
+}
+
+export async function getUltimasNPlanilhasHistorico(n: number): Promise<Planilha[]> {
+  try {
+    const db = createAdminClient()
+    const { data } = await db
+      .from('planilhas')
+      .select('*')
+      .not('referencia_mes', 'is', null)
+      .order('referencia_ano', { ascending: false })
+      .order('referencia_mes', { ascending: false })
+      .limit(n)
+    return (data ?? []) as Planilha[]
+  } catch {
+    return []
+  }
 }
 
 // ── Google Sheets: listar abas ────────────────────────────────────────────────

@@ -34,8 +34,11 @@ export default function PlanilhasClient({ planilhas: inicial }: { planilhas: Pla
     })
   }
 
-  function handleAdicionada(nova: Planilha) {
-    setPlanilhas((prev) => [nova, ...prev])
+  function handleAdicionada(nova: Planilha, ativar: boolean) {
+    setPlanilhas((prev) => {
+      const lista = ativar ? prev.map(p => ({ ...p, ativa: false })) : prev
+      return [nova, ...lista]
+    })
     setShowForm(false)
   }
 
@@ -215,25 +218,28 @@ function NovaForm({
   onAdicionada,
 }: {
   onCancelar: () => void
-  onAdicionada: (nova: Planilha) => void
+  onAdicionada: (nova: Planilha, ativar: boolean) => void
 }) {
   const [pending, startTransition] = useTransition()
+  const [ativar, setAtivar] = useState(false)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    fd.set('ativar', ativar ? 'true' : 'false')
     startTransition(async () => {
       await adicionarPlanilha(fd)
-      // Cria objeto local para atualização imediata
       const nova: Planilha = {
         id: crypto.randomUUID(),
         nome: (fd.get('nome') as string).trim(),
         spreadsheet_id: (fd.get('spreadsheet_id') as string).trim(),
         aba: (fd.get('aba') as string).trim(),
-        ativa: false,
+        ativa: ativar,
         created_at: new Date().toISOString(),
+        referencia_mes: null,
+        referencia_ano: null,
       }
-      onAdicionada(nova)
+      onAdicionada(nova, ativar)
     })
   }
 
@@ -288,6 +294,31 @@ function NovaForm({
             className="input"
           />
         </div>
+
+        <label
+          className="flex items-start gap-3 cursor-pointer select-none pt-1"
+          style={{ userSelect: 'none' }}
+        >
+          <div
+            onClick={() => setAtivar(v => !v)}
+            className="mt-0.5 w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors"
+            style={{
+              background: ativar ? 'rgba(201,168,76,0.20)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${ativar ? 'rgba(201,168,76,0.6)' : 'rgba(255,255,255,0.15)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            {ativar && <Check size={10} style={{ color: '#f4d47c' }} />}
+          </div>
+          <div onClick={() => setAtivar(v => !v)}>
+            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              Ativar imediatamente
+            </span>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              A planilha ativa atual será desativada automaticamente.
+            </p>
+          </div>
+        </label>
       </div>
 
       <div className="flex gap-2 pt-1">

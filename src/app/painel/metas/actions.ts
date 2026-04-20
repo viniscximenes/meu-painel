@@ -1,11 +1,11 @@
 'use server'
 
-import { requireGestor } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import { upsertMeta, deleteMeta, salvarOrdemMetas, type Meta } from '@/lib/kpi'
 import { revalidatePath } from 'next/cache'
 
 export async function salvarMeta(formData: FormData) {
-  await requireGestor()
+  await requireAdmin()
 
   const meta: Omit<Meta, 'id'> & { id?: string } = {
     id:             formData.get('id') as string || undefined,
@@ -30,7 +30,7 @@ export async function salvarMeta(formData: FormData) {
 }
 
 export async function excluirMeta(id: string) {
-  await requireGestor()
+  await requireAdmin()
   await deleteMeta(id)
   revalidatePath('/painel/metas')
   revalidatePath('/painel/kpi')
@@ -38,7 +38,7 @@ export async function excluirMeta(id: string) {
 }
 
 export async function reordenarMetas(ordens: { id: string; ordem: number }[]) {
-  await requireGestor()
+  await requireAdmin()
   await salvarOrdemMetas(ordens)
   revalidatePath('/painel/kpi', 'layout')
   revalidatePath('/painel/kpis-equipe')
