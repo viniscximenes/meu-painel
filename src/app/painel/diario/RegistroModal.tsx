@@ -2,7 +2,11 @@
 
 import { X, BookOpen, Hash, Clock, Calendar, User, Pencil } from 'lucide-react'
 import type { DiarioRegistro, TipoRegistro } from '@/lib/diario-utils'
-import { formatTempo, formatarDataCompleta } from '@/lib/diario-utils'
+import {
+  formatarDataCompleta,
+  parseTempoSeg, formatHHMMSS,
+  JORNADA_OBRIGATORIA_SEGUNDOS, LIMIAR_BRUTO_MIN,
+} from '@/lib/diario-utils'
 
 const TIPO_CORES: Record<TipoRegistro, { bg: string; color: string; border: string; label: string }> = {
   'Pausa justificada': { bg: 'rgba(245,158,11,0.10)',  color: '#f59e0b', border: 'rgba(245,158,11,0.25)', label: 'Pausa justificada' },
@@ -22,17 +26,22 @@ export default function RegistroModal({ registro, role, onFechar, onEditar }: Pr
   if (!registro) return null
 
   const tc = TIPO_CORES[registro.tipo]
-  const tempoFmt = registro.tempoMin > 0 ? formatTempo(registro.tempoMin) : registro.tempo || '—'
   const colaboradorLabel = registro.colaborador || 'Geral — Setor inteiro'
   const canEdit = role === 'admin' || role === 'gestor'
 
-  const deficitFmt = registro.tipo === 'Fora da jornada' && registro.tempoMin > 0
-    ? (() => {
-        const h = Math.floor(registro.tempoMin / 60)
-        const m = registro.tempoMin % 60
-        return `Déficit: ${h}:${String(m).padStart(2,'0')}`
-      })()
-    : null
+  // Calcula valor de tempo com precisão de segundos, mesma lógica do card da lista
+  const tempoSeg = parseTempoSeg(registro.tempo)
+  let tempoDisplay: string | null = null
+  if (registro.tipo === 'Fora da jornada') {
+    if (registro.tempoMin >= LIMIAR_BRUTO_MIN) {
+      const deficitSeg = tempoSeg > 0 ? Math.max(0, JORNADA_OBRIGATORIA_SEGUNDOS - tempoSeg) : 0
+      tempoDisplay = deficitSeg > 0 ? formatHHMMSS(deficitSeg) : null
+    } else if (registro.tempoMin > 0) {
+      tempoDisplay = formatHHMMSS(registro.tempoMin * 60)
+    }
+  } else {
+    tempoDisplay = tempoSeg > 0 ? formatHHMMSS(tempoSeg) : (registro.tempo || null)
+  }
 
   return (
     <div
@@ -91,11 +100,11 @@ export default function RegistroModal({ registro, role, onFechar, onEditar }: Pr
               <Calendar size={12} />
               <span style={{ color: 'var(--text-secondary)' }}>{formatarDataCompleta(registro.data)}</span>
             </div>
-            {registro.tempoMin > 0 && (
+            {tempoDisplay && (
               <div className="flex items-center gap-1.5">
                 <Clock size={12} />
-                <span className="font-bold tabular-nums" style={{ color: deficitFmt ? '#f87171' : tc.color }}>
-                  {deficitFmt ?? tempoFmt}
+                <span className="font-bold tabular-nums" style={{ color: tc.color }}>
+                  {tempoDisplay}
                 </span>
               </div>
             )}

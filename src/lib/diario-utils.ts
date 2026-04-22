@@ -43,6 +43,28 @@ export interface EditarRegistroInput {
 
 // ── Utilitários de tempo ──────────────────────────────────────────────────────
 
+export const JORNADA_OBRIGATORIA_SEGUNDOS = 22800 // 06:20:00
+export const LIMIAR_BRUTO_MIN = 240               // ≥240min = tempo logado bruto; <240 = déficit salvo
+
+/** Parse de tempo com precisão de segundos. Aceita HH:MM:SS, H:MM, MM. */
+export function parseTempoSeg(raw: string): number {
+  const s = raw.trim().toLowerCase()
+  const hms = s.match(/^(\d+):(\d{1,2}):(\d{1,2})$/)
+  if (hms) return parseInt(hms[1]) * 3600 + parseInt(hms[2]) * 60 + parseInt(hms[3])
+  const hm = s.match(/^(\d+):(\d{1,2})$/)
+  if (hm) return parseInt(hm[1]) * 3600 + parseInt(hm[2]) * 60
+  const n = parseInt(s)
+  return isNaN(n) ? 0 : n * 60
+}
+
+/** Formata segundos como hh:mm:ss com zero-padding. */
+export function formatHHMMSS(seg: number): string {
+  const h = Math.floor(seg / 3600)
+  const m = Math.floor((seg % 3600) / 60)
+  const s = seg % 60
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+}
+
 /**
  * Aceita: "20min" | "20 min" | "1:30" | "5:30h" | "32" (→ minutos)
  * Retorna minutos (number). Retorna 0 para strings inválidas.

@@ -347,6 +347,14 @@
     background: var(--gold-glow);
     color: var(--text-secondary);
   }
+  .sidebar-item-aux-inactive {
+    @apply sidebar-item;
+    color: var(--halo-blue-aux-soft);
+  }
+  .sidebar-item-aux-inactive:hover {
+    background: rgba(96,165,250,0.06);
+    color: var(--halo-blue-aux);
+  }
 
   /* ── Divisores com gradiente ── */
   .divider {

@@ -233,12 +233,6 @@ async function lerQuartilTopico(
       : null
 
     // Coletar dados a partir da linha 2 (índice 1), pular cabeçalho
-    // [AUDIT-TEMP] log primeiros 3 valores crus para validação de escala
-    if (config.id === 'txretencao' || config.id === 'indisp') {
-      const sample = values.slice(1, 4).map(r => r[config.colunaMetrica])
-      console.log(`[AUDIT parsePct ${config.id}] valores crus (coluna ${config.colunaMetrica}):`, sample)
-    }
-
     type Row = { email: string; metrica: number; metricaFormatada: string; quartil: 1 | 2 | 3 | 4 }
     const lista: Row[] = []
     for (let i = 1; i < values.length; i++) {

@@ -330,16 +330,16 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
       <div style={{ maxHeight: registrosExpandidos ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/diario" onClick={onClose}
-            className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <BookOpen size={15} style={!pathname.startsWith('/painel/diario') ? { color: 'var(--halo-blue-aux-soft)' } : undefined} /> Diário de Bordo
+            className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-aux-inactive'}>
+            <BookOpen size={15} /> Diário de Bordo
           </Link>
           <Link href="/painel/monitoria" onClick={onClose}
-            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <ClipboardList size={15} style={!pathname.startsWith('/painel/monitoria') ? { color: 'var(--halo-blue-aux-soft)' } : undefined} /> Monitoria
+            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-aux-inactive'}>
+            <ClipboardList size={15} /> Monitoria
           </Link>
           <Link href="/painel/abs" onClick={onClose}
-            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <CalendarDays size={15} style={!pathname.startsWith('/painel/abs') ? { color: 'var(--halo-blue-aux-soft)' } : undefined} /> ABS
+            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-aux-inactive'}>
+            <CalendarDays size={15} /> ABS
           </Link>
           <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} iconColor="var(--halo-blue-aux-soft)" />
         </div>
@@ -363,11 +363,12 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
 
 function GLPILink({ pathname, onClose, glpiPendentes, iconColor }: { pathname: string; onClose: () => void; glpiPendentes: number; iconColor?: string }) {
   const isActive = pathname.startsWith('/painel/glpi')
+  const inactiveClass = iconColor ? 'sidebar-item-aux-inactive' : 'sidebar-item-inactive'
   return (
     <Link href="/painel/glpi" onClick={onClose}
-      className={`${isActive ? 'sidebar-item-active' : 'sidebar-item-inactive'} flex items-center justify-between`}>
+      className={`${isActive ? 'sidebar-item-active' : inactiveClass} flex items-center justify-between`}>
       <span className="flex items-center gap-2">
-        <Ticket size={15} style={!isActive && iconColor ? { color: iconColor } : undefined} /> GLPI
+        <Ticket size={15} /> GLPI
       </span>
       {glpiPendentes > 0 && (
         <span style={{

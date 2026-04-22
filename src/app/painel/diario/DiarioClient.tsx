@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { BookOpen, Plus, Hash, ChevronRight, Filter, Trash2, Users } from 'lucide-react'
+import { BookOpen, Plus, Hash, ChevronRight, Filter, Trash2 } from 'lucide-react'
 import type { DiarioRegistro, TipoRegistro } from '@/lib/diario-utils'
-import { formatTempo, formatarDataCurta } from '@/lib/diario-utils'
+import {
+  formatarDataCurta,
+  parseTempoSeg, formatHHMMSS,
+  JORNADA_OBRIGATORIA_SEGUNDOS, LIMIAR_BRUTO_MIN,
+} from '@/lib/diario-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
-import Link from 'next/link'
 import NovoRegistroModal from './NovoRegistroModal'
 import EditarRegistroModal from './EditarRegistroModal'
 import RegistroModal from './RegistroModal'
@@ -18,11 +21,6 @@ const TIPO_CORES: Record<TipoRegistro, { bg: string; color: string; border: stri
   'Outros':            { bg: 'rgba(148,163,184,0.10)', color: '#94a3b8', border: 'rgba(148,163,184,0.20)' },
 }
 
-function fmtDeficit(min: number): string {
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return `Déficit: ${h}:${String(m).padStart(2,'0')}`
-}
 
 interface Props {
   registros: DiarioRegistro[]
@@ -90,7 +88,7 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
 
   return (
     <>
-      <div style={cssVars} className="space-y-5">
+      <div style={cssVars} className="space-y-5 login-grid-bg">
 
         {/* ── Linha dourada ── */}
         <div style={{
@@ -136,17 +134,12 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Link
-              href="/painel/diario/resumo"
-              className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl transition-all"
-              style={{ background: 'rgba(96,165,250,0.08)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.20)' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(96,165,250,0.14)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(96,165,250,0.08)' }}
+            <button
+              type="button"
+              onClick={() => setNovoAberto(true)}
+              className="btn-primary flex items-center gap-2"
+              style={{ fontFamily: 'var(--ff-display)', fontWeight: 700, letterSpacing: '0.06em', fontSize: '11px', textTransform: 'uppercase' }}
             >
-              <Users size={14} />
-              Por Operador
-            </Link>
-            <button type="button" onClick={() => setNovoAberto(true)} className="btn-primary flex items-center gap-2">
               <Plus size={15} />
               Novo Registro
             </button>
@@ -155,8 +148,8 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
 
         {/* ── Filter bar ── */}
         <div style={{
-          background: 'var(--void3)',
-          border: '1px solid rgba(201,168,76,0.08)',
+          background: 'var(--void2)',
+          border: '1px solid rgba(201,168,76,0.1)',
           borderRadius: '14px',
           padding: '12px 16px',
           display: 'flex',
@@ -164,13 +157,13 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
           gap: '10px',
           flexWrap: 'wrap',
         }}>
-          <Filter size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          <Filter size={13} style={{ color: 'rgba(244,212,124,0.6)', flexShrink: 0 }} />
 
           <select
             value={filtroOp}
             onChange={(e) => setFiltroOp(e.target.value)}
             className="select"
-            style={{ maxWidth: '200px', fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
+            style={{ maxWidth: '200px', fontSize: '0.8125rem', padding: '0.375rem 0.75rem', background: 'var(--void2)' }}
           >
             <option value="">Todos os operadores</option>
             <option value="__geral__">Geral — Setor inteiro</option>
@@ -193,13 +186,22 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                     padding: '4px 12px',
                     borderRadius: '99px',
                     fontSize: '11px',
-                    fontWeight: 600,
-                    border: active ? `1px solid ${tc ? tc.border : 'rgba(201,168,76,0.30)'}` : '1px solid rgba(255,255,255,0.08)',
-                    background: active ? (tc ? tc.bg : 'rgba(201,168,76,0.12)') : 'transparent',
-                    color: active ? (tc ? tc.color : '#e8c96d') : '#64748b',
+                    fontWeight: active ? 700 : 600,
+                    border: active
+                      ? (tc ? `1px solid ${tc.border}` : '1px solid rgba(244,212,124,0.5)')
+                      : '1px solid rgba(244,212,124,0.15)',
+                    background: active
+                      ? (tc ? tc.bg : '#f4d47c')
+                      : 'transparent',
+                    color: active
+                      ? (tc ? tc.color : '#0a0e14')
+                      : '#a1a1aa',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
+                    transition: 'border-color 150ms ease, color 150ms ease',
                   }}
+                  onMouseEnter={e => { if (!active) { const el = e.currentTarget; el.style.borderColor = 'rgba(244,212,124,0.35)'; el.style.color = '#d4d4d8' } }}
+                  onMouseLeave={e => { if (!active) { const el = e.currentTarget; el.style.borderColor = 'rgba(244,212,124,0.15)'; el.style.color = '#a1a1aa' } }}
                 >
                   {t || 'Todos'}
                 </button>
@@ -237,7 +239,7 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                     fontSize: '12px',
                     fontWeight: 700,
                     padding: '4px 10px',
-                    borderRadius: '99px',
+                    borderRadius: '4px',
                     fontVariantNumeric: 'tabular-nums',
                     background: 'rgba(201,168,76,0.08)',
                     color: '#e8c96d',
@@ -259,21 +261,31 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                     const hovered = hoveredCard === cardKey
                     const label = r.colaborador || 'Geral — Setor inteiro'
 
-                    // Fora da jornada: mostrar déficit; demais: tempo normal
-                    const tempoDisplay = r.tipo === 'Fora da jornada' && r.tempoMin > 0
-                      ? fmtDeficit(r.tempoMin)
-                      : r.tempoMin > 0
-                        ? formatTempo(r.tempoMin)
-                        : r.tempo || null
+                    let tempoDisplay: string | null = null
+                    if (r.tipo === 'Fora da jornada') {
+                      if (r.tempoMin >= LIMIAR_BRUTO_MIN) {
+                        // Tempo logado bruto → calcula déficit com precisão de segundos
+                        const logadoSeg = parseTempoSeg(r.tempo)
+                        const deficitSeg = logadoSeg > 0 ? Math.max(0, JORNADA_OBRIGATORIA_SEGUNDOS - logadoSeg) : 0
+                        tempoDisplay = deficitSeg > 0 ? formatHHMMSS(deficitSeg) : null
+                      } else if (r.tempoMin > 0) {
+                        // Déficit já salvo → exibir diretamente
+                        tempoDisplay = formatHHMMSS(r.tempoMin * 60)
+                      }
+                    } else {
+                      const seg = parseTempoSeg(r.tempo)
+                      tempoDisplay = seg > 0 ? formatHHMMSS(seg) : (r.tempo || null)
+                    }
 
                     return (
                       <div
                         key={i}
                         style={{
                           position: 'relative',
-                          borderRadius: '12px',
-                          border: expanded ? `1px solid ${tc.border}` : '1px solid rgba(201,168,76,0.08)',
-                          background: '#111827',
+                          borderRadius: '0 10px 10px 0',
+                          border: expanded ? `1px solid ${tc.border}` : '1px solid rgba(244,212,124,0.15)',
+                          borderLeft: `3px solid ${tc.color}`,
+                          background: '#0a0e14',
                           transition: 'border-color 150ms ease',
                         }}
                         onMouseEnter={() => setHoveredCard(cardKey)}
@@ -303,16 +315,15 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                         )}
 
                         <div
-                          style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 16px', cursor: 'pointer' }}
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 16px 12px 14px', cursor: 'pointer' }}
                           onClick={() => toggleExpand(cardKey)}
                         >
-                          <div style={{ width: '3px', alignSelf: 'stretch', borderRadius: '99px', flexShrink: 0, marginTop: '2px', background: tc.color, opacity: 0.8, minHeight: '20px' }} />
 
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
                               <span style={{
                                 fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
-                                padding: '2px 6px', borderRadius: '99px', flexShrink: 0,
+                                padding: '2px 6px', borderRadius: '2px', flexShrink: 0,
                                 background: tc.bg, color: tc.color, border: `1px solid ${tc.border}`,
                               }}>
                                 {r.tipo.split(' ')[0]}
@@ -331,7 +342,7 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                               )}
                             </div>
                             <p style={{
-                              fontSize: '12px', lineHeight: 1.6, color: 'var(--text-muted)',
+                              fontSize: '12px', lineHeight: 1.6, color: '#a1a1aa',
                               overflow: 'hidden', display: '-webkit-box',
                               WebkitLineClamp: expanded ? undefined : 2,
                               WebkitBoxOrient: 'vertical',
@@ -344,7 +355,7 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                             {tempoDisplay && (
                               <span style={{
                                 fontSize: '12px', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-                                color: r.tipo === 'Fora da jornada' ? '#f87171' : tc.color,
+                                color: tc.color,
                               }}>
                                 {tempoDisplay}
                               </span>
