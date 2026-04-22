@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
-import { X, BookOpen, Save, AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { useState, useTransition, useEffect } from 'react'
+import { X, Pencil, Save, AlertTriangle, CheckCircle, Info } from 'lucide-react'
 import { HaloSpinner } from '@/components/HaloSpinner'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
-import { TIPOS_REGISTRO, hojeFormatado, parseTempo, type TipoRegistro } from '@/lib/diario-utils'
-import { salvarRegistroDiarioAction } from './actions'
+import { TIPOS_REGISTRO, parseTempo, type TipoRegistro, type DiarioRegistro } from '@/lib/diario-utils'
+import { editarRegistroDiarioAction } from './actions'
 import { DicasPreenchimentoAccordion } from '@/components/diario/DicasPreenchimentoAccordion'
 
 interface Props {
-  aberto: boolean
+  registro: DiarioRegistro | null
   onFechar: () => void
   onSalvo: () => void
 }
@@ -21,7 +21,7 @@ const TIPO_CORES: Record<TipoRegistro, string> = {
   'Outros':            '#94a3b8',
 }
 
-const JORNADA_PADRAO_MIN = 380 // 06:20:00
+const JORNADA_PADRAO_MIN = 380
 
 function fmtHHMM(min: number): string {
   const h = Math.floor(min / 60)
@@ -29,37 +29,41 @@ function fmtHHMM(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) {
-  const [tipo,         setTipo]         = useState<TipoRegistro>('Pausa justificada')
-  const [colaborador,  setColaborador]  = useState('')
-  const [observacoes,  setObservacoes]  = useState('')
-  const [glpi,         setGlpi]         = useState('')
-  const [tempo,        setTempo]        = useState('')
-  const [data,         setData]         = useState(hojeFormatado())
-  const [erros,        setErros]        = useState<Record<string, string>>({})
-  const [saving,       startSave]       = useTransition()
-  const [sucesso,      setSucesso]      = useState(false)
-  const [erroGlobal,   setErroGlobal]   = useState('')
-  const firstRef = useRef<HTMLSelectElement>(null)
+export default function EditarRegistroModal({ registro, onFechar, onSalvo }: Props) {
+  const [tipo,        setTipo]        = useState<TipoRegistro>('Pausa justificada')
+  const [colaborador, setColaborador] = useState('')
+  const [observacoes, setObservacoes] = useState('')
+  const [glpi,        setGlpi]        = useState('')
+  const [tempo,       setTempo]       = useState('')
+  const [data,        setData]        = useState('')
+  const [erros,       setErros]       = useState<Record<string, string>>({})
+  const [saving,      startSave]      = useTransition()
+  const [sucesso,     setSucesso]     = useState(false)
+  const [erroGlobal,  setErroGlobal]  = useState('')
 
+  // Pré-preencher ao abrir
   useEffect(() => {
-    if (aberto) {
-      setTimeout(() => firstRef.current?.focus(), 80)
+    if (registro) {
+      setTipo(registro.tipo)
+      setColaborador(registro.colaborador)
+      setObservacoes(registro.observacoes)
+      setGlpi(registro.glpi)
+      setTempo(registro.tempo)
+      setData(registro.data)
       setSucesso(false)
       setErroGlobal('')
       setErros({})
     }
-  }, [aberto])
+  }, [registro])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && aberto) onFechar()
+      if (e.key === 'Escape' && registro) onFechar()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [aberto, onFechar])
+  }, [registro, onFechar])
 
-  // Quando tipo muda para Geral, colaborador fica vazio (= setor inteiro) e travado
   function handleTipo(t: TipoRegistro) {
     setTipo(t)
     if (t === 'Geral') setColaborador('')
@@ -69,7 +73,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
   const isForaJornada = tipo === 'Fora da jornada'
   const isGeral       = tipo === 'Geral'
 
-  const logadoMin = isForaJornada && tempo.trim() ? parseTempo(tempo.trim()) : 0
+  const logadoMin  = isForaJornada && tempo.trim() ? parseTempo(tempo.trim()) : 0
   const deficitMin = isForaJornada && logadoMin > 0 ? Math.max(0, JORNADA_PADRAO_MIN - logadoMin) : null
 
   function validar(): boolean {
@@ -83,10 +87,10 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
   }
 
   function handleSave() {
-    if (!validar()) return
+    if (!registro || !validar()) return
     setErroGlobal('')
     startSave(async () => {
-      const result = await salvarRegistroDiarioAction({
+      const result = await editarRegistroDiarioAction(registro.sheetRowIndex, {
         colaborador,
         tipo,
         observacoes: observacoes.trim(),
@@ -99,12 +103,6 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
         setTimeout(() => {
           onSalvo()
           onFechar()
-          setColaborador('')
-          setObservacoes('')
-          setGlpi('')
-          setTempo('')
-          setData(hojeFormatado())
-          setTipo('Pausa justificada')
           setSucesso(false)
         }, 900)
       } else {
@@ -113,7 +111,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
     })
   }
 
-  if (!aberto) return null
+  if (!registro) return null
 
   return (
     <div
@@ -132,10 +130,10 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
         >
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl" style={{ background: 'rgba(201,168,76,0.10)', color: 'var(--gold-light)' }}>
-              <BookOpen size={16} />
+              <Pencil size={15} />
             </div>
             <div>
-              <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Novo Registro</h3>
+              <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Editar Registro</h3>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Diário de Bordo</p>
             </div>
           </div>
@@ -164,7 +162,6 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
                 Tipo <span style={{ color: '#f87171' }}>*</span>
               </label>
               <select
-                ref={firstRef}
                 value={tipo}
                 onChange={(e) => handleTipo(e.target.value as TipoRegistro)}
                 className="select"
@@ -340,7 +337,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
             ) : (
               <Save size={15} />
             )}
-            {saving ? 'Salvando…' : sucesso ? 'Salvo!' : 'Salvar registro'}
+            {saving ? 'Salvando…' : sucesso ? 'Salvo!' : 'Salvar alterações'}
           </button>
         </div>
       </div>

@@ -35,6 +35,10 @@
   --halo-blue-border:  #7dd3fc;
   --halo-blue-light:   #bae6fd;
 
+  --halo-blue-aux:      rgba(96, 165, 250, 0.85);
+  --halo-blue-aux-soft: rgba(96, 165, 250, 0.65);
+  --halo-blue-aux-line: rgba(96, 165, 250, 0.25);
+
   --bg-base:     #050508;
   --bg-surface:  #0c1018;
   --bg-card:     #101520;

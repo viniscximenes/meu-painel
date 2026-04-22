@@ -176,7 +176,7 @@ function acaoRodape(
   // ABS
   if (isAbs) {
     if (kpi.status === 'amarelo') return 'Próximo do limite de ausências'
-    return diasInt > 0 ? `Evite faltas por mais ${diasInt} dias` : 'Minimize ausências'
+    return diasInt > 0 ? `Você precisa fazer hora extra` : 'Minimize ausências'
   }
 
   // Acumulável
@@ -192,8 +192,8 @@ function acaoRodape(
     if (isPedido) {
       const n = Math.ceil(info.ritmoNecessario)
       return kpi.status === 'amarelo'
-        ? `~${n}/dia para bater a meta`
-        : `~${n}/dia por ${diasInt} dias`
+        ? `+${n}/dia para bater a meta`
+        : `+${n}/dia por ${diasInt} dias`
     }
     if (isCancel) {
       const max = Math.floor(info.ritmoNecessario)

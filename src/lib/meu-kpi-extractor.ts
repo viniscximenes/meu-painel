@@ -3,7 +3,6 @@
 
 import { buscarLinhasPlanilha, matchCelulaOperador, encontrarColunaIdent } from '@/lib/sheets'
 import type { Planilha } from '@/lib/sheets'
-import type { Meta } from '@/lib/kpi-utils'
 import { computarKPIs, normalizarChave, formatarExibicao } from '@/lib/kpi-utils'
 import type { KpiHistoricoMes, KpiHistoricoItem } from '@/lib/historico-kpi'
 
@@ -18,7 +17,7 @@ const PRINCIPAIS_DEF: { label: string; match: (c: string) => boolean }[] = [
   { label: 'Pedido',            match: c => c.includes('pedido') },
   { label: 'Churn',             match: c => (c.includes('churn') || c.includes('cancel')) && !c.includes('retenc') && !c.includes('retenç') },
   { label: 'Tx. Retenção',      match: c => (c.includes('retenc') || c.includes('retenç')) && !c.includes('liquid') && !c.includes('15d') },
-  { label: 'TMA',               match: c => c === 'tma' || c.includes('tempo medio') || c.includes('tempo médio') },
+  { label: 'TMA',               match: c => c.startsWith('tma') || c.includes('tempo medio') || c.includes('tempo médio') },
   { label: 'ABS',               match: c => c === 'abs' || c.startsWith('abs') || c.includes('absenteism') || c.includes('ausencia') || c.includes('ausência') },
   { label: 'Indisponibilidade', match: c => c.includes('indisp') },
 ]
@@ -37,7 +36,6 @@ export async function lerKpiLegadoParaHistorico(
   planilha: Planilha,
   username: string,
   nomeCompleto: string,
-  metas: Meta[],
 ): Promise<KpiHistoricoMes> {
   const now = new Date()
   const mes      = planilha.referencia_mes ?? (now.getMonth() + 1)
@@ -59,7 +57,7 @@ export async function lerKpiLegadoParaHistorico(
       return { ...base, encontrado: false, principais: [], complementares: [] }
     }
 
-    const kpis = computarKPIs(headers, meuRow, metas)
+    const kpis = computarKPIs(headers, meuRow, [])
 
     function encontrarKpi(matchFn: (c: string) => boolean) {
       return kpis.find(k => matchFn(normalizarChave(`${k.nome_coluna} ${k.label}`)))
@@ -70,7 +68,7 @@ export async function lerKpiLegadoParaHistorico(
         const kpi = encontrarKpi(match)
         if (!kpi) return null
         const valor = formatarExibicao(kpi.valor, kpi.unidade) || kpi.valor || '—'
-        return { label, valor, critico: kpi.status === 'vermelho' } satisfies KpiHistoricoItem
+        return { label, valor } satisfies KpiHistoricoItem
       })
       .filter((x): x is KpiHistoricoItem => x !== null)
 
@@ -80,7 +78,7 @@ export async function lerKpiLegadoParaHistorico(
         if (!kpi) return null
         const valor = formatarExibicao(kpi.valor, kpi.unidade) || kpi.valor || '—'
         if (valor === '—') return null
-        return { label, valor, critico: false }
+        return { label, valor }
       })
       .filter((x): x is KpiHistoricoItem => x !== null)
 

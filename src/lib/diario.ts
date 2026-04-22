@@ -8,7 +8,7 @@ import { getPlanilhaAtiva } from '@/lib/sheets'
 // Re-exporta tudo que é seguro usar no servidor também
 export * from '@/lib/diario-utils'
 
-import type { DiarioRegistro, NovoRegistroInput, TipoRegistro } from '@/lib/diario-utils'
+import type { DiarioRegistro, NovoRegistroInput, EditarRegistroInput, TipoRegistro } from '@/lib/diario-utils'
 import { TIPOS_REGISTRO, parseTempo } from '@/lib/diario-utils'
 
 // ── Constantes ───────────────────────────────────────────────────────────────
@@ -72,6 +72,8 @@ function rowToRegistro(row: string[], sheetRowIndex: number): DiarioRegistro {
   const glpi        = (row[3] ?? '').trim()
   const tempo       = (row[4] ?? '').trim()
   const data        = (row[5] ?? '').trim()
+  const criadoPor   = (row[6] ?? '').trim()
+  const criadoEm    = (row[7] ?? '').trim()
   return {
     colaborador,
     tipo,
@@ -79,6 +81,8 @@ function rowToRegistro(row: string[], sheetRowIndex: number): DiarioRegistro {
     glpi,
     tempo,
     data,
+    criadoPor,
+    criadoEm,
     tempoMin:      parseTempo(tempo),
     dataObj:       parseData(data),
     sheetRowIndex,
@@ -97,7 +101,7 @@ export async function buscarDiario(spreadsheetId: string): Promise<DiarioRegistr
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `${ABA_DIARIO}!A:F`,
+        range: `${ABA_DIARIO}!A:H`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
@@ -139,11 +143,12 @@ export async function buscarDiarioAtivo(): Promise<{ registros: DiarioRegistro[]
 
 /**
  * Adiciona uma nova linha no final da aba "DIARIO DE BORDO".
- * Colunas: A=Colaborador B=Tipo C=Observações D=GLPI E=Tempo F=Data
+ * Colunas: A=Colaborador B=Tipo C=Observações D=GLPI E=Tempo F=Data G=CriadoPor H=CriadoEm
  */
 export async function escreverRegistro(
   spreadsheetId: string,
-  dados: NovoRegistroInput
+  dados: NovoRegistroInput,
+  criadoPor: string,
 ): Promise<void> {
   // Para "Tempo logado": salvar apenas o déficit (jornada padrão − logado)
   let tempoParaSalvar = dados.tempo
@@ -157,6 +162,50 @@ export async function escreverRegistro(
     }
   }
 
+  const now = new Date()
+  const criadoEm = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+
+  const row = [
+    dados.colaborador,
+    dados.tipo,
+    dados.observacoes,
+    dados.glpi,
+    tempoParaSalvar,
+    dados.data,
+    criadoPor,
+    criadoEm,
+  ]
+  await withTimeout(
+    sheetsAPI().spreadsheets.values.append({
+      spreadsheetId,
+      range: `${ABA_DIARIO}!A:H`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [row] },
+    })
+  )
+}
+
+/**
+ * Atualiza colunas A–F de uma linha existente. G (CriadoPor) e H (CriadoEm) NÃO são alterados.
+ * sheetRowIndex é 0-based (0 = cabeçalho, 1 = primeira linha de dados).
+ */
+export async function editarRegistro(
+  spreadsheetId: string,
+  sheetRowIndex: number,
+  dados: EditarRegistroInput,
+): Promise<void> {
+  let tempoParaSalvar = dados.tempo
+  if (dados.tipo === 'Fora da jornada' && dados.tempo.trim()) {
+    const logadoMin = parseTempo(dados.tempo)
+    if (logadoMin > 0) {
+      const defMin = Math.max(0, JORNADA_PADRAO_MIN - logadoMin)
+      const h = Math.floor(defMin / 60)
+      const m = defMin % 60
+      tempoParaSalvar = `${h}:${String(m).padStart(2, '0')}`
+    }
+  }
+
+  const sheetRow = sheetRowIndex + 1 // A1 notation: 1-based
   const row = [
     dados.colaborador,
     dados.tipo,
@@ -166,9 +215,9 @@ export async function escreverRegistro(
     dados.data,
   ]
   await withTimeout(
-    sheetsAPI().spreadsheets.values.append({
+    sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
-      range: `${ABA_DIARIO}!A:F`,
+      range: `${ABA_DIARIO}!A${sheetRow}:F${sheetRow}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [row] },
     })

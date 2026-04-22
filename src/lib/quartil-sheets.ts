@@ -69,6 +69,7 @@ function matchEmail(emailPlanilha: string, username: string): boolean {
 }
 
 // Taxa / percentual: aceita 0.685 ou 68.5%
+// Input esperado: fração decimal (0.685 = 68,5%) OU já em % (68.5 = 68,5%)
 export function parsePct(raw: string | undefined): number | null {
   if (!raw) return null
   const s = raw.toString().replace(/\s/g, '').replace(',', '.')
@@ -78,9 +79,19 @@ export function parsePct(raw: string | undefined): number | null {
   return n <= 1 ? n * 100 : n
 }
 
+// Percentual absoluto: planilha armazena valor já em % (ex: 0.4 = 0,4%, 5 = 5%)
+// NÃO aplica *100 — usar quando a coluna já está em escala percentual direta.
+function parsePctAbsoluto(raw: string | undefined): number | null {
+  if (!raw) return null
+  const s = raw.toString().replace(/\s/g, '').replace(',', '.')
+  if (s.startsWith('#') || s === '') return null
+  const n = parseFloat(s.replace('%', ''))
+  return isNaN(n) ? null : n
+}
+
 export function formatPct(n: number): string {
   const r = Math.round(n * 10) / 10
-  return r % 1 === 0 ? `${r}%` : `${r.toFixed(1)}%`
+  return r % 1 === 0 ? `${r}%` : `${r.toFixed(1).replace('.', ',')}%`
 }
 
 // TMA: hh:mm:ss → segundos (0 = sem dados → null)
@@ -189,7 +200,8 @@ const TOPICOS: QuartilTopicoConfig[] = [
     id: 'abs', nomeTopico: 'ABS',
     aba: 'QUARTIL.ABS', colunaMetrica: 4, colunaQuartil: 5,
     sortOrder: 'asc', colunaData: null,
-    parseMetrica: parsePct, formatarMetrica: formatPct,
+    // ABS armazena valor já em % (0.4 = 0,4%) — não multiplicar por 100
+    parseMetrica: parsePctAbsoluto, formatarMetrica: formatPct,
   },
 ]
 
@@ -221,6 +233,12 @@ async function lerQuartilTopico(
       : null
 
     // Coletar dados a partir da linha 2 (índice 1), pular cabeçalho
+    // [AUDIT-TEMP] log primeiros 3 valores crus para validação de escala
+    if (config.id === 'txretencao' || config.id === 'indisp') {
+      const sample = values.slice(1, 4).map(r => r[config.colunaMetrica])
+      console.log(`[AUDIT parsePct ${config.id}] valores crus (coluna ${config.colunaMetrica}):`, sample)
+    }
+
     type Row = { email: string; metrica: number; metricaFormatada: string; quartil: 1 | 2 | 3 | 4 }
     const lista: Row[] = []
     for (let i = 1; i < values.length; i++) {

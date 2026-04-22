@@ -7,6 +7,7 @@ import { formatTempo, formatarDataCurta } from '@/lib/diario-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import Link from 'next/link'
 import NovoRegistroModal from './NovoRegistroModal'
+import EditarRegistroModal from './EditarRegistroModal'
 import RegistroModal from './RegistroModal'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 
@@ -15,6 +16,12 @@ const TIPO_CORES: Record<TipoRegistro, { bg: string; color: string; border: stri
   'Fora da jornada':   { bg: 'rgba(96,165,250,0.10)',  color: '#60a5fa', border: 'rgba(96,165,250,0.25)' },
   'Geral':             { bg: 'rgba(167,139,250,0.10)', color: '#a78bfa', border: 'rgba(167,139,250,0.25)' },
   'Outros':            { bg: 'rgba(148,163,184,0.10)', color: '#94a3b8', border: 'rgba(148,163,184,0.20)' },
+}
+
+function fmtDeficit(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `Déficit: ${h}:${String(m).padStart(2,'0')}`
 }
 
 interface Props {
@@ -30,8 +37,11 @@ interface Toast {
 
 export default function DiarioClient({ registros, mesLabel, role }: Props) {
   const canDelete = role !== 'aux'
+  const canEdit   = role === 'admin' || role === 'gestor'
+
   const [novoAberto,          setNovoAberto]          = useState(false)
   const [registroAberto,      setRegistroAberto]      = useState<DiarioRegistro | null>(null)
+  const [registroParaEditar,  setRegistroParaEditar]  = useState<DiarioRegistro | null>(null)
   const [registroParaDeletar, setRegistroParaDeletar] = useState<DiarioRegistro | null>(null)
   const [filtroOp,            setFiltroOp]            = useState('')
   const [filtroTipo,          setFiltroTipo]          = useState<TipoRegistro | ''>('')
@@ -73,11 +83,6 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
       else next.add(idx)
       return next
     })
-  }
-
-  function getHistorico(registro: DiarioRegistro): DiarioRegistro[] {
-    if (!registro.colaborador) return []
-    return registros.filter((r) => r !== registro && r.colaborador === registro.colaborador)
   }
 
   const hasFilters = filtroOp !== '' || filtroTipo !== ''
@@ -253,7 +258,13 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                     const expanded = expandidos.has(cardKey)
                     const hovered = hoveredCard === cardKey
                     const label = r.colaborador || 'Geral — Setor inteiro'
-                    const tempoFmt = r.tempoMin > 0 ? formatTempo(r.tempoMin) : r.tempo || null
+
+                    // Fora da jornada: mostrar déficit; demais: tempo normal
+                    const tempoDisplay = r.tipo === 'Fora da jornada' && r.tempoMin > 0
+                      ? fmtDeficit(r.tempoMin)
+                      : r.tempoMin > 0
+                        ? formatTempo(r.tempoMin)
+                        : r.tempo || null
 
                     return (
                       <div
@@ -269,25 +280,27 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                         onMouseLeave={() => setHoveredCard(null)}
                       >
                         {/* Delete button */}
-                        {canDelete && <button
-                          type="button"
-                          aria-label="Apagar registro"
-                          onClick={(e) => { e.stopPropagation(); setRegistroParaDeletar(r) }}
-                          style={{
-                            position: 'absolute', top: '8px', right: '8px',
-                            opacity: hovered ? 1 : 0,
-                            transition: 'opacity 150ms ease, background 150ms ease',
-                            padding: '5px', borderRadius: '8px',
-                            color: '#f87171',
-                            background: hovered ? 'rgba(239,68,68,0.10)' : 'transparent',
-                            border: hovered ? '1px solid rgba(239,68,68,0.20)' : '1px solid transparent',
-                            zIndex: 2, cursor: 'pointer', lineHeight: 0,
-                          }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.20)' }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = hovered ? 'rgba(239,68,68,0.10)' : 'transparent' }}
-                        >
-                          <Trash2 size={13} />
-                        </button>}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            aria-label="Apagar registro"
+                            onClick={(e) => { e.stopPropagation(); setRegistroParaDeletar(r) }}
+                            style={{
+                              position: 'absolute', top: '8px', right: '8px',
+                              opacity: hovered ? 1 : 0,
+                              transition: 'opacity 150ms ease, background 150ms ease',
+                              padding: '5px', borderRadius: '8px',
+                              color: '#f87171',
+                              background: hovered ? 'rgba(239,68,68,0.10)' : 'transparent',
+                              border: hovered ? '1px solid rgba(239,68,68,0.20)' : '1px solid transparent',
+                              zIndex: 2, cursor: 'pointer', lineHeight: 0,
+                            }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.20)' }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = hovered ? 'rgba(239,68,68,0.10)' : 'transparent' }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
 
                         <div
                           style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 16px', cursor: 'pointer' }}
@@ -327,10 +340,13 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
                             </p>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, paddingRight: '20px' }}>
-                            {tempoFmt && (
-                              <span style={{ fontSize: '12px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: tc.color }}>
-                                {tempoFmt}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, paddingRight: canDelete ? '28px' : '4px' }}>
+                            {tempoDisplay && (
+                              <span style={{
+                                fontSize: '12px', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                                color: r.tipo === 'Fora da jornada' ? '#f87171' : tc.color,
+                              }}>
+                                {tempoDisplay}
                               </span>
                             )}
                             <ChevronRight size={14} style={{ color: 'var(--text-muted)', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }} />
@@ -364,10 +380,16 @@ export default function DiarioClient({ registros, mesLabel, role }: Props) {
 
       {/* Modals */}
       <NovoRegistroModal aberto={novoAberto} onFechar={() => setNovoAberto(false)} onSalvo={() => setNovoAberto(false)} />
+      <EditarRegistroModal
+        registro={registroParaEditar}
+        onFechar={() => setRegistroParaEditar(null)}
+        onSalvo={() => { setRegistroParaEditar(null); setToast({ message: 'Registro atualizado.', type: 'success' }) }}
+      />
       <RegistroModal
         registro={registroAberto}
-        historico={registroAberto ? getHistorico(registroAberto) : []}
+        role={role}
         onFechar={() => setRegistroAberto(null)}
+        onEditar={(r) => { setRegistroAberto(null); setRegistroParaEditar(r) }}
       />
       <ConfirmDeleteModal
         registro={registroParaDeletar}

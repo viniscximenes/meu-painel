@@ -3,8 +3,6 @@
 
 import { buscarLinhasPlanilha, matchCelulaOperador } from '@/lib/sheets'
 import type { Planilha } from '@/lib/sheets'
-import type { Meta } from '@/lib/kpi-utils'
-import { normalizarChave } from '@/lib/kpi-utils'
 import {
   formatPct,
   parseTMA, formatTMA,
@@ -60,28 +58,11 @@ function fmtTMA(raw: string | undefined): string {
   return secs !== null ? formatTMA(secs) : '—'
 }
 
-// ── Helpers de criticidade ────────────────────────────────────────────────────
-
-function encontrarMeta(metas: Meta[], keywords: string[], excluir: string[] = []): Meta | undefined {
-  return metas.find(m => {
-    const n = normalizarChave(`${m.nome_coluna} ${m.label}`)
-    return keywords.some(k => n.includes(k)) && !excluir.some(k => n.includes(k))
-  })
-}
-
-function ehCritico(valorNum: number | null, meta: Meta | undefined): boolean {
-  if (!meta || valorNum === null) return false
-  const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
-  if (!limite) return false
-  return meta.tipo === 'menor_melhor' ? valorNum > limite : valorNum < limite
-}
-
 // ── Tipos públicos ────────────────────────────────────────────────────────────
 
 export interface KpiHistoricoItem {
-  label:   string
-  valor:   string
-  critico: boolean
+  label: string
+  valor: string
 }
 
 export interface KpiHistoricoMes {
@@ -101,7 +82,6 @@ export async function lerKpiHistoricoPlanilha(
   planilha: Planilha,
   username: string,
   nomeCompleto: string,
-  metas: Meta[],
 ): Promise<KpiHistoricoMes> {
   const mes      = planilha.referencia_mes!
   const ano      = planilha.referencia_ano!
@@ -121,36 +101,21 @@ export async function lerKpiHistoricoPlanilha(
       return { ...base, encontrado: false, principais: [], complementares: [] }
     }
 
-    // Metas por tipo de métrica (keyword matching)
-    const metaPedido = encontrarMeta(metas, ['pedido'])
-    const metaChurn  = encontrarMeta(metas, ['churn', 'cancelado', 'cancel'])
-    const metaTxBrut = encontrarMeta(metas, ['retenc', 'retenç'], ['liquid', '15d'])
-    const metaTMA    = encontrarMeta(metas, ['tma', 'tempo medio', 'tempo médio'])
-    const metaAbs    = encontrarMeta(metas, ['abs', 'absenteismo', 'ausencia'])
-    const metaIndisp = encontrarMeta(metas, ['indisp'])
-
-    const pedidoNum = parseInt_(meuRow[C_PEDIDO])
-    const churnNum  = parseInt_(meuRow[C_CHURN])
-    const txBrutNum = parsePctHist(meuRow[C_TX_BRUTA])
-    const tmaNum    = parseTMA(meuRow[C_TMA])
-    const absNum    = parsePctHist(meuRow[C_ABS])
-    const indispNum = parsePctHist(meuRow[C_INDISP])
-
     const principais: KpiHistoricoItem[] = [
-      { label: 'Pedido',            valor: pedidoNum !== null ? formatInt(pedidoNum) : '—', critico: ehCritico(pedidoNum, metaPedido)   },
-      { label: 'Churn',             valor: churnNum  !== null ? formatInt(churnNum)  : '—', critico: ehCritico(churnNum,  metaChurn)    },
-      { label: 'Tx. Retenção',      valor: txBrutNum !== null ? formatPct(txBrutNum) : '—', critico: ehCritico(txBrutNum, metaTxBrut)  },
-      { label: 'TMA',               valor: tmaNum    !== null ? formatTMA(tmaNum)    : '—', critico: ehCritico(tmaNum,    metaTMA)      },
-      { label: 'ABS',               valor: absNum    !== null ? formatPct(absNum)    : '—', critico: ehCritico(absNum,    metaAbs)      },
-      { label: 'Indisponibilidade', valor: indispNum !== null ? formatPct(indispNum) : '—', critico: ehCritico(indispNum, metaIndisp)  },
+      { label: 'Pedido',            valor: fmtInt(meuRow[C_PEDIDO])         },
+      { label: 'Churn',             valor: fmtInt(meuRow[C_CHURN])          },
+      { label: 'Tx. Retenção',      valor: fmtPct(meuRow[C_TX_BRUTA])       },
+      { label: 'TMA',               valor: fmtTMA(meuRow[C_TMA])            },
+      { label: 'ABS',               valor: fmtPct(meuRow[C_ABS])            },
+      { label: 'Indisponibilidade', valor: fmtPct(meuRow[C_INDISP])         },
     ]
 
     const complementares: KpiHistoricoItem[] = [
-      { label: 'Ticket',           valor: fmtPct(meuRow[C_TICKET]),        critico: false },
-      { label: 'Tx. Ret. Líquida', valor: fmtPct(meuRow[C_TX_LIQUIDA]),    critico: false },
-      { label: 'Transferência',    valor: fmtPct(meuRow[C_TRANSFERENCIA]), critico: false },
-      { label: 'Short Call',       valor: fmtPct(meuRow[C_SHORT_CALL]),    critico: false },
-      { label: 'Rechamada',        valor: fmtPct(meuRow[C_RECHAMADA]),     critico: false },
+      { label: 'Ticket',           valor: fmtPct(meuRow[C_TICKET])        },
+      { label: 'Tx. Ret. Líquida', valor: fmtPct(meuRow[C_TX_LIQUIDA])    },
+      { label: 'Transferência',    valor: fmtPct(meuRow[C_TRANSFERENCIA]) },
+      { label: 'Short Call',       valor: fmtPct(meuRow[C_SHORT_CALL])    },
+      { label: 'Rechamada',        valor: fmtPct(meuRow[C_RECHAMADA])     },
     ].filter(c => c.valor !== '—')
 
     return { ...base, encontrado: true, principais, complementares }

@@ -26,10 +26,10 @@ export interface MeuQuartilProps {
 // ── Paleta por quartil ────────────────────────────────────────────────────────
 
 const QUARTIL_PALETA = {
-  1: { label: 'EXCELENTE',    cor: '#4ade80', fundo: 'rgba(74,222,128,0.08)',  borda: 'rgba(74,222,128,0.25)'  },
-  2: { label: 'SATISFATÓRIO', cor: '#facc15', fundo: 'rgba(250,204,21,0.08)',  borda: 'rgba(250,204,21,0.25)'  },
-  3: { label: 'ABAIXO',       cor: '#fb923c', fundo: 'rgba(251,146,60,0.08)',  borda: 'rgba(251,146,60,0.25)'  },
-  4: { label: 'CRÍTICO',      cor: '#f87171', fundo: 'rgba(248,113,113,0.08)', borda: 'rgba(248,113,113,0.25)' },
+  1: { label: 'EXCELENTE',    cor: '#4ade80', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(74,222,128,0.25)'  },
+  2: { label: 'SATISFATÓRIO', cor: '#facc15', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(250,204,21,0.25)'  },
+  3: { label: 'ABAIXO',       cor: '#fb923c', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(251,146,60,0.25)'  },
+  4: { label: 'CRÍTICO',      cor: '#f87171', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(248,113,113,0.25)' },
 } as const
 
 // ── Config visual por tópico ──────────────────────────────────────────────────
@@ -71,8 +71,8 @@ function CardIndisponivel({ id }: { id: string }) {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)',
+      border: '1px solid rgba(201, 168, 76, 0.10)',
       borderRadius: '12px',
       padding: '40px 24px',
       display: 'flex', flexDirection: 'column', alignItems: 'center',

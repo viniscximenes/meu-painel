@@ -19,6 +19,8 @@ export interface DiarioRegistro {
   dataObj: Date | null
   /** Índice 0-based da linha na planilha (0 = cabeçalho, 1 = primeira linha de dados). */
   sheetRowIndex: number
+  criadoPor: string  // coluna G — username do criador
+  criadoEm: string   // coluna H — "DD/MM/YYYY HH:mm"
 }
 
 export interface NovoRegistroInput {
@@ -28,6 +30,15 @@ export interface NovoRegistroInput {
   glpi: string
   tempo: string
   data: string          // "DD/MM/YYYY"
+}
+
+export interface EditarRegistroInput {
+  colaborador: string
+  tipo: TipoRegistro
+  observacoes: string
+  glpi: string
+  tempo: string
+  data: string
 }
 
 // ── Utilitários de tempo ──────────────────────────────────────────────────────

@@ -126,6 +126,11 @@ const USUARIOS = [
     password: SENHA_PADRAO,
     user_metadata: { nome: 'Vitor H. Almeida', role: 'operador', operador_id: 12 },
   },
+  {
+    email: 'thais.correa@alloha.com',
+    password: 'Painel@2024',
+    user_metadata: { nome: 'Thais Rodrigues Correa', role: 'operador', operador_id: 15 },
+  },
 ]
 
 async function criarUsuarios() {
@@ -150,6 +155,8 @@ async function criarUsuarios() {
         console.log(`  ⚠️   ${username} — já existe, ignorado`)
       } else {
         console.log(`  ❌  ${username} — ${error.message}`)
+        console.log(`       código: ${error.code ?? 'n/a'}  status: ${error.status ?? 'n/a'}`)
+        console.log(`       detalhe:`, JSON.stringify(error, null, 2))
         falhas++
       }
     } else {

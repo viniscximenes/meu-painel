@@ -6,7 +6,7 @@ import { Profile } from '@/types'
 import {
   Menu, LogOut, BarChart2, BarChart3, UserCircle, Users, Banknote,
   CircleDollarSign, TrendingUp, CalendarDays, Ticket,
-  Calculator, Link2, ClipboardCopy, Gauge, Target, Wallet, History,
+  Calculator, Link2, ClipboardCopy, Gauge, Target, Wallet, History, LineChart,
 } from 'lucide-react'
 import { getIniciaisNome } from '@/lib/operadores'
 
@@ -28,6 +28,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Target,
   Wallet,
   History,
+  LineChart,
 }
 
 interface HeaderProps {
