@@ -771,6 +771,15 @@
   background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%;
 }
 
+/* ── Grid background HALO cards (painel gestor) ─────────────────────────────── */
+.halo-cards-bg {
+  background-color: #01020a;
+  background-image:
+    linear-gradient(to right,  rgba(244, 212, 124, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 212, 124, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
 /* ── Glass premium para modais e overlays ───────────────────────────────────── */
 .glass-premium {
   background: rgba(12,16,24,0.92);
@@ -786,6 +795,12 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
+}
+
+/* ── RV component card value number ─────────────────────────────────────────── */
+.rv-num {
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 900 !important;
 }
 
 /* ── Noise texture ──────────────────────────────────────────────────────────── */

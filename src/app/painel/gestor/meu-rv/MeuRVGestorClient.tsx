@@ -11,6 +11,8 @@ import {
   Target, Activity, Clock, TrendingUp, Check, X,
   Users, Info,
 } from 'lucide-react'
+import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
+import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
 
 export interface MeuRVGestorProps {
   rv:                  ResultadoRVGestor
@@ -31,73 +33,55 @@ type HoverComp = 'retracao' | 'indisp' | 'tma' | 'abs-deflator' | null
 export default function MeuRVGestorClient({
   rv, config, opKpis, absVal, monitoriasCompletas, totalMonitorias, totalOperadores, mesLabel, dataAtualizacao,
 }: MeuRVGestorProps) {
-  const rvAnimado       = useCountUp(rv.rvFinal, 800)
+  const rvAnimado = useCountUp(rv.rvFinal, 800)
   const [regrasOpen, setRegrasOpen] = useState(false)
-  const [hoveredComp, setHoveredComp] = useState<HoverComp>(null)
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
-        @property --rv-angle {
-          syntax: '<angle>';
-          initial-value: 0deg;
-          inherits: false;
-        }
-        @keyframes rvBorderRotate { to { --rv-angle: 360deg; } }
-        @keyframes rvFadeIn {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
         @keyframes rvSlideIn {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .rv-hero-beam-blue {
-          padding: 2px; border-radius: 12px;
-          background: conic-gradient(
-            from var(--rv-angle),
-            transparent 0deg,
-            rgba(56,189,248,0.2) 55deg,
-            rgba(125,211,252,0.55) 85deg,
-            rgba(186,230,253,0.75) 90deg,
-            rgba(125,211,252,0.55) 95deg,
-            rgba(56,189,248,0.2) 125deg,
-            transparent 175deg
-          );
-          animation: rvFadeIn 0.5s ease both, rvBorderRotate 8s linear 0.5s infinite;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .rv-hero-beam-blue { animation: rvFadeIn 0.01ms ease both; }
+        @media (max-width: 767px) {
+          .rv-cols-grid { grid-template-columns: 1fr !important; }
         }
       `}} />
 
-      <div className="login-grid-bg" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div className="halo-cards-bg" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-        {/* 1. Hero */}
-        <HeroSection rv={rv} rvAnimado={rvAnimado} mesLabel={mesLabel} dataAtualizacao={dataAtualizacao} />
+        {/* ── Header ── */}
+        <PainelHeader titulo="Meu RV" mesLabel={mesLabel} dataReferencia={dataAtualizacao} />
+
+        {/* ── Linha dourada HALO ── */}
+        <LinhaHorizontalDourada />
+
+        {/* ── RV ESTIMADO ── */}
+        <PainelSectionTitle>RV ESTIMADO</PainelSectionTitle>
+
+        {/* 1. Hero card */}
+        <RVHeroCard
+          rv={rv}
+          rvAnimado={rvAnimado}
+          monitoriasCompletas={monitoriasCompletas}
+          totalOperadores={totalOperadores}
+        />
 
         {!rv.semDados && (
           <>
-            {/* 2. Elegibilidade */}
-            <ElegibilidadeSection
-              rv={rv}
-              monitoriasCompletas={monitoriasCompletas}
-              totalOperadores={totalOperadores}
-            />
+            {/* 2+3. Componentes RV + Cálculo RV */}
+            <PainelSectionTitle>COMPONENTES RV</PainelSectionTitle>
+            <div className="rv-cols-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <NovaComponentesSection rv={rv} config={config} absVal={absVal} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '4px' }}>
+                <PainelSectionTitle>CALCULO RV</PainelSectionTitle>
+                <NovaCalculoSection rv={rv} config={config} />
+              </div>
+            </div>
 
-            {/* 3. Componentes */}
-            <ComponentesSection
-              rv={rv}
-              config={config}
-              opKpis={opKpis}
-              hoveredComp={hoveredComp}
-              onHover={setHoveredComp}
-            />
-
-            {/* 4. Cálculo */}
-            <CalculoSection rv={rv} config={config} />
-
-            {/* 5. O Que Posso Melhorar */}
+            {/* 4. O Que Posso Melhorar */}
             <MelhoriaSection rv={rv} config={config} monitoriasCompletas={monitoriasCompletas} />
           </>
         )}
@@ -109,19 +93,23 @@ export default function MeuRVGestorClient({
   )
 }
 
-// ── 1. Hero ───────────────────────────────────────────────────────────────────
+// ── 1. RV Hero Card ───────────────────────────────────────────────────────────
 
-function HeroSection({ rv, rvAnimado, mesLabel, dataAtualizacao }: {
+const FF_SYNE_H = "'Syne', sans-serif"
+const FF_DM_H   = "'DM Sans', sans-serif"
+const pctBR = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+function RVHeroCard({ rv, rvAnimado, monitoriasCompletas, totalOperadores }: {
   rv: ResultadoRVGestor
   rvAnimado: number
-  mesLabel: string
-  dataAtualizacao: string | null
+  monitoriasCompletas: number
+  totalOperadores: number
 }) {
   if (rv.semDados) {
     return (
       <div style={{
-        background: 'var(--bg-card)', border: '1px solid rgba(201,168,76,0.08)',
-        borderRadius: '12px', padding: '32px', textAlign: 'center',
+        background: '#070714', border: '1px solid rgba(244,212,124,0.15)',
+        borderRadius: '20px', padding: '32px', textAlign: 'center',
       }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
           Dados insuficientes para calcular o RV deste mês.
@@ -130,81 +118,430 @@ function HeroSection({ rv, rvAnimado, mesLabel, dataAtualizacao }: {
     )
   }
 
-  const hasDed = rv.totalDeflator > 0
+  let badgeLabel: string
+  let badgeTextColor: string
+  let badgeBg: string
+  let badgeBorder: string
+
+  if (rv.elegivel) {
+    badgeLabel    = 'ELEGIVEL'
+    badgeTextColor = '#22c55e'
+    badgeBg       = 'rgba(74,222,128,0.13)'
+    badgeBorder   = '1px solid rgba(34,197,94,0.72)'
+  } else {
+    badgeLabel    = 'INELEGIVEL'
+    badgeTextColor = '#E33939'
+    badgeBg       = 'rgba(242,96,96,0.13)'
+    badgeBorder   = '1px solid rgba(227,57,57,0.72)'
+  }
 
   return (
-    <div className="rv-hero-beam-blue">
+    <div style={{
+      background: '#070714', border: '1px solid rgba(244,212,124,0.15)',
+      borderRadius: '20px', padding: '28px 32px',
+      display: 'flex', alignItems: 'stretch', minHeight: '157px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+    }}>
+      {/* Left — RV value */}
+      <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingRight: '16px' }}>
+        <span style={{
+          fontFamily: FF_DM_H, fontSize: '64px', fontWeight: 900, lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums', color: '#B0AAFF', letterSpacing: '-0.02em',
+        }}>
+          {formatBRLGestor(rvAnimado)}
+        </span>
+      </div>
+
+      {/* Vertical divider */}
+      <div style={{ width: '1px', background: '#211F3C', margin: '8px 0', flexShrink: 0 }} />
+
+      {/* Right — badge + counter */}
       <div style={{
-        position: 'relative', borderRadius: '10px',
-        padding: '28px 32px 24px',
-        background: '#0d1824',
-        overflow: 'hidden',
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'flex-start', justifyContent: 'flex-start',
+        gap: '12px', paddingLeft: '16px', paddingTop: '8px',
       }}>
-        {/* Mês */}
-        <div style={{ position: 'relative', zIndex: 1, marginBottom: '12px' }}>
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.30)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            {mesLabel}
+        <div style={{
+          width: '147px', height: '29px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderRadius: '0', background: badgeBg, border: badgeBorder,
+        }}>
+          <span style={{
+            fontFamily: FF_SYNE_H, fontSize: '20px', fontWeight: 600,
+            color: badgeTextColor, letterSpacing: '0.03em',
+          }}>
+            {badgeLabel}
           </span>
         </div>
 
-        {/* Valor */}
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'left', marginBottom: '6px' }}>
-          <div style={{
-            fontSize: '72px', fontWeight: 900, lineHeight: 1,
-            fontVariantNumeric: 'tabular-nums',
-            background: 'linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>
-            {formatBRLGestor(rvAnimado)}
-          </div>
+        <div style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+          <span style={{ fontFamily: FF_SYNE_H, fontSize: '20px', fontWeight: 600, color: '#72708f', letterSpacing: '0.05em' }}>
+            FEITO&nbsp;
+          </span>
+          <span style={{ fontFamily: FF_DM_H, fontSize: '20px', fontWeight: 700, color: '#72708f', fontVariantNumeric: 'tabular-nums' }}>
+            {monitoriasCompletas}/{totalOperadores}
+          </span>
+          <span style={{ fontFamily: FF_SYNE_H, fontSize: '20px', fontWeight: 600, color: '#72708f', letterSpacing: '0.05em' }}>
+            &nbsp;MONITORIAS
+          </span>
         </div>
+      </div>
+    </div>
+  )
+}
 
-        <p style={{
-          position: 'relative', zIndex: 1, textAlign: 'left', fontSize: '13px',
-          color: 'rgba(255,255,255,0.45)',
-          marginBottom: hasDed || !rv.elegivel ? '16px' : '0',
+// ── 2. Componentes RV (novo layout) ──────────────────────────────────────────
+
+function NovaComponentesSection({ rv, config, absVal }: {
+  rv: ResultadoRVGestor
+  config: RVGestorConfig
+  absVal: number
+}) {
+  const absOk = absVal <= config.bonusAbsMax
+  const pct = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+  const comps = [
+    {
+      id: 'retracao',
+      label: 'TX. RETENÇÃO',
+      valorDisplay: rv.retencaoVal > 0 ? `${pct(rv.retencaoVal)}%` : '—',
+      verde: rv.retencaoBase > 0,
+      badgeText: rv.retencaoBase > 0 ? `+${formatBRLGestor(rv.retencaoBase)}` : 'FORA',
+    },
+    {
+      id: 'indisp',
+      label: 'INDISP.',
+      valorDisplay: rv.indispVal > 0 ? `${pct(rv.indispVal)}%` : '—',
+      verde: rv.indispBonus > 0,
+      badgeText: rv.indispBonus > 0 ? `+${formatBRLGestor(rv.indispBonus)}` : 'FORA',
+    },
+    {
+      id: 'abs',
+      label: 'ABS',
+      valorDisplay: absVal > 0 ? `${pct(absVal)}%` : '—',
+      verde: absOk,
+      badgeText: absOk ? 'DENTRO' : 'FORA',
+    },
+    {
+      id: 'ticket',
+      label: 'VR. TICKET',
+      valorDisplay: rv.ticketAplicavel && rv.ticketVal !== 0
+        ? `${rv.ticketVal < 0 ? '−' : '+'}${pct(Math.abs(rv.ticketVal))}%`
+        : '—',
+      verde: rv.ticketBonus > 0,
+      badgeText: rv.ticketBonus > 0 ? `+${formatBRLGestor(rv.ticketBonus)}` : 'FORA',
+    },
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {comps.map(c => (
+        <NovoComponenteCard
+          key={c.id}
+          label={c.label}
+          valorDisplay={c.valorDisplay}
+          verde={c.verde}
+          badgeText={c.badgeText}
+        />
+      ))}
+    </div>
+  )
+}
+
+function NovoComponenteCard({ label, valorDisplay, verde, badgeText }: {
+  label: string
+  valorDisplay: string
+  verde: boolean
+  badgeText: string
+}) {
+  const isMonetario = verde && /^\+R\$[\s ]/.test(badgeText)
+  const badgeNumero = isMonetario ? badgeText.replace(/^\+R\$[\s ]/, '') : null
+
+  return (
+    <div style={{
+      width: '100%',
+      background: '#070714',
+      border: '1px solid rgba(244,212,124,0.15)',
+      borderRadius: '12px',
+      padding: '12px 20px',
+      display: 'flex',
+      alignItems: 'center',
+    }}>
+      {/* Left — label + value (50% fixo para alinhar as 4 divisórias) */}
+      <div style={{ flex: '0 0 50%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px', paddingRight: '16px' }}>
+        <span style={{
+          fontFamily: FF_SYNE_H, fontWeight: 600, fontSize: '24px',
+          textTransform: 'uppercase', letterSpacing: '1px',
+          color: verde ? 'rgba(106,196,73,0.62)' : 'rgba(227,57,57,0.74)', whiteSpace: 'nowrap',
         }}>
-          RV estimado para este mês
-          {dataAtualizacao && (
-            <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
-              · ref. {dataAtualizacao}
-            </span>
-          )}
-        </p>
+          {label}
+        </span>
+        <span className="rv-num" style={{
+          fontSize: '48px', lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums', color: '#72708F',
+        }}>
+          {valorDisplay}
+        </span>
+      </div>
 
-        {/* Bruto + dedução */}
-        {rv.elegivel && hasDed && (
-          <div style={{
-            position: 'relative', zIndex: 1,
-            display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '14px', flexWrap: 'wrap',
-          }}>
-            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.42)' }}>
-              Bruto: {formatBRLGestor(rv.rvComBonus)}
-            </span>
-            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.22)' }}>•</span>
-            <span style={{ fontSize: '12px', color: '#fca5a5' }}>
-              Deflatores: −{formatBRLGestor(rv.totalDeflator)}
-            </span>
-          </div>
-        )}
+      {/* Divider */}
+      <div style={{ width: '1px', background: '#211F3C', alignSelf: 'stretch', margin: '8px 0', flexShrink: 0 }} />
 
-        {/* Motivo inelegível */}
-        {!rv.elegivel && rv.motivoInelegivel && (
-          <div style={{
-            position: 'relative', zIndex: 1,
-            padding: '10px 14px', borderRadius: '10px',
-            background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.16)',
+      {/* Right — badge (190×30px fixo) */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: '16px' }}>
+        {isMonetario ? (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '230px',
+            height: '30px',
+            border: '1px solid #3F8D23',
+            background: 'rgba(103, 159, 83, 0.39)',
+            borderRadius: '0',
+            color: '#9ADE81',
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontWeight: 900,
+            fontSize: '20px',
+            lineHeight: 1,
+            fontFeatureSettings: "'tnum'",
           }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <AlertTriangle size={13} style={{ color: 'var(--amarelo)', flexShrink: 0, marginTop: '1px' }} />
-              <span style={{ fontSize: '12px', color: 'rgba(253,224,71,0.85)' }}>{rv.motivoInelegivel}</span>
-            </div>
-          </div>
+            {`+R$ ${badgeNumero}`}
+          </span>
+        ) : (
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '230px',
+            height: '30px',
+            border: `1px solid ${verde ? '#3F8D23' : 'rgba(227, 57, 57, 0.72)'}`,
+            background: verde ? 'rgba(103, 159, 83, 0.39)' : 'rgba(242, 96, 96, 0.13)',
+            borderRadius: '0',
+            color: verde ? '#9ADE81' : '#E33939',
+            fontFamily: FF_SYNE_H,
+            fontWeight: 600,
+            fontSize: '20px',
+            lineHeight: 1,
+            textTransform: 'uppercase',
+          }}>
+            {badgeText}
+          </span>
         )}
       </div>
     </div>
   )
 }
+
+// ── 3. Cálculo RV (novo layout) ───────────────────────────────────────────────
+
+function NovaCalculoSection({ rv, config }: { rv: ResultadoRVGestor; config: RVGestorConfig }) {
+  const bonusGanhou = rv.bonusAplicado && rv.elegivel
+  const retOk = rv.retencaoVal >= config.bonusRetencaoMin
+  const absOk = (rv.indispVal > 0 && rv.indispVal <= config.bonusAbsMax) || rv.indispVal === 0
+
+  return (
+    <div style={{
+      background: '#070714',
+      border: '1px solid rgba(244,212,124,0.15)',
+      borderRadius: '12px',
+      padding: '24px',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <LinhaCalculo label="TX. RETENÇÃO" valor={formatBRLGestor(rv.retencaoBase)} />
+      <LinhaCalculo label="INDISP." valor={formatBRLGestor(rv.indispBonus)} />
+      <LinhaCalculo label="TMA" valor={formatBRLGestor(rv.tmaBonus)} />
+      {rv.ticketAplicavel && (
+        <LinhaCalculo label="VR. TICKET" valor={formatBRLGestor(rv.ticketBonus)} />
+      )}
+
+      <LinhaCalculo label="SUBTOTAL" valor={formatBRLGestor(rv.rvBase)} destaque />
+
+      {/* Bônus de Performance */}
+      <div style={{ padding: '8px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'baseline' }}>
+            <span style={{ fontFamily: FF_SYNE_H, fontWeight: 600, fontSize: '14px', textTransform: 'uppercase', color: '#72708f' }}>
+              BÔNUS DE PERFORMANCE&nbsp;
+            </span>
+            <span style={{ fontFamily: FF_DM_H, fontWeight: 500, fontSize: '14px', color: '#72708f' }}>
+              ({config.bonusPercentual}%)
+            </span>
+          </span>
+          <span style={{
+            flex: 1, borderBottom: '1px dotted rgba(114,112,143,0.3)',
+            marginLeft: '12px', marginRight: '12px', marginBottom: '5px', alignSelf: 'end',
+          }} />
+          <span style={{
+            fontFamily: FF_DM_H, fontWeight: 500, fontSize: '14px',
+            color: bonusGanhou ? '#22c55e' : '#72708f',
+            fontVariantNumeric: 'tabular-nums', flexShrink: 0,
+          }}>
+            {bonusGanhou ? `+${formatBRLGestor(rv.bonusValor)}` : 'R$ 0,00'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '14px', marginTop: '4px' }}>
+          <BonusCondicao ok={retOk} label={`RET ≥ ${config.bonusRetencaoMin}%`} />
+          <BonusCondicao ok={absOk} label={`ABS ≤ ${config.bonusAbsMax}%`} />
+        </div>
+      </div>
+
+      <LinhaCalculo label="SUBTOTAL + BÔNUS" valor={formatBRLGestor(rv.rvComBonus)} destaque />
+
+      {/* Deflatores */}
+      <div style={{ paddingTop: '10px' }}>
+        <span style={{
+          fontFamily: FF_SYNE_H, fontWeight: 600, fontSize: '14px',
+          textTransform: 'uppercase', letterSpacing: '0.08em', color: '#a1a3b8',
+        }}>
+          DEFLATORES
+        </span>
+      </div>
+
+      {rv.deflatores.length === 0 ? (
+        <p style={{
+          fontFamily: FF_SYNE_H, fontSize: '13px',
+          color: 'rgba(114,112,143,0.7)', fontStyle: 'italic', padding: '8px 0',
+        }}>
+          Nenhum deflator aplicado
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {rv.deflatores.map((d, i) => (
+            <NovoDeflatorRow key={i} motivo={d.motivo} perda={d.perda} valor={d.valorDeduzido} config={config} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LinhaCalculo({ label, valor, destaque }: {
+  label: string
+  valor: string
+  destaque?: boolean
+}) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'baseline',
+      padding: destaque ? '10px 0' : '6px 0',
+    }}>
+      <span style={{
+        flex: '0 0 auto',
+        fontFamily: FF_SYNE_H,
+        fontWeight: 600,
+        fontSize: '14px',
+        textTransform: 'uppercase',
+        color: destaque ? '#a1a3b8' : '#72708f',
+      }}>
+        {label}
+      </span>
+      {destaque
+        ? <span style={{ flex: 1 }} />
+        : <span style={{
+            flex: 1,
+            borderBottom: '1px dotted rgba(114,112,143,0.3)',
+            marginLeft: '12px', marginRight: '12px', marginBottom: '5px',
+            alignSelf: 'end',
+          }} />
+      }
+      <span style={{
+        flex: '0 0 auto',
+        fontFamily: FF_DM_H,
+        fontWeight: destaque ? 600 : 500,
+        fontSize: destaque ? '15px' : '14px',
+        color: destaque ? '#a1a3b8' : '#72708f',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {valor}
+      </span>
+    </div>
+  )
+}
+
+function BonusCondicao({ ok, label }: { ok: boolean; label: string }) {
+  // "RET ≥ 63,6%" → "RET" (Syne) + "≥ 63,6%" (DM Sans)
+  const spaceIdx = label.indexOf(' ')
+  const texto   = spaceIdx > -1 ? label.slice(0, spaceIdx) : label
+  const numerico = spaceIdx > -1 ? label.slice(spaceIdx + 1) : ''
+  const cor = ok ? 'rgba(34,197,94,0.8)' : 'rgba(227,57,57,0.8)'
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+      <span style={{ fontSize: '11px', fontWeight: 700, color: ok ? '#22c55e' : '#E33939' }}>
+        {ok ? '✓' : '✗'}
+      </span>
+      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '2px' }}>
+        <span style={{ fontFamily: FF_SYNE_H, fontSize: '11px', color: cor }}>{texto}</span>
+        <span style={{ fontFamily: FF_DM_H, fontSize: '11px', color: cor, fontVariantNumeric: 'tabular-nums' }}>{numerico}</span>
+      </span>
+    </div>
+  )
+}
+
+function NovoDeflatorRow({ motivo, perda, valor, config }: {
+  motivo: string
+  perda: number
+  valor: number
+  config: RVGestorConfig
+}) {
+  let textoLabel: string
+  let numericoDesc: string
+
+  if (motivo.startsWith('Indisponibilidade')) {
+    // "Indisponibilidade 15.0% > 14,5%" → INDISP. + "15,0% > 14,5% (−15%)"
+    const resto = motivo.replace('Indisponibilidade ', '').replace(/(\d+)\.(\d)/g, '$1,$2')
+    textoLabel   = 'INDISP.'
+    numericoDesc = `${resto} (−${perda}%)`
+  } else if (motivo.startsWith('ABS')) {
+    // "ABS 9.9%" → ABS + "9,9% > 5% (−30%)"
+    const match  = motivo.match(/ABS ([\d.]+)%/)
+    const val    = match ? match[1].replace('.', ',') : ''
+    textoLabel   = 'ABS'
+    numericoDesc = `${val}% > ${config.bonusAbsMax}% (−${perda}%)`
+  } else if (motivo.startsWith('TMA')) {
+    // "TMA 05:30 > 05:00" → TMA + "05:30 > 05:00 (−15%)"
+    const resto  = motivo.replace(/^TMA\s*/, '')
+    textoLabel   = 'TMA'
+    numericoDesc = `${resto} (−${perda}%)`
+  } else {
+    textoLabel   = motivo
+    numericoDesc = `(−${perda}%)`
+  }
+
+  return (
+    <div style={{
+      background: 'rgba(242,96,96,0.08)',
+      border: '1px solid rgba(227,57,57,0.4)',
+      borderRadius: '6px',
+      padding: '8px 14px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: '8px',
+      gap: '12px',
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '4px', minWidth: 0 }}>
+        <span style={{ fontFamily: FF_SYNE_H, fontWeight: 600, fontSize: '12px', color: '#E33939', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          {textoLabel}
+        </span>
+        <span style={{ fontFamily: FF_DM_H, fontWeight: 500, fontSize: '12px', color: '#E33939', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+          {numericoDesc}
+        </span>
+      </span>
+      <span style={{
+        fontFamily: FF_DM_H, fontWeight: 600, fontSize: '12px',
+        color: '#E33939', fontVariantNumeric: 'tabular-nums', flexShrink: 0,
+      }}>
+        −{formatBRLGestor(valor)}
+      </span>
+    </div>
+  )
+}
+
+// ── (legado — mantido para referência) ───────────────────────────────────────
 
 // ── 2. Elegibilidade ──────────────────────────────────────────────────────────
 
@@ -349,7 +686,7 @@ function ComponentesSection({ rv, config, opKpis, hoveredComp, onHover }: {
   const comps = buildComps(rv, config)
 
   return (
-    <SectionCard title="Componentes do RV">
+    <SectionCard>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           {comps.map((comp, i) => (
@@ -689,131 +1026,221 @@ function DeflatorRow({ label, percentual, valor }: { label: string; percentual: 
   )
 }
 
-// ── 5. O Que Posso Melhorar ───────────────────────────────────────────────────
+// ── 5. OPORTUNIDADES ─────────────────────────────────────────────────────────
 
-type Oportunidade = { titulo: string; desc: string; ganhe: number | null }
+type OportunidadeCat = 'bloqueio' | 'deflator' | 'bonus' | 'ganho'
+
+interface Oportunidade {
+  cat:   OportunidadeCat
+  titulo: string
+  desc:  string
+  ganhe: number | null
+}
+
+const CAT_META: Record<OportunidadeCat, { cor: string; bg: string; border: string; verbo: string }> = {
+  bloqueio: { cor: '#E33939', bg: 'rgba(227,57,57,0.06)',  border: 'rgba(227,57,57,0.25)',  verbo: 'BLOQUEIA' },
+  deflator: { cor: '#F97316', bg: 'rgba(249,115,22,0.06)', border: 'rgba(249,115,22,0.25)', verbo: 'DEFLATOR' },
+  bonus:    { cor: '#c9a84c', bg: 'rgba(201,168,76,0.06)', border: 'rgba(201,168,76,0.25)', verbo: 'BÔNUS'    },
+  ganho:    { cor: '#22c55e', bg: 'rgba(34,197,94,0.06)',  border: 'rgba(34,197,94,0.25)',  verbo: 'GANHE'    },
+}
+
+function catIcon(cat: OportunidadeCat, cor: string) {
+  if (cat === 'bloqueio') return <XCircle      size={14} style={{ color: cor }} />
+  if (cat === 'deflator') return <AlertTriangle size={14} style={{ color: cor }} />
+  if (cat === 'bonus')    return <Target        size={14} style={{ color: cor }} />
+  return                         <TrendingUp    size={14} style={{ color: cor }} />
+}
+
+function buildOportunidades(rv: ResultadoRVGestor, config: RVGestorConfig): Oportunidade[] {
+  const ops: Oportunidade[] = []
+
+  // bloqueio — elegibilidade
+  if (!rv.elegivel) {
+    ops.push({
+      cat: 'bloqueio',
+      titulo: 'ELEGIBILIDADE BLOQUEADA',
+      desc: rv.motivoInelegivel ?? 'Complete as monitorias da equipe para desbloquear o RV.',
+      ganhe: null,
+    })
+  }
+
+  // deflator — deflatores ativos
+  for (const d of rv.deflatores) {
+    let titulo: string
+    if (d.motivo.startsWith('Indisponibilidade')) titulo = 'INDISP. ACIMA DA META'
+    else if (d.motivo.startsWith('ABS'))          titulo = 'ABSENTEÍSMO ELEVADO'
+    else if (d.motivo.startsWith('TMA'))          titulo = 'TMA ACIMA DA META'
+    else                                           titulo = d.motivo.toUpperCase()
+    ops.push({
+      cat: 'deflator',
+      titulo,
+      desc: `Corrija p.p. para recuperar ${formatBRLGestor(d.valorDeduzido)} deduzidos (deflator −${d.perda}%).`,
+      ganhe: d.valorDeduzido,
+    })
+  }
+
+  // bonus — bônus de performance não ganho
+  if (!rv.bonusAplicado && rv.rvBase > 0) {
+    const potencial = Math.round(rv.rvBase * config.bonusPercentual / 100)
+    ops.push({
+      cat: 'bonus',
+      titulo: `BÔNUS ${config.bonusPercentual}% DE PERFORMANCE`,
+      desc: `Atinja TX. Ret ≥ ${config.bonusRetencaoMin}% e ABS ≤ ${config.bonusAbsMax}% p.p. para ganhar o bônus.`,
+      ganhe: potencial,
+    })
+  }
+
+  // ganho — upgrades de KPI
+  if (rv.retencaoVal > 0) {
+    const proxFaixa = config.retencaoFaixas.find(f => f.min > rv.retencaoVal)
+    if (proxFaixa) {
+      const diff = pctBR(proxFaixa.min - rv.retencaoVal)
+      ops.push({
+        cat: 'ganho',
+        titulo: 'UPGRADE TX. RETENÇÃO',
+        desc: `Aumente ${diff}% p.p. (${pctBR(rv.retencaoVal)}% → ${pctBR(proxFaixa.min)}%) para próxima faixa.`,
+        ganhe: proxFaixa.valor - (rv.retencaoFaixa?.valor ?? 0),
+      })
+    }
+  }
+
+  if (rv.indispBonus === 0 && rv.indispVal > 0) {
+    ops.push({
+      cat: 'ganho',
+      titulo: 'INDISP. DENTRO DA META',
+      desc: `Reduza ${pctBR(rv.indispVal - config.indispMeta)}% p.p. (atual ${pctBR(rv.indispVal)}%, meta ≤ ${pctBR(config.indispMeta)}%).`,
+      ganhe: config.indispValor,
+    })
+  }
+
+  if (rv.tmaBonus === 0 && rv.tmaValSeg > 0) {
+    const exc = rv.tmaValSeg - config.tmaMetaSeg
+    ops.push({
+      cat: 'ganho',
+      titulo: 'TMA DENTRO DA META',
+      desc: `Reduza ${segParaMMSSGestor(exc)} p.p. no TMA (atual ${segParaMMSSGestor(rv.tmaValSeg)}, meta ≤ ${segParaMMSSGestor(config.tmaMetaSeg)}).`,
+      ganhe: config.tmaValor,
+    })
+  }
+
+  if (!rv.ticketAplicavel && rv.retencaoVal > 0) {
+    const diff = pctBR(config.ticketMinRetracao - rv.retencaoVal)
+    ops.push({
+      cat: 'ganho',
+      titulo: 'DESBLOQUEAR TICKET',
+      desc: `Aumente TX. Ret em ${diff}% p.p. para desbloquear variação de ticket.`,
+      ganhe: null,
+    })
+  }
+
+  const ORDER: OportunidadeCat[] = ['bloqueio', 'deflator', 'bonus', 'ganho']
+  ops.sort((a, b) => {
+    const oi = ORDER.indexOf(a.cat) - ORDER.indexOf(b.cat)
+    if (oi !== 0) return oi
+    return (b.ganhe ?? 0) - (a.ganhe ?? 0)
+  })
+
+  return ops
+}
 
 function MelhoriaSection({ rv, config, monitoriasCompletas }: {
   rv: ResultadoRVGestor
   config: RVGestorConfig
   monitoriasCompletas: number
 }) {
-  const ops: Oportunidade[] = []
-
-  // Elegibilidade
-  if (!rv.elegivel && rv.motivoInelegivel) {
-    ops.push({ titulo: 'Elegibilidade ao RV', desc: rv.motivoInelegivel, ganhe: null })
-  }
-
-  // Retenção — sugerir upgrade de faixa
-  if (rv.retencaoVal > 0) {
-    const faixaAtual = rv.retencaoFaixa
-    const proxFaixa  = config.retencaoFaixas.find(f => f.min > rv.retencaoVal)
-    if (proxFaixa) {
-      const diff = (proxFaixa.min - rv.retencaoVal).toFixed(1)
-      ops.push({
-        titulo: 'Upgrade de faixa — TX. Retenção',
-        desc: `Aumente ${diff}% (de ${rv.retencaoVal.toFixed(1)}% para ${proxFaixa.min}%) para subir de faixa.`,
-        ganhe: proxFaixa.valor - (faixaAtual?.valor ?? 0),
-      })
-    }
-  }
-
-  // Indisp
-  if (rv.indispBonus === 0 && rv.indispVal > 0) {
-    const exc = rv.indispVal - config.indispMeta
-    ops.push({
-      titulo: 'Indisponibilidade',
-      desc: `Reduza ${exc.toFixed(1)}% (atual: ${rv.indispVal.toFixed(1)}%, meta: ≤${config.indispMeta}%).`,
-      ganhe: config.indispValor,
-    })
-  }
-
-  // TMA
-  if (rv.tmaBonus === 0 && rv.tmaValSeg > 0) {
-    const exc = rv.tmaValSeg - config.tmaMetaSeg
-    ops.push({
-      titulo: 'TMA',
-      desc: `Reduza o TMA em ${segParaMMSSGestor(exc)} (atual: ${segParaMMSSGestor(rv.tmaValSeg)}, meta: ≤${segParaMMSSGestor(config.tmaMetaSeg)}).`,
-      ganhe: config.tmaValor,
-    })
-  }
-
-  // Ticket (se não aplicável)
-  if (!rv.ticketAplicavel && rv.retencaoVal > 0) {
-    const diff = (config.ticketMinRetracao - rv.retencaoVal).toFixed(1)
-    ops.push({
-      titulo: 'Desbloquear Variação Ticket',
-      desc: `Aumente a TX. Retenção em ${diff}% para desbloquear o bônus de ticket.`,
-      ganhe: null,
-    })
-  }
-
-  // Bônus
-  if (!rv.bonusAplicado && rv.rvBase > 0) {
-    const potencial = Math.round(rv.rvBase * config.bonusPercentual / 100)
-    ops.push({
-      titulo: `Bônus de Performance (${config.bonusPercentual}%)`,
-      desc: `Atinja TX. Retenção ≥ ${config.bonusRetencaoMin}% e ABS ≤ ${config.bonusAbsMax}%.`,
-      ganhe: potencial,
-    })
-  }
-
-  // Deflatores ativos
-  for (const d of rv.deflatores) {
-    ops.push({
-      titulo: `Corrigir: ${d.motivo}`,
-      desc: `Este deflator está reduzindo seu RV em ${d.perda}%.`,
-      ganhe: d.valorDeduzido,
-    })
-  }
+  void monitoriasCompletas
+  const ops = buildOportunidades(rv, config)
+  const totalDisponivel = ops.reduce((acc, op) => acc + (op.ganhe ?? 0), 0)
 
   return (
-    <SectionCard title="O Que Posso Melhorar">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ flex: 1 }}>
+          <PainelSectionTitle>OPORTUNIDADES</PainelSectionTitle>
+        </div>
+        {totalDisponivel > 0 && (
+          <span style={{
+            fontFamily: FF_DM_H, fontWeight: 900, fontSize: '13px',
+            color: '#B0AAFF', fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap', flexShrink: 0,
+          }}>
+            +{formatBRLGestor(totalDisponivel)}
+          </span>
+        )}
+      </div>
+
       {ops.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 8px', gap: '8px' }}>
-          <CheckCircle2 size={26} style={{ color: 'var(--verde)' }} />
-          <p style={{ fontFamily: 'var(--ff-display)', fontSize: '15px', fontWeight: 700, color: 'var(--verde)', textAlign: 'center' }}>
-            Você está maximizando seu RV
-          </p>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          padding: '24px 8px', gap: '8px',
+          background: '#070714', border: '1px solid rgba(34,197,94,0.15)', borderRadius: '12px',
+        }}>
+          <CheckCircle2 size={24} style={{ color: '#22c55e' }} />
+          <span style={{
+            fontFamily: FF_SYNE_H, fontSize: '13px', fontWeight: 600,
+            color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.08em',
+          }}>
+            RV MAXIMIZADO
+          </span>
+          <span style={{ fontFamily: FF_DM_H, fontSize: '12px', color: '#72708f' }}>
             Todos os critérios foram atingidos. Continue assim!
-          </p>
+          </span>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {ops.map((op, i) => (
-            <MelhoriaItem key={i} op={op} />
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {ops.map((op, i) => <OportunidadeCard key={i} op={op} />)}
         </div>
       )}
-    </SectionCard>
+    </div>
   )
 }
 
-function MelhoriaItem({ op }: { op: Oportunidade }) {
+function OportunidadeCard({ op }: { op: Oportunidade }) {
+  const meta = CAT_META[op.cat]
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: '10px',
-      padding: '9px 12px', borderRadius: '12px',
-      background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.10)',
-    }}>
-      <AlertTriangle size={14} style={{ color: 'var(--gold)', flexShrink: 0, marginTop: '2px' }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gold-light)' }}>{op.titulo}</p>
-          {op.ganhe !== null && op.ganhe > 0 && (
-            <span style={{
-              fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
-              background: 'rgba(34,197,94,0.10)', color: 'var(--verde)',
-              border: '1px solid rgba(34,197,94,0.18)', whiteSpace: 'nowrap', flexShrink: 0,
-            }}>
-              Ganhe {formatBRLGestor(op.ganhe)}
-            </span>
-          )}
-        </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{op.desc}</p>
+      display: 'flex', alignItems: 'center', gap: '14px',
+      padding: '12px 16px',
+      background: meta.bg,
+      border: `1px solid ${meta.border}`,
+      borderLeft: `3px solid ${meta.cor}`,
+      borderRadius: '0',
+      transition: 'filter 0.2s ease',
+    }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.12)' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = '' }}
+    >
+      <span style={{ color: meta.cor, flexShrink: 0 }}>
+        {catIcon(op.cat, meta.cor)}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <span style={{
+          display: 'block',
+          fontFamily: FF_SYNE_H, fontWeight: 600, fontSize: '11px',
+          textTransform: 'uppercase', letterSpacing: '0.1em', color: meta.cor,
+        }}>
+          {op.titulo}
+        </span>
+        <span style={{
+          display: 'block',
+          fontFamily: FF_DM_H, fontSize: '12px',
+          color: 'rgba(255,255,255,0.52)', lineHeight: 1.4, marginTop: '2px',
+        }}>
+          {op.desc}
+        </span>
       </div>
+      {op.ganhe !== null && op.ganhe > 0 && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+            <span style={{ fontFamily: FF_SYNE_H, fontSize: '11px', fontWeight: 600, color: meta.cor }}>
+              {meta.verbo}&nbsp;
+            </span>
+            <span style={{ fontFamily: FF_DM_H, fontSize: '13px', fontWeight: 900, color: meta.cor, fontVariantNumeric: 'tabular-nums' }}>
+              {formatBRLGestor(op.ganhe)}
+            </span>
+          </span>
+        </span>
+      )}
     </div>
   )
 }
@@ -825,8 +1252,9 @@ function RegrasSection({ config, expanded, onToggle }: {
 }) {
   return (
     <div style={{
-      background: 'var(--bg-card)', border: '1px solid rgba(201,168,76,0.08)',
-      borderRadius: '12px', overflow: 'hidden',
+      background: 'rgba(244,212,124,0.03)',
+      border: '1px solid rgba(244,212,124,0.15)',
+      borderRadius: '0', overflow: 'hidden',
     }}>
       <button
         type="button"
@@ -836,77 +1264,98 @@ function RegrasSection({ config, expanded, onToggle }: {
           padding: '14px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
           transition: 'background 0.15s',
         }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,168,76,0.04)' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(244,212,124,0.04)' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
       >
-        <span style={{
-          fontFamily: 'var(--ff-display)', fontSize: '11px', fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--gold)',
-        }}>
-          Como é calculado meu RV
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Info size={13} style={{ color: 'rgba(244,212,124,0.6)', flexShrink: 0 }} />
+          <span style={{
+            fontFamily: FF_SYNE_H, fontSize: '11px', fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(244,212,124,0.7)',
+          }}>
+            Como é calculado meu RV
+          </span>
+        </div>
         <ChevronDown size={14} style={{
-          color: 'var(--text-muted)',
+          color: 'rgba(244,212,124,0.5)',
           transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
-          transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+          transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
         }} />
       </button>
 
       <div style={{
-        maxHeight: expanded ? '900px' : '0', overflow: 'hidden',
+        maxHeight: expanded ? '1200px' : '0', overflow: 'hidden',
         transition: 'max-height 0.4s cubic-bezier(0.4,0,0.2,1)',
       }}>
-        <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-          <RegraGroup title="Elegibilidade">
-            <RegraLine label="Monitorias completas" valor="≥ 14 operadores com 4+ monitorias enviadas" />
-          </RegraGroup>
-
-          <RegraGroup title="TX. Retenção (base do RV)">
+          <RegraBloco
+            titulo="COMPONENTES DO RV"
+            desc="Seu RV é composto por até 4 indicadores. Cada um contribui com um valor fixo quando dentro da meta."
+          >
             {config.retencaoFaixas.map((f, i) => (
-              <RegraLine key={i} label={`≥ ${f.min}%`} valor={formatBRLGestor(f.valor)} />
+              <RegraLine key={i} label={`TX. Retenção ≥ ${f.min}%`} valor={formatBRLGestor(f.valor)} />
             ))}
-          </RegraGroup>
-
-          <RegraGroup title="Bônus Operacional">
             <RegraLine label={`Indisponibilidade ≤ ${config.indispMeta}%`} valor={formatBRLGestor(config.indispValor)} />
             <RegraLine label={`TMA ≤ ${segParaMMSSGestor(config.tmaMetaSeg)}`} valor={formatBRLGestor(config.tmaValor)} />
-          </RegraGroup>
-
-          <RegraGroup title="Variação Ticket (req. Ret ≥ 60%)">
             {config.ticketFaixas.map((f, i) => (
-              <RegraLine key={i} label={`≥ ${f.min}%`} valor={formatBRLGestor(f.valor)} />
+              <RegraLine key={`tkt${i}`} label={`Var. Ticket ≥ ${f.min}% (req. Ret ≥ ${config.ticketMinRetracao}%)`} valor={formatBRLGestor(f.valor)} />
             ))}
-          </RegraGroup>
+          </RegraBloco>
 
-          <RegraGroup title={`Bônus de Performance (${config.bonusPercentual}% sobre RV Base)`}>
+          <RegraBloco
+            titulo={`BÔNUS DE PERFORMANCE (${config.bonusPercentual}%)`}
+            desc={`Bônus de ${config.bonusPercentual}% sobre o subtotal do RV quando ambas as condições são atingidas simultaneamente.`}
+          >
             <RegraLine label={`TX. Retenção ≥ ${config.bonusRetencaoMin}%`} valor="Obrigatório" />
             <RegraLine label={`ABS ≤ ${config.bonusAbsMax}%`} valor="Obrigatório" />
-          </RegraGroup>
+          </RegraBloco>
 
-          <RegraGroup title="Deflatores">
+          <RegraBloco
+            titulo="DEFLATORES"
+            desc="Reduções percentuais aplicadas ao RV com bônus quando indicadores ultrapassam os limites tolerados."
+          >
             <RegraLine label={`TMA > ${segParaMMSSGestor(Math.round(config.tmaMetaSeg * (1 + config.tmaDeflatorPct / 100)))}`} valor={`−${config.tmaDeflatorPerda}%`} />
             <RegraLine label={`Indisponibilidade > ${config.indispMeta}%`} valor={`−${config.indispDeflatorPerda}%`} />
             {config.absDeflatorFaixas.filter(f => f.perda > 0).map((f, i) => (
-              <RegraLine key={i} label={`ABS ≤ ${f.limite}%`} valor={`−${f.perda}%`} />
+              <RegraLine key={i} label={`ABS > ${f.limite}%`} valor={`−${f.perda}%`} />
             ))}
-          </RegraGroup>
+          </RegraBloco>
+
+          <RegraBloco
+            titulo="ELEGIBILIDADE"
+            desc="O RV só é pago quando o critério mínimo de monitorias da equipe é cumprido no mês."
+          >
+            <RegraLine label="Monitorias por operador" valor="≥ 4 enviadas" />
+            <RegraLine label="Mínimo de operadores" valor="14 completos" />
+          </RegraBloco>
+
         </div>
       </div>
     </div>
   )
 }
 
-function RegraGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function RegraBloco({ titulo, desc, children }: {
+  titulo: string; desc: string; children: React.ReactNode
+}) {
   return (
-    <div>
-      <p style={{
-        fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.10em', color: 'rgba(244,212,124,0.7)', marginBottom: '8px',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <span style={{
+        fontFamily: FF_SYNE_H, fontSize: '10px', fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(244,212,124,0.7)',
       }}>
-        {title}
+        {titulo}
+      </span>
+      <p style={{
+        fontFamily: FF_DM_H, fontSize: '12px', margin: 0,
+        color: 'rgba(114,112,143,0.9)', lineHeight: 1.5,
+      }}>
+        {desc}
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>{children}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -914,29 +1363,31 @@ function RegraGroup({ title, children }: { title: string; children: React.ReactN
 function RegraLine({ label, valor }: { label: string; valor: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>{valor}</span>
+      <span style={{ fontFamily: FF_DM_H, fontSize: '12px', color: 'rgba(114,112,143,0.8)' }}>{label}</span>
+      <span style={{ fontFamily: FF_DM_H, fontSize: '12px', fontWeight: 600, color: '#B0AAFF', flexShrink: 0 }}>{valor}</span>
     </div>
   )
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div style={{
       background: 'var(--bg-card)', border: '1px solid rgba(201,168,76,0.08)',
       borderRadius: '12px', padding: '20px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-        <span style={{
-          fontFamily: 'var(--ff-display)', fontSize: '11px', fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(244,212,124,0.7)',
-        }}>
-          {title}
-        </span>
-        <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(201,168,76,0.15) 0%, transparent 100%)' }} />
-      </div>
+      {title && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <span style={{
+            fontFamily: 'var(--ff-display)', fontSize: '11px', fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(244,212,124,0.7)',
+          }}>
+            {title}
+          </span>
+          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(201,168,76,0.15) 0%, transparent 100%)' }} />
+        </div>
+      )}
       {children}
     </div>
   )

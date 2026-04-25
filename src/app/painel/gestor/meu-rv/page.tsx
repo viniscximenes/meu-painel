@@ -59,7 +59,7 @@ export default async function GestorMeuRvPage() {
 
   if (!planilha) {
     return (
-      <PainelShell profile={profile} title="Meu RV" iconName="Banknote">
+      <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
         <div style={cssVars} className="space-y-4">
           <GoldLine />
           <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
@@ -165,9 +165,8 @@ export default async function GestorMeuRvPage() {
   const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
 
   return (
-    <PainelShell profile={profile} title="Meu RV" iconName="Banknote">
+    <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
       <div style={cssVars} className="space-y-4">
-        <GoldLine />
 
         {erroSheets && (
           <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
