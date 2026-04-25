@@ -12,6 +12,7 @@
     "dev:restart": "powershell -ExecutionPolicy Bypass -File kill-and-dev.ps1"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "clsx": "^2.1.1",

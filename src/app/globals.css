@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,900;1,9..40,300&family=Syne:wght@400;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -60,8 +60,9 @@
   --shadow-gold: 0 4px 24px rgba(201,168,76,0.20);
   --shadow-blue: 0 8px 32px rgba(59,130,246,0.18);
 
-  --ff-display: 'Syne', sans-serif;
+  --ff-display: 'DM Sans', sans-serif;
   --ff-body:    'DM Sans', sans-serif;
+  --ff-syne:    'Syne', sans-serif;
   --ease-premium: cubic-bezier(0.4,0,0.2,1);
   --duration: 200ms;
 }
@@ -296,13 +297,25 @@
 
   /* ── Badges ── */
   .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium uppercase;
+  }
+  .badge-admin {
+    background: rgba(248,113,113,0.10);
+    color: #f87171;
+    border: 1px solid rgba(248,113,113,0.40);
+    box-shadow: 0 0 12px rgba(248,113,113,0.06);
   }
   .badge-gestor {
     background: rgba(201,168,76,0.12);
     color: var(--gold-light);
     border: 1px solid rgba(201,168,76,0.25);
     box-shadow: 0 0 12px rgba(201,168,76,0.08);
+  }
+  .badge-aux {
+    background: rgba(96,165,250,0.10);
+    color: #60a5fa;
+    border: 1px solid rgba(96,165,250,0.40);
+    box-shadow: 0 0 12px rgba(96,165,250,0.06);
   }
   .badge-operador {
     background: rgba(16,185,129,0.10);
@@ -328,24 +341,27 @@
 
   /* ── Sidebar items ── */
   .sidebar-item {
-    @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer;
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium cursor-pointer;
+    font-family: var(--ff-syne);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     transition: all var(--duration) var(--ease-premium);
   }
   .sidebar-item-active {
     @apply sidebar-item;
-    color: var(--gold-light);
-    background: linear-gradient(90deg, rgba(201,168,76,0.12) 0%, rgba(201,168,76,0.03) 100%);
-    border-left: 3px solid var(--gold);
-    padding-left: calc(0.75rem - 3px);
-    box-shadow: inset 4px 0 12px rgba(201,168,76,0.05);
+    color: #f4d47c;
+    background: rgba(244,212,124,0.08);
+    border-left: 2px solid #f4d47c;
+    padding-left: calc(0.75rem - 2px);
+    box-shadow: inset 4px 0 12px rgba(244,212,124,0.05);
   }
   .sidebar-item-inactive {
     @apply sidebar-item;
     color: var(--text-muted);
   }
   .sidebar-item-inactive:hover {
-    background: var(--gold-glow);
-    color: var(--text-secondary);
+    background: rgba(244,212,124,0.04);
+    color: #f4d47c;
   }
   .sidebar-item-aux-inactive {
     @apply sidebar-item;
@@ -400,6 +416,7 @@
   .logo-shimmer {
     background: linear-gradient(135deg, var(--gold) 0%, var(--gold-bright) 60%, var(--gold-light) 100%);
   }
+
 
   /* ── Gold gradient text ── */
   .text-gold-gradient {
@@ -616,6 +633,7 @@
   100% { background-position:  200% center; }
 }
 
+
 @keyframes logoShimmer {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
@@ -650,6 +668,38 @@
 @keyframes dotPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.85; transform: scale(1.25); }
+}
+
+/* ── Scrollbar global HALO ─────────────────────────────────────────────────── */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(244,212,124,0.5) rgba(0,0,0,0.3);
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(244,212,124,0.5);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(244,212,124,0.8);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #f4d47c;
+  background-clip: padding-box;
 }
 
 @keyframes ringPulse {

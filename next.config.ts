@@ -3,7 +3,7 @@ import type { NextConfig } from 'next'
 const isDev = process.env.NODE_ENV === 'development'
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['googleapis'],
+  serverExternalPackages: ['googleapis', '@react-pdf/renderer'],
 
   ...(isDev && {
     headers: async () => [

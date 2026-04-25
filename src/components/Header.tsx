@@ -39,8 +39,9 @@ interface HeaderProps {
 }
 
 const AVATAR_STYLE_HALO: React.CSSProperties = {
-  background: '#0a0e14',
-  border: '1px solid rgba(201,168,76,0.5)',
+  fontFamily: 'var(--ff-syne)',
+  background: '#070714',
+  border: '1.5px solid #f4d47c',
   color: '#f4d47c',
   fontSize: '11px',
   fontWeight: 600,
@@ -53,10 +54,9 @@ export default function Header({ profile, title, onMenuClick, iconName }: Header
     <header
       className="header-border-shimmer h-14 flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-10"
       style={{
-        background: 'rgba(12, 16, 24, 0.85)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        boxShadow: '0 4px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(201,168,76,0.06)',
+        background: 'linear-gradient(180deg, #0a0e1f 0%, #06091a 100%)',
+        borderBottom: '1px solid rgba(244,212,124,0.08)',
+        boxShadow: '0 4px 32px rgba(0,0,0,0.4)',
       }}
     >
       {/* Menu mobile */}
@@ -88,12 +88,13 @@ export default function Header({ profile, title, onMenuClick, iconName }: Header
           <Icon size={14} strokeWidth={1.5} className="text-[#050508]" />
         </div>
         <h1
-          className="font-semibold tracking-tight"
           style={{
-            fontFamily: 'var(--ff-display)',
-            fontSize: '15px',
+            fontFamily: 'var(--ff-syne)',
+            fontSize: '16px',
             fontWeight: 600,
-            color: 'var(--text-primary)',
+            color: '#e8edf8',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
           }}
         >
           {title}
@@ -109,10 +110,10 @@ export default function Header({ profile, title, onMenuClick, iconName }: Header
           style={{ borderLeft: '1px solid rgba(201,168,76,0.10)' }}
         >
           <div className="text-right">
-            <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', lineHeight: 1 }}>
+            <p style={{ fontFamily: 'var(--ff-syne)', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', lineHeight: 1 }}>
               {profile.nome.split(' ')[0]}
             </p>
-            <p style={{ fontSize: '11px', fontWeight: 400, color: 'rgba(255,255,255,0.50)', marginTop: '3px' }}>
+            <p style={{ fontFamily: 'var(--ff-syne)', fontSize: '11px', fontWeight: 400, color: '#72708f', marginTop: '3px' }}>
               {profile.username}
             </p>
           </div>
@@ -125,8 +126,8 @@ export default function Header({ profile, title, onMenuClick, iconName }: Header
             {getIniciaisNome(profile.nome)}
           </div>
 
-          <span className={`badge ${profile.role === 'gestor' ? 'badge-gestor' : 'badge-operador'}`}>
-            {profile.role === 'gestor' ? 'Gestor' : 'Operador'}
+          <span className={`badge ${{ admin: 'badge-admin', gestor: 'badge-gestor', aux: 'badge-aux', operador: 'badge-operador' }[(profile.role ?? '').toLowerCase()] ?? 'badge-operador'}`}>
+            {{ admin: 'Admin', gestor: 'Gestor', aux: 'Auxiliar', operador: 'Operador' }[(profile.role ?? '').toLowerCase()] ?? 'Operador'}
           </span>
         </div>
 

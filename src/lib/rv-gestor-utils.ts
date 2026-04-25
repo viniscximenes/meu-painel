@@ -136,7 +136,7 @@ export function calcularRVGestor(
   const motivoInelegivel = semDados
     ? 'Sem dados na planilha'
     : !elegivel
-      ? `Monitorias incompletas: ${monitoriasCompletas}/13 operadores com 4+ monitorias`
+      ? `Monitorias incompletas: ${monitoriasCompletas}/14 operadores com 4+ monitorias`
       : null
 
   if (semDados) {

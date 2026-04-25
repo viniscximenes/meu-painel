@@ -81,7 +81,7 @@ export function parsePct(raw: string | undefined): number | null {
 
 // Percentual absoluto: planilha armazena valor já em % (ex: 0.4 = 0,4%, 5 = 5%)
 // NÃO aplica *100 — usar quando a coluna já está em escala percentual direta.
-function parsePctAbsoluto(raw: string | undefined): number | null {
+export function parsePctAbsoluto(raw: string | undefined): number | null {
   if (!raw) return null
   const s = raw.toString().replace(/\s/g, '').replace(',', '.')
   if (s.startsWith('#') || s === '') return null
@@ -275,4 +275,93 @@ export async function lerTodosQuartis(
   username: string,
 ): Promise<QuartilTopico[]> {
   return Promise.all(TOPICOS.map(c => lerQuartilTopico(c, spreadsheetId, username)))
+}
+
+// ── Leitura de quartil para equipe (uma leitura por aba, não 14×) ─────────────
+
+export interface QuartilOperadorEquipe {
+  username:         string
+  quartil:          1 | 2 | 3 | 4
+  rankGlobal:       number
+  metrica:          number
+  metricaFormatada: string
+}
+
+export interface QuartilTopicoEquipe {
+  id:              string
+  nomeTopico:      string
+  dataAtualizacao: string | null
+  totalOperadores: number
+  operadores:      QuartilOperadorEquipe[]  // só membros da equipe encontrados
+}
+
+async function lerQuartilTopicoEquipe(
+  config: QuartilTopicoConfig,
+  spreadsheetId: string,
+  usernames: string[],
+): Promise<QuartilTopicoEquipe> {
+  const empty: QuartilTopicoEquipe = {
+    id: config.id, nomeTopico: config.nomeTopico,
+    dataAtualizacao: null, totalOperadores: 0, operadores: [],
+  }
+  try {
+    const res = await withTimeout(
+      sheetsAPI().spreadsheets.values.get({
+        spreadsheetId,
+        range: `'${config.aba}'!A1:H300`,
+      })
+    )
+    const values = (res.data.values ?? []) as string[][]
+    if (values.length < 2) return empty
+
+    const dataAtualizacao = config.colunaData !== null
+      ? (values[1]?.[config.colunaData] ?? '').trim() || null
+      : null
+
+    type Row = { email: string; metrica: number; metricaFormatada: string; quartil: 1 | 2 | 3 | 4 }
+    const lista: Row[] = []
+    for (let i = 1; i < values.length; i++) {
+      const row    = values[i]
+      const email  = (row[0] ?? '').trim()
+      if (!email) continue
+      const metrica = config.parseMetrica(row[config.colunaMetrica])
+      const quartil = parseQuartil(row[config.colunaQuartil])
+      if (metrica === null || quartil === null) continue
+      lista.push({ email, metrica, metricaFormatada: config.formatarMetrica(metrica), quartil })
+    }
+    if (!lista.length) return { ...empty, dataAtualizacao }
+
+    const ordenados = [...lista].sort((a, b) =>
+      config.sortOrder === 'desc' ? b.metrica - a.metrica : a.metrica - b.metrica
+    )
+
+    const operadores: QuartilOperadorEquipe[] = []
+    for (const username of usernames) {
+      const rankIdx = ordenados.findIndex(op => matchEmail(op.email, username))
+      if (rankIdx < 0) continue
+      const found = ordenados[rankIdx]
+      operadores.push({
+        username,
+        quartil:          found.quartil,
+        rankGlobal:       rankIdx + 1,
+        metrica:          found.metrica,
+        metricaFormatada: found.metricaFormatada,
+      })
+    }
+
+    return {
+      id: config.id, nomeTopico: config.nomeTopico,
+      dataAtualizacao, totalOperadores: lista.length, operadores,
+    }
+  } catch (e) {
+    console.error(`[lerQuartilTopicoEquipe:${config.id}]`, e)
+    return empty
+  }
+}
+
+export async function lerQuartilEquipe(
+  spreadsheetId: string,
+  usernames: string[],
+): Promise<QuartilTopicoEquipe[]> {
+  return Promise.all(TOPICOS.map(c => lerQuartilTopicoEquipe(c, spreadsheetId, usernames)))
 }

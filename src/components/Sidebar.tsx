@@ -6,9 +6,10 @@ import { useState } from 'react'
 import { Profile } from '@/types'
 import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
-  LayoutDashboard, ChevronDown, BarChart2,
-  Target, TableProperties, Database, Trophy, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays, Ticket, Clock,
+  ChevronDown, BarChart2,
+  Target, Database, SlidersHorizontal, BookOpen, ClipboardList,
+  CalendarDays, Ticket, Clock, Gauge, Wallet,
+  BarChart3, Coins, Trophy, FileText, Copy,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -23,7 +24,7 @@ interface SidebarProps {
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  gestor:   'Gestão',
+  gestor:   'Gestor',
   admin:    'Administração',
   aux:      'Auxiliar',
   operador: 'Operações',
@@ -65,8 +66,10 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         style={{
-          background: 'linear-gradient(180deg, #0a0e18 0%, #080c14 40%, #050508 100%)',
-          borderRight: '1px solid rgba(201,168,76,0.08)',
+          fontFamily: "'Syne', sans-serif",
+          textTransform: 'uppercase' as const,
+          background: 'linear-gradient(180deg, #0a0e1f 0%, #06091a 50%, #04061a 100%)',
+          borderRight: '1px solid rgba(244,212,124,0.08)',
           boxShadow: '4px 0 40px rgba(0,0,0,0.6), 1px 0 0 rgba(255,255,255,0.02)',
         }}
       >
@@ -86,14 +89,14 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
           </div>
           <div>
             <span
-              className="text-gold-gradient font-bold text-sm tracking-wide"
-              style={{ fontFamily: 'var(--ff-display)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
+              className="text-gold-gradient font-bold tracking-wide"
+              style={{ fontFamily: 'var(--ff-syne)', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
             >
               HALO
             </span>
             <p
-              className="text-[10px] mt-0.5 tracking-widest uppercase"
-              style={{ color: 'var(--text-muted)', letterSpacing: '0.12em' }}
+              className="mt-0.5 uppercase"
+              style={{ fontFamily: 'var(--ff-syne)', fontSize: '11px', fontWeight: 500, color: '#72708f', letterSpacing: '0.14em' }}
             >
               {ROLE_LABEL[role] ?? 'Operações'}
             </p>
@@ -106,52 +109,73 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Perfil */}
-        <div
-          className="px-2 py-3"
-          style={{
-            borderTop: '1px solid transparent',
-            borderImage: 'linear-gradient(90deg, transparent 0%, rgba(201,168,76,0.12) 50%, transparent 100%) 1',
-          }}
-        >
+        <div style={{
+          padding: '12px',
+          borderTop: '1px solid transparent',
+          borderImage: 'linear-gradient(90deg, transparent 0%, rgba(244,212,124,0.12) 50%, transparent 100%) 1',
+        }}>
           <div
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all"
             style={{
-              background: 'rgba(201,168,76,0.03)',
-              border: '1px solid rgba(201,168,76,0.10)',
+              background: 'rgba(244,212,124,0.04)',
+              border: '1px solid rgba(244,212,124,0.15)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              cursor: 'pointer',
+              transition: 'background 200ms ease, border-color 200ms ease',
             }}
             onMouseEnter={(e) => {
               const el = e.currentTarget as HTMLElement
-              el.style.background = 'rgba(201,168,76,0.06)'
-              el.style.borderColor = 'rgba(201,168,76,0.18)'
+              el.style.background = 'rgba(244,212,124,0.08)'
+              el.style.borderColor = 'rgba(244,212,124,0.25)'
             }}
             onMouseLeave={(e) => {
               const el = e.currentTarget as HTMLElement
-              el.style.background = 'rgba(201,168,76,0.03)'
-              el.style.borderColor = 'rgba(201,168,76,0.10)'
+              el.style.background = 'rgba(244,212,124,0.04)'
+              el.style.borderColor = 'rgba(244,212,124,0.15)'
             }}
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-              style={{
-                background: '#0a0e14',
-                border: '1px solid rgba(201,168,76,0.5)',
-                color: '#f4d47c',
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.05em',
-              }}
-            >
+            {/* Avatar */}
+            <div style={{
+              width: '36px', height: '36px', flexShrink: 0,
+              borderRadius: '8px',
+              background: '#070714',
+              border: '1.5px solid #f4d47c',
+              color: '#f4d47c',
+              fontFamily: 'var(--ff-syne)',
+              fontSize: '13px', fontWeight: 600,
+              letterSpacing: '0.04em',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
               {getIniciaisNome(profile.nome)}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="truncate" style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.95)', lineHeight: 1 }}>
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                fontFamily: 'var(--ff-syne)', fontSize: '13px', fontWeight: 600,
+                color: '#e8edf8', lineHeight: 1, margin: 0,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
                 {profile.nome.split(' ').slice(0, 2).join(' ')}
               </p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span
-                  className="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase"
-                  style={ROLE_BADGE_STYLE[role] ?? ROLE_BADGE_STYLE.operador}
-                >
+              <p style={{
+                fontFamily: 'var(--ff-syne)', fontSize: '10px', fontWeight: 400,
+                color: '#72708f', lineHeight: 1, margin: '4px 0 0',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {profile.username}
+              </p>
+              <div style={{ marginTop: '6px' }}>
+                <span style={{
+                  fontFamily: 'var(--ff-syne)', fontSize: '9px', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.12em',
+                  padding: '3px 8px', borderRadius: '6px',
+                  display: 'inline-flex', alignItems: 'center',
+                  ...(ROLE_BADGE_STYLE[role] ?? ROLE_BADGE_STYLE.operador),
+                  border: `1px solid ${role === 'gestor' ? 'rgba(244,212,124,0.4)' : role === 'admin' ? 'rgba(139,92,246,0.4)' : role === 'aux' ? 'rgba(59,130,246,0.4)' : 'rgba(16,185,129,0.4)'}`,
+                }}>
                   {role}
                 </span>
               </div>
@@ -166,56 +190,129 @@ export default function Sidebar({ profile, isOpen, onClose }: SidebarProps) {
 /* ── Gestor nav ──────────────────────────────────────────────────────────────── */
 
 function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
-  const [registrosExpandidos, setRegistrosExpandidos] = useState(true)
-  const [opsExpandidas,       setOpsExpandidas]       = useState(true)
+  const [contestacaoExpandido, setContestacaoExpandido] = useState(true)
+  const [registrosExpandidos,  setRegistrosExpandidos]  = useState(false)
   const { glpiPendentes } = useSidebarBadges()
 
   return (
-    <div className="space-y-0.5">
-      <NavLabel>Dados Gerais</NavLabel>
+    <div className="space-y-1">
+      <NavLabel>Meus Dados Gerais</NavLabel>
 
-      <Link href="/painel/gestor" onClick={onClose}
-        className={pathname === '/painel/gestor' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <LayoutDashboard size={15} /> KPI Gestor & RV
+      <Link href="/painel/gestor/meu-kpi" onClick={onClose}
+        className={pathname === '/painel/gestor/meu-kpi' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <Gauge size={18} strokeWidth={1.5} /> Meu KPI
       </Link>
-      <Link href="/painel/kpis-equipe" onClick={onClose}
-        className={pathname === '/painel/kpis-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <TableProperties size={15} /> KPIs da Equipe
-      </Link>
-      <Link href="/painel/rv-equipe" onClick={onClose}
-        className={pathname === '/painel/rv-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Trophy size={15} style={{ color: pathname === '/painel/rv-equipe' ? 'var(--gold)' : undefined }} />
-        RV da Equipe
+      <Link href="/painel/gestor/meu-rv" onClick={onClose}
+        className={pathname === '/painel/gestor/meu-rv' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <Wallet size={18} strokeWidth={1.5} /> Meu RV
       </Link>
 
-      <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
-        Registros
-      </NavLabelCollapsible>
+      <NavLabel>Dados da Equipe</NavLabel>
 
-      <div style={{ maxHeight: registrosExpandidos ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <div className="space-y-0.5">
-          <Link href="/painel/diario" onClick={onClose}
-            className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <BookOpen size={15} /> Diário de Bordo
+      <Link href="/painel/gestor/kpi-equipe" onClick={onClose}
+        className={pathname === '/painel/gestor/kpi-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <BarChart3 size={18} strokeWidth={1.5} /> KPI Equipe
+      </Link>
+      <Link href="/painel/gestor/rv-equipe" onClick={onClose}
+        className={pathname === '/painel/gestor/rv-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <Coins size={18} strokeWidth={1.5} /> RV Equipe
+      </Link>
+      <Link href="/painel/gestor/q4-equipe" onClick={onClose}
+        className={pathname === '/painel/gestor/q4-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+        <Trophy size={18} strokeWidth={1.5} /> Q4 Equipe
+      </Link>
+
+      {/* ── PAINEL GESTOR separator ─────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-3" style={{ marginTop: '24px', marginBottom: '16px' }}>
+        <div className="flex-1 h-px" style={{ background: 'rgba(123,163,217,0.3)' }} />
+        <span className="shrink-0 uppercase" style={{ fontFamily: 'var(--ff-syne)', fontSize: '11px', fontWeight: 600, color: '#7ba3d9', letterSpacing: '0.12em' }}>
+          PAINEL GESTOR
+        </span>
+        <div className="flex-1 h-px" style={{ background: 'rgba(123,163,217,0.3)' }} />
+      </div>
+
+      {/* ── CONTESTAÇÃO RV collapsible header ───────────────────────────────── */}
+      <div className="px-3 pt-5 pb-1.5">
+        <button
+          type="button"
+          onClick={() => setContestacaoExpandido(v => !v)}
+          className="flex items-center gap-2 w-full"
+          aria-expanded={contestacaoExpandido}
+        >
+          <span className="uppercase shrink-0" style={{ fontFamily: 'var(--ff-syne)', fontSize: '11px', fontWeight: 600, color: '#7ba3d9', letterSpacing: '0.12em' }}>
+            Contestação RV
+          </span>
+          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(123,163,217,0.2) 0%, transparent 100%)' }} />
+          <ChevronDown
+            size={11}
+            style={{
+              color: '#7ba3d9',
+              flexShrink: 0,
+              transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
+              transform: contestacaoExpandido ? 'rotate(0deg)' : 'rotate(-180deg)',
+            }}
+          />
+        </button>
+      </div>
+
+      <div style={{ maxHeight: contestacaoExpandido ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-1">
+          <Link href="/painel/gestor/contestacao-rv/exportar-pdf" onClick={onClose}
+            className={pathname === '/painel/gestor/contestacao-rv/exportar-pdf' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/gestor/contestacao-rv/exportar-pdf' ? { color: '#7ba3d9' } : undefined}>
+            <FileText size={18} strokeWidth={1.5} /> Exportar PDF
           </Link>
-          <Link href="/painel/monitoria" onClick={onClose}
-            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <ClipboardList size={15} /> Monitoria
+          <Link href="/painel/gestor/contestacao-rv/copiar-e-colar" onClick={onClose}
+            className={pathname === '/painel/gestor/contestacao-rv/copiar-e-colar' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/gestor/contestacao-rv/copiar-e-colar' ? { color: '#7ba3d9' } : undefined}>
+            <Copy size={18} strokeWidth={1.5} /> Copiar e Colar
           </Link>
-          <Link href="/painel/abs" onClick={onClose}
-            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <CalendarDays size={15} /> ABS
-          </Link>
-          <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} />
         </div>
       </div>
 
-      <NavLabelCollapsible expanded={opsExpandidas} onToggle={() => setOpsExpandidas((v) => !v)}>
-        Operadores
-      </NavLabelCollapsible>
+      {/* ── REGISTROS GERAIS collapsible header ─────────────────────────────── */}
+      <div className="px-3 pt-5 pb-1.5">
+        <button
+          type="button"
+          onClick={() => setRegistrosExpandidos(v => !v)}
+          className="flex items-center gap-2 w-full"
+          aria-expanded={registrosExpandidos}
+        >
+          <span className="uppercase shrink-0" style={{ fontFamily: 'var(--ff-syne)', fontSize: '11px', fontWeight: 600, color: '#7ba3d9', letterSpacing: '0.12em' }}>
+            Registros Gerais
+          </span>
+          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(123,163,217,0.2) 0%, transparent 100%)' }} />
+          <ChevronDown
+            size={11}
+            style={{
+              color: '#7ba3d9',
+              flexShrink: 0,
+              transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
+              transform: registrosExpandidos ? 'rotate(0deg)' : 'rotate(-180deg)',
+            }}
+          />
+        </button>
+      </div>
 
-      <div style={{ maxHeight: opsExpandidas ? '1200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <OperadoresList />
+      <div style={{ maxHeight: registrosExpandidos ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+        <div className="space-y-1">
+          <Link href="/painel/diario" onClick={onClose}
+            className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={!pathname.startsWith('/painel/diario') ? { color: '#7ba3d9' } : undefined}>
+            <BookOpen size={18} strokeWidth={1.5} /> Diário de Bordo
+          </Link>
+          <Link href="/painel/monitoria" onClick={onClose}
+            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={!pathname.startsWith('/painel/monitoria') ? { color: '#7ba3d9' } : undefined}>
+            <ClipboardList size={18} strokeWidth={1.5} /> Monitoria
+          </Link>
+          <Link href="/painel/abs" onClick={onClose}
+            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={!pathname.startsWith('/painel/abs') ? { color: '#7ba3d9' } : undefined}>
+            <CalendarDays size={18} strokeWidth={1.5} /> ABS
+          </Link>
+          <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} iconColor="#7ba3d9" textColor="#7ba3d9" />
+        </div>
       </div>
     </div>
   )
@@ -225,7 +322,6 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
 
 function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void }) {
   const [registrosExpandidos,  setRegistrosExpandidos]  = useState(false)
-  const [dadosGestaoExpandido, setDadosGestaoExpandido] = useState(false)
   const [configExpandida,      setConfigExpandida]      = useState(false)
   const { glpiPendentes } = useSidebarBadges()
 
@@ -253,28 +349,6 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
             <CalendarDays size={15} /> ABS
           </Link>
           <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} />
-        </div>
-      </div>
-
-      <NavLabelCollapsible expanded={dadosGestaoExpandido} onToggle={() => setDadosGestaoExpandido((v) => !v)}>
-        Dados Gerais Gestão
-      </NavLabelCollapsible>
-
-      <div style={{ maxHeight: dadosGestaoExpandido ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
-        <div className="space-y-0.5">
-          <Link href="/painel/kpis-equipe" onClick={onClose}
-            className={pathname === '/painel/kpis-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <TableProperties size={15} /> KPIs da Equipe
-          </Link>
-          <Link href="/painel/rv-equipe" onClick={onClose}
-            className={pathname === '/painel/rv-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <Trophy size={15} style={{ color: pathname === '/painel/rv-equipe' ? 'var(--gold)' : undefined }} />
-            RV da Equipe
-          </Link>
-          <Link href="/painel/gestor" onClick={onClose}
-            className={pathname === '/painel/gestor' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-            <LayoutDashboard size={15} /> KPI Gestor & RV
-          </Link>
         </div>
       </div>
 
@@ -341,7 +415,7 @@ function AuxNav({ pathname, onClose }: { pathname: string; onClose: () => void }
             className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-aux-inactive'}>
             <CalendarDays size={15} /> ABS
           </Link>
-          <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} iconColor="var(--halo-blue-aux-soft)" />
+          <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} iconColor="var(--halo-blue-aux-soft)" auxStyle />
         </div>
       </div>
     </div>
@@ -361,14 +435,15 @@ function OperadorNav({ pathname, onClose }: { profile: Profile; pathname: string
 
 /* ── Shared components ───────────────────────────────────────────────────────── */
 
-function GLPILink({ pathname, onClose, glpiPendentes, iconColor }: { pathname: string; onClose: () => void; glpiPendentes: number; iconColor?: string }) {
+function GLPILink({ pathname, onClose, glpiPendentes, iconColor, textColor, auxStyle }: { pathname: string; onClose: () => void; glpiPendentes: number; iconColor?: string; textColor?: string; auxStyle?: boolean }) {
   const isActive = pathname.startsWith('/painel/glpi')
-  const inactiveClass = iconColor ? 'sidebar-item-aux-inactive' : 'sidebar-item-inactive'
+  const inactiveClass = auxStyle ? 'sidebar-item-aux-inactive' : 'sidebar-item-inactive'
   return (
     <Link href="/painel/glpi" onClick={onClose}
-      className={`${isActive ? 'sidebar-item-active' : inactiveClass} flex items-center justify-between`}>
+      className={`${isActive ? 'sidebar-item-active' : inactiveClass} flex items-center justify-between`}
+      style={!isActive && textColor ? { color: textColor } : undefined}>
       <span className="flex items-center gap-2">
-        <Ticket size={15} /> GLPI
+        <Ticket size={18} strokeWidth={1.5} color={isActive ? undefined : iconColor} /> GLPI
       </span>
       {glpiPendentes > 0 && (
         <span style={{
@@ -418,15 +493,15 @@ function NavLabel({ children }: { children: React.ReactNode }) {
     <div className="px-3 pt-5 pb-1.5 first:pt-1">
       <div className="flex items-center gap-2">
         <span
-          className="text-[9px] font-bold uppercase"
-          style={{ color: 'var(--text-muted)', letterSpacing: '0.12em' }}
+          className="uppercase shrink-0"
+          style={{ fontFamily: 'var(--ff-syne)', fontSize: '11px', fontWeight: 600, color: '#72708f', letterSpacing: '0.12em' }}
         >
           {children}
         </span>
         <div style={{
           flex: 1,
           height: '1px',
-          background: 'linear-gradient(90deg, rgba(201,168,76,0.15) 0%, transparent 100%)',
+          background: 'linear-gradient(90deg, rgba(114,112,143,0.2) 0%, transparent 100%)',
         }} />
       </div>
     </div>
@@ -453,20 +528,20 @@ function NavLabelCollapsible({
         aria-expanded={expanded}
       >
         <span
-          className="text-[9px] font-bold uppercase"
-          style={{ color: cor ?? 'var(--text-muted)', letterSpacing: '0.12em' }}
+          className="uppercase shrink-0"
+          style={{ fontFamily: 'var(--ff-syne)', fontSize: '11px', fontWeight: 600, color: cor ?? '#72708f', letterSpacing: '0.12em' }}
         >
           {children}
         </span>
         <div style={{
           flex: 1,
           height: '1px',
-          background: 'linear-gradient(90deg, rgba(201,168,76,0.15) 0%, transparent 100%)',
+          background: 'linear-gradient(90deg, rgba(114,112,143,0.2) 0%, transparent 100%)',
         }} />
         <ChevronDown
           size={11}
           style={{
-            color: 'var(--text-muted)',
+            color: cor ?? '#72708f',
             flexShrink: 0,
             transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
             transform: expanded ? 'rotate(0deg)' : 'rotate(-180deg)',
