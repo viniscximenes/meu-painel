@@ -46,7 +46,6 @@ export default async function GestorKpiEquipePage() {
   return (
     <PainelShell profile={profile} title="KPI Equipe" iconName="BarChart3">
       <div style={cssVars} className="space-y-4">
-        <GoldLine />
 
         {erroSheets && (
           <div className="flex items-start gap-3 rounded-xl border px-4 py-3"

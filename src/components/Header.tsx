@@ -5,7 +5,7 @@ import { setCursorStyle } from '@/components/CursorProvider'
 import { Profile } from '@/types'
 import {
   Menu, LogOut, BarChart2, BarChart3, UserCircle, Users, Banknote,
-  CircleDollarSign, TrendingUp, CalendarDays, Ticket,
+  CircleDollarSign, TrendingUp, CalendarDays, Ticket, Coins,
   Calculator, Link2, ClipboardCopy, Gauge, Target, Wallet, History, LineChart,
 } from 'lucide-react'
 import { getIniciaisNome } from '@/lib/operadores'
@@ -21,6 +21,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   TrendingUp,
   CalendarDays,
   Ticket,
+  Coins,
   Calculator,
   Link2,
   ClipboardCopy,

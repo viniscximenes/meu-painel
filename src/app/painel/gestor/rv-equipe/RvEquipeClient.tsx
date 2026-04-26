@@ -1,62 +1,111 @@
 'use client'
 
 import { useState, useRef, useMemo } from 'react'
-import { getIniciaisNome } from '@/lib/operadores'
 import { formatBRL } from '@/lib/rv-utils'
 import type { ResultadoRV } from '@/lib/rv-utils'
+import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
+import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
 
 type RvResult = Omit<ResultadoRV, 'config'>
 
 export interface OperadorRvData {
-  id: number
-  nome: string
-  username: string
+  id:        number
+  nome:      string
+  username:  string
   encontrado: boolean
   resultado: RvResult | null
 }
 
 type FilterKey = 'inelegivel' | 'deflator'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Fontes ────────────────────────────────────────────────────────────────────
 
-function avatarStyle(id: number): React.CSSProperties {
-  return id % 2 !== 0
-    ? { background: 'linear-gradient(135deg, #0f1729, #1a2540)', border: '1px solid rgba(66,139,255,0.25)', color: '#fff' }
-    : { background: 'linear-gradient(135deg, #0a1020, #111830)', border: '1px solid rgba(66,139,255,0.15)', color: '#fff' }
+const FF_SYNE = "'Syne', sans-serif"
+const FF_DM   = "'DM Sans', sans-serif"
+
+// ── Cores por status ──────────────────────────────────────────────────────────
+
+const COR_VERDE    = '#7DDB5B'
+const COR_AMARELO  = '#FFB922'
+const COR_VERMELHO = 'rgba(250,76,76,0.9)'
+const COR_NEUTRO   = '#A6A2A2'
+const COR_LAVANDA  = '#B0AAFF'
+
+// ── Nome: dois primeiros tokens ───────────────────────────────────────────────
+
+function nomeDisplay(nome: string): string {
+  return nome.trim().split(/\s+/).slice(0, 2).join(' ').toUpperCase()
 }
 
-// ── Expansion content ─────────────────────────────────────────────────────────
+// ── Breakdown helpers (padrão CALCULO RV de /meu-rv) ─────────────────────────
 
-function BRow({
-  label, value, color, icon, bold, topBorder,
-}: {
-  label: string; value: string; color?: string
-  icon?: string; bold?: boolean; topBorder?: boolean
-}) {
+function CalcLinha({ label, valor, destaque }: { label: string; valor: string; destaque?: boolean }) {
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-      padding: topBorder ? '8px 0 2px' : '3px 0',
-      borderTop: topBorder ? '1px solid rgba(255,255,255,0.07)' : undefined,
-      marginTop: topBorder ? '6px' : undefined,
-    }}>
-      <span style={{ color: color ?? '#71717a', fontSize: '12px', fontWeight: bold ? 600 : 400 }}>
-        {icon && <span style={{ marginRight: '5px' }}>{icon}</span>}
+    <div style={{ display: 'flex', alignItems: 'baseline', padding: destaque ? '8px 0' : '5px 0' }}>
+      <span style={{
+        flex: '0 0 auto',
+        fontFamily: FF_SYNE,
+        fontWeight: 600,
+        fontSize: '13px',
+        textTransform: 'uppercase',
+        color: destaque ? '#a1a3b8' : '#72708f',
+      }}>
         {label}
       </span>
+      {destaque
+        ? <span style={{ flex: 1 }} />
+        : <span style={{
+            flex: 1,
+            borderBottom: '1px dotted rgba(114,112,143,0.3)',
+            marginLeft: '12px', marginRight: '12px', marginBottom: '4px',
+            alignSelf: 'end',
+          }} />
+      }
       <span style={{
-        color: color ?? '#71717a', fontSize: '12px',
-        fontWeight: bold ? 700 : 400,
+        flex: '0 0 auto',
+        fontFamily: FF_DM,
+        fontWeight: destaque ? 600 : 500,
+        fontSize: destaque ? '14px' : '13px',
+        color: destaque ? '#a1a3b8' : '#72708f',
+        fontVariantNumeric: 'tabular-nums',
       }}>
-        {value}
+        {valor}
       </span>
     </div>
   )
 }
 
-function ExpansionContent({ op, mesLabel }: { op: OperadorRvData; mesLabel: string }) {
+function DeflatorBox({ label, valor }: { label: string; valor: number }) {
+  return (
+    <div style={{
+      background: 'rgba(242,96,96,0.08)',
+      border: '1px solid rgba(227,57,57,0.4)',
+      borderRadius: '6px',
+      padding: '8px 14px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: '12px',
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '5px', minWidth: 0 }}>
+        <span style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '12px', color: '#E33939', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          ⚠ {label}
+        </span>
+      </span>
+      <span style={{ fontFamily: FF_DM, fontWeight: 600, fontSize: '12px', color: '#E33939', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+        {'−'}{formatBRL(valor)}
+      </span>
+    </div>
+  )
+}
+
+function SectionGap() {
+  return <div style={{ height: '12px' }} />
+}
+
+function ExpansionContent({ op }: { op: OperadorRvData }) {
   const noData = (
-    <p style={{ fontSize: '12px', color: '#52525b', padding: '2px 0' }}>
+    <p style={{ fontFamily: FF_SYNE, fontSize: '12px', color: '#52525b', fontStyle: 'italic', padding: '2px 0' }}>
       Sem dados na planilha para este período.
     </p>
   )
@@ -70,27 +119,27 @@ function ExpansionContent({ op, mesLabel }: { op: OperadorRvData; mesLabel: stri
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div>
-          <p style={{ fontSize: '10px', color: '#f87171', fontWeight: 700, marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <p style={{ fontFamily: FF_SYNE, fontSize: '10px', color: '#E33939', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Motivos da inelegibilidade
           </p>
           {r.motivosInelegivel.map((m, i) => (
-            <p key={i} style={{ fontSize: '12px', color: '#fca5a5', margin: '2px 0' }}>
+            <p key={i} style={{ fontFamily: FF_DM, fontSize: '12px', color: '#fca5a5', margin: '2px 0' }}>
               ❌ {m}
             </p>
           ))}
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
-          <p style={{ fontSize: '10px', color: '#52525b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <p style={{ fontFamily: FF_SYNE, fontSize: '10px', color: '#52525b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Valores no período
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '3px 16px' }}>
             {r.componentes.filter(c => c.aplicavel).map(c => (
-              <span key={c.id} style={{ fontSize: '12px', color: '#52525b' }}>
+              <span key={c.id} style={{ fontFamily: FF_DM, fontSize: '12px', color: '#52525b' }}>
                 <span style={{ color: '#a1a1aa' }}>{c.label}:</span> {c.valorDisplay}
               </span>
             ))}
           </div>
-          <p style={{ fontSize: '11px', color: '#3f3f46', marginTop: '8px', fontStyle: 'italic' }}>
+          <p style={{ fontFamily: FF_DM, fontSize: '11px', color: '#3f3f46', marginTop: '8px', fontStyle: 'italic' }}>
             RV não calculado neste mês.
           </p>
         </div>
@@ -98,46 +147,79 @@ function ExpansionContent({ op, mesLabel }: { op: OperadorRvData; mesLabel: stri
     )
   }
 
-  // Eligible
-  const hasBonus = r.bonus > 0
+  const hasBonus      = r.bonus > 0
   const hasPenalidades = r.penalidades.length > 0
-  const hasDesconto = r.descontoIndividualAplicado !== null
+  const hasDesconto   = r.descontoIndividualAplicado !== null
   const hasDeductions = hasPenalidades || hasDesconto
-  const showSubtotal = hasDeductions && (hasBonus || r.rvAposPedidos !== r.rvTotal)
+  const showSubtotal  = hasDeductions && (hasBonus || r.rvAposPedidos !== r.rvTotal)
+
+  const multLabel = `MULTIPLICADOR (${r.pedidosRealizados}/${r.pedidosMeta} PED.)`
+  const multValor = `× ${r.multiplicador.toFixed(2).replace('.', ',')}`
 
   return (
     <div>
-      <BRow label="RV Base" value={formatBRL(r.rvBase)} color="#a1a1aa" />
-      <BRow
-        label={`Multiplicador (${r.pedidosRealizados} / ${r.pedidosMeta} pedidos)`}
-        value={`× ${r.multiplicador.toFixed(2).replace('.', ',')}`}
-        color="#71717a"
-      />
-      <BRow label="RV após pedidos" value={formatBRL(r.rvAposPedidos)} color="#a1a1aa" />
+      {/* Bloco BASE */}
+      <CalcLinha label="RV BASE" valor={formatBRL(r.rvBase)} />
+      <CalcLinha label={multLabel} valor={multValor} />
+      <CalcLinha label="RV APÓS PEDIDOS" valor={formatBRL(r.rvAposPedidos)} />
+
+      {/* Bloco BÔNUS */}
       {hasBonus && (
-        <BRow label="Bônus de Qualidade" value={`+ ${formatBRL(r.bonus)}`} color="#c9a84c" />
+        <>
+          <SectionGap />
+          <CalcLinha label="BÔNUS DE QUALIDADE" valor={`+ ${formatBRL(r.bonus)}`} />
+        </>
       )}
+
+      {/* SUBTOTAL */}
       {showSubtotal && (
-        <BRow label="Subtotal" value={formatBRL(r.rvTotal)} color="#a1a1aa" />
+        <>
+          <SectionGap />
+          <CalcLinha label="SUBTOTAL" valor={formatBRL(r.rvTotal)} destaque />
+        </>
       )}
-      {r.penalidades.map((p, i) => (
-        <BRow
-          key={i}
-          label={`Deflator ${p.metaLabel} (${p.percentual}%)`}
-          value={`− ${formatBRL(p.valorDeduzido)}`}
-          color="#f87171"
-          icon="⚠"
-        />
-      ))}
-      {hasDesconto && (
-        <BRow
-          label={`Desconto: ${r.descontoIndividualAplicado!.motivo}`}
-          value={`− ${formatBRL(r.descontoIndividualAplicado!.valor)}`}
-          color="#f87171"
-          icon="⚠"
-        />
+
+      {/* Bloco DEFLATORES */}
+      <SectionGap />
+      <span style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#a1a3b8' }}>
+        DEFLATORES
+      </span>
+      {!hasDeductions ? (
+        <p style={{ fontFamily: FF_SYNE, fontSize: '12px', color: 'rgba(114,112,143,0.7)', fontStyle: 'italic', padding: '6px 0 0' }}>
+          Nenhum deflator aplicado
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+          {r.penalidades.map((p, i) => (
+            <DeflatorBox key={i} label={`Deflator ${p.metaLabel} (${p.percentual}%)`} valor={p.valorDeduzido} />
+          ))}
+          {hasDesconto && (
+            <DeflatorBox label={`Desconto: ${r.descontoIndividualAplicado!.motivo}`} valor={r.descontoIndividualAplicado!.valor} />
+          )}
+        </div>
       )}
-      <BRow label="RV FINAL" value={formatBRL(r.rvFinal)} color="#f4d47c" bold topBorder />
+
+      {/* RV FINAL */}
+      <SectionGap />
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.07)',
+      }}>
+        <span style={{
+          fontFamily: FF_SYNE, fontWeight: 600, fontSize: '13px',
+          textTransform: 'uppercase', letterSpacing: '0.08em', color: '#f4d47c',
+        }}>
+          RV FINAL
+        </span>
+        <span style={{
+          fontFamily: FF_DM, fontWeight: 700, fontSize: '20px',
+          fontVariantNumeric: 'tabular-nums',
+          background: 'linear-gradient(135deg, #f4d47c 0%, #d4a935 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+        }}>
+          {formatBRL(r.rvFinal)}
+        </span>
+      </div>
     </div>
   )
 }
@@ -145,9 +227,9 @@ function ExpansionContent({ op, mesLabel }: { op: OperadorRvData; mesLabel: stri
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
-  operadores: OperadorRvData[]
+  operadores:      OperadorRvData[]
   dataAtualizacao: string | null
-  mesLabel: string
+  mesLabel:        string
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -209,13 +291,17 @@ export default function RvEquipeClient({ operadores, dataAtualizacao, mesLabel }
     { key: 'deflator',   label: 'COM DEFLATOR' },
   ]
   const EMPTY_MSG: Record<FilterKey, string> = {
-    inelegivel: 'Todos os operadores estão elegíveis este mês ✨',
-    deflator:   'Nenhum operador com deflator aplicado ✨',
+    inelegivel: 'Todos os operadores estão elegíveis este mês ✓',
+    deflator:   'Nenhum operador com deflator aplicado ✓',
   }
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes rvEqRowIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
         .rv-eq-expand {
           display: grid;
           grid-template-rows: 0fr;
@@ -225,224 +311,217 @@ export default function RvEquipeClient({ operadores, dataAtualizacao, mesLabel }
         .rv-eq-expand-inner { overflow: hidden; min-height: 0; }
       `}} />
 
-      <div className="login-grid-bg" style={{
-        borderRadius: '16px', padding: '4px',
-        display: 'flex', flexDirection: 'column', gap: '14px',
-      }}>
+      <div className="halo-cards-bg" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
         {/* ── Header ── */}
+        <PainelHeader titulo="RV EQUIPE" mesLabel={mesLabel} dataReferencia={dataAtualizacao} />
+        <LinhaHorizontalDourada />
+
+        {/* ── Título de seção ── */}
+        <PainelSectionTitle>RV DA EQUIPE</PainelSectionTitle>
+
+        {/* ── Filtros ── */}
         <div style={{
-          background: 'var(--void2)',
-          border: '1px solid rgba(201,168,76,0.1)',
-          borderRadius: '14px',
-          padding: '14px 20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexWrap: 'wrap', gap: '12px',
+          background: '#070714',
+          border: '1px solid rgba(244,212,124,0.15)',
+          borderRadius: '12px',
+          padding: '14px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontFamily: 'var(--ff-display)', fontSize: '16px', fontWeight: 700,
-              textTransform: 'uppercase', letterSpacing: '0.06em',
-              background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-            }}>
-              RV da Equipe
-            </span>
-            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {mesLabel}
-            </span>
-            {dataAtualizacao && (
-              <>
-                <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)', flexShrink: 0 }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sincronizado {dataAtualizacao}</span>
-                </div>
-              </>
-            )}
+          <span style={{
+            fontFamily: FF_SYNE,
+            fontWeight: 600,
+            fontSize: '13px',
+            color: '#72708F',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            flexShrink: 0,
+          }}>
+            FILTRAR:
+          </span>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {FILTERS.map(({ key, label }) => {
+              const ativo = activeFilter === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleFilter(key)}
+                  aria-pressed={ativo}
+                  style={{
+                    fontFamily: FF_SYNE,
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    padding: '6px 16px',
+                    borderRadius: '14px',
+                    border: ativo ? '1px solid rgba(227,57,57,0.7)' : '1px solid rgba(114,112,143,0.5)',
+                    background: ativo ? 'rgba(227,57,57,0.08)' : 'transparent',
+                    color: ativo ? '#E33939' : '#72708F',
+                    cursor: 'pointer',
+                    transition: 'all 200ms ease',
+                  }}
+                  onMouseEnter={e => {
+                    if (!ativo) {
+                      const el = e.currentTarget as HTMLElement
+                      el.style.color = 'rgba(114,112,143,1)'
+                      el.style.borderColor = 'rgba(114,112,143,0.8)'
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!ativo) {
+                      const el = e.currentTarget as HTMLElement
+                      el.style.color = '#72708F'
+                      el.style.borderColor = 'rgba(114,112,143,0.5)'
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
           </div>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {operadores.length} operadores
-          </span>
         </div>
 
-        {/* ── Filters ── */}
-        <div style={{
-          background: 'var(--void2)',
-          border: '1px solid rgba(201,168,76,0.08)',
-          borderRadius: '14px',
-          padding: '10px 16px',
-          display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
-        }}>
-          <span style={{ fontSize: '10px', color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.07em', marginRight: '4px' }}>
-            Filtrar:
-          </span>
-          {FILTERS.map(f => (
-            <button
-              key={f.key}
-              onClick={() => toggleFilter(f.key)}
-              style={{
-                fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em',
-                padding: '4px 12px', borderRadius: '99px', border: '1px solid',
-                cursor: 'pointer', transition: 'all 150ms',
-                ...(activeFilter === f.key
-                  ? { background: 'rgba(201,168,76,0.12)', borderColor: 'rgba(201,168,76,0.45)', color: '#e8c96d', boxShadow: '0 0 0 2px rgba(201,168,76,0.15)' }
-                  : { background: 'transparent', borderColor: 'rgba(255,255,255,0.08)', color: '#71717a' }),
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-          {activeFilter && (
-            <button
-              onClick={() => toggleFilter(activeFilter)}
-              style={{
-                fontSize: '10px', padding: '4px 12px', borderRadius: '99px',
-                border: '1px solid rgba(255,255,255,0.06)', background: 'transparent',
-                color: '#52525b', cursor: 'pointer', marginLeft: 'auto',
-              }}
-            >
-              LIMPAR
-            </button>
-          )}
-        </div>
-
-        {/* ── Operator list ── */}
-        <div style={{
-          background: 'var(--void2)',
-          border: '1px solid rgba(201,168,76,0.08)',
-          borderRadius: '14px',
-          overflow: 'hidden',
-        }}>
-          {filtered.length === 0 && activeFilter ? (
-            <div style={{ padding: '48px 20px', textAlign: 'center', color: '#52525b', fontSize: '13px' }}>
+        {/* ── Lista de operadores ── */}
+        {filtered.length === 0 && activeFilter ? (
+          <div style={{ padding: '40px 0', textAlign: 'center' }}>
+            <p style={{
+              fontFamily: FF_SYNE,
+              fontSize: '13px',
+              color: COR_VERDE,
+              fontWeight: 500,
+            }}>
               {EMPTY_MSG[activeFilter]}
-            </div>
-          ) : (
-            filtered.map((op, idx) => {
-              const r = op.resultado
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {filtered.map((op, idx) => {
+              const r        = op.resultado
               const expanded = isExpanded(op.id)
-              const isInelegivel = r && !r.elegivel && !r.semDados
-              const hasDeflator = r && (r.penalidades.length > 0 || r.descontoIndividualAplicado !== null)
-              const totalDeducao = r
+              const isInelegivel  = r && !r.elegivel && !r.semDados
+              const totalDeducao  = r
                 ? r.totalPenalidade + (r.descontoIndividualAplicado?.valor ?? 0)
                 : 0
+              const semDados = !op.encontrado || !r || r.semDados
 
-              let subtitulo: string
-              if (!op.encontrado || !r || r.semDados) {
-                subtitulo = 'Sem dados no período'
-              } else if (isInelegivel) {
-                subtitulo = `⚠ Inelegível: ${r.motivosInelegivel[0] ?? 'critério não atingido'}`
-              } else {
-                const mes = mesLabel.toLowerCase().replace(' de ', ' ')
-                subtitulo = `RV estimado para ${mes}`
-              }
+              // Cor do RV Final
+              const corRv = semDados
+                ? COR_NEUTRO
+                : isInelegivel
+                  ? COR_VERMELHO
+                  : COR_LAVANDA
+
+              // Cor da elegibilidade
+              const corEleg = semDados ? COR_NEUTRO : isInelegivel ? COR_VERMELHO : COR_VERDE
+              const labelEleg = semDados ? '—' : isInelegivel ? 'INELEGÍVEL' : 'ELEGÍVEL'
+
+              // Cor da dedução
+              const corDeducao = totalDeducao > 0 ? COR_VERMELHO : COR_NEUTRO
+              const labelDeducao = totalDeducao > 0 ? `− ${formatBRL(totalDeducao)}` : '—'
+
+              const METRICAS = [
+                { label: 'ELEGIBILIDADE', value: labelEleg,                              color: corEleg   },
+                { label: 'DESCONTO',      value: labelDeducao,                          color: corDeducao },
+                { label: 'RV FINAL',      value: semDados ? '—' : formatBRL(r!.rvFinal), color: corRv     },
+              ]
 
               return (
                 <div
                   key={op.id}
-                  onMouseEnter={() => handleMouseEnter(op.id)}
-                  onMouseLeave={() => handleMouseLeave(op.id)}
-                  onClick={() => handleClick(op.id)}
                   style={{
-                    borderBottom: idx < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : undefined,
-                    cursor: 'pointer',
-                    background: expanded ? 'rgba(201,168,76,0.025)' : 'transparent',
-                    transition: 'background 150ms',
+                    background: '#070714',
+                    border: `1px solid ${expanded ? 'rgba(255,185,34,0.5)' : 'rgba(255,185,34,0.25)'}`,
+                    borderRadius: '0',
+                    animation: 'rvEqRowIn 0.3s ease both',
+                    animationDelay: `${idx * 30}ms`,
+                    transition: 'border-color 0.2s ease',
                   }}
+                  onMouseEnter={e => {
+                    if (!expanded) (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,185,34,0.5)';
+                    handleMouseEnter(op.id)
+                  }}
+                  onMouseLeave={e => {
+                    if (!expanded) (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,185,34,0.25)';
+                    handleMouseLeave(op.id)
+                  }}
+                  onClick={() => handleClick(op.id)}
                 >
-                  {/* Main row */}
+                  {/* Linha principal */}
                   <div style={{
-                    display: 'flex', alignItems: 'center',
-                    padding: '12px 20px', gap: '14px',
+                    padding: '16px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '32px',
+                    cursor: 'pointer',
                   }}>
-                    {/* Avatar */}
-                    <div style={{
-                      width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '12px', fontWeight: 700,
-                      ...avatarStyle(op.id),
+                    {/* Nome */}
+                    <span style={{
+                      fontFamily: FF_SYNE,
+                      fontWeight: 600,
+                      fontSize: '20px',
+                      color: COR_NEUTRO,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      flex: 1,
+                      minWidth: 0,
                     }}>
-                      {getIniciaisNome(op.nome)}
-                    </div>
+                      {nomeDisplay(op.nome)}
+                    </span>
 
-                    {/* Name + subtitle */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3 }}>
-                        {op.nome}
-                      </p>
-                      <p style={{
-                        fontSize: '11px', margin: 0, marginTop: '2px', lineHeight: 1.2,
-                        color: isInelegivel ? '#f87171' : '#52525b',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      }}>
-                        {subtitulo}
-                      </p>
-                    </div>
-
-                    {/* Badges */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      {op.encontrado && r && !r.semDados && (
+                    {/* Métricas */}
+                    {METRICAS.map(({ label, value, color }) => (
+                      <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
                         <span style={{
-                          fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em',
-                          padding: '3px 8px', borderRadius: '6px',
-                          ...(isInelegivel
-                            ? { background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }
-                            : { background: 'rgba(74,222,128,0.07)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.18)' }),
+                          fontFamily: FF_SYNE,
+                          fontWeight: 600,
+                          fontSize: '20px',
+                          color: '#474658',
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px',
+                          whiteSpace: 'nowrap',
                         }}>
-                          {isInelegivel ? 'INELEGÍVEL' : 'ELEGÍVEL'}
+                          {label}
                         </span>
-                      )}
-                      {hasDeflator && totalDeducao > 0 && (
                         <span style={{
-                          fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em',
-                          padding: '3px 7px', borderRadius: '6px',
-                          background: 'rgba(248,113,113,0.08)', color: '#f87171',
-                          border: '1px solid rgba(248,113,113,0.18)',
+                          fontFamily: FF_DM,
+                          fontWeight: 500,
+                          fontSize: '20px',
+                          color,
+                          fontFeatureSettings: "'tnum'",
+                          lineHeight: 1,
+                          whiteSpace: 'nowrap',
                         }}>
-                          −{formatBRL(totalDeducao)}
+                          {value}
                         </span>
-                      )}
-                    </div>
-
-                    {/* RV value */}
-                    <div style={{ flexShrink: 0, textAlign: 'right', minWidth: '110px' }}>
-                      {r !== null ? (
-                        <span style={{
-                          fontSize: '15px', fontWeight: 700,
-                          // #60a5fa → #93c5fd: mesmo gradiente do hero de Meu RV do gestor (MeuRVGestorClient.tsx:155)
-                          // TODO: extrair pra token CSS quando o design system for formalizado
-                          color: '#60a5fa',
-                        }}>
-                          {formatBRL(r.rvFinal)}
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '14px', color: '#3f3f46' }}>R$ —</span>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* Expansion */}
+                  {/* Expansão */}
                   <div className={`rv-eq-expand${expanded ? ' open' : ''}`}>
                     <div className="rv-eq-expand-inner">
                       <div style={{
-                        padding: '0 20px 14px',
-                        paddingLeft: `${20 + 36 + 14}px`,
-                        borderTop: '1px solid rgba(255,255,255,0.04)',
-                        marginTop: '-1px',
+                        padding: '12px 24px 16px',
+                        borderTop: '1px solid rgba(255,255,255,0.05)',
                       }}>
-                        <div style={{ paddingTop: '10px' }}>
-                          <ExpansionContent op={op} mesLabel={mesLabel} />
-                        </div>
+                        <ExpansionContent op={op} />
                       </div>
                     </div>
                   </div>
                 </div>
               )
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
 
       </div>
     </>

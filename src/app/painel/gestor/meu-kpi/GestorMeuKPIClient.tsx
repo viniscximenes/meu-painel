@@ -5,6 +5,8 @@ import type { ReactNode } from 'react'
 import { Flame, Shield, Package, CalendarX, Activity, Clock, ChevronRight } from 'lucide-react'
 import { formatHHMMSS } from '@/lib/diario-utils'
 import type { KpiGestorData } from '@/lib/kpi-gestor-sheets'
+import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
+import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
 
 const FF_SYNE = "'Syne', sans-serif"
 const FF_DM   = "'DM Sans', sans-serif"
@@ -462,75 +464,14 @@ export default function GestorMeuKPIClient({ data }: { data: KpiGestorData }) {
       <div className="mkpi-bg">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div>
-          <div style={{
-            background: '#070714',
-            border: '1px solid rgba(244,212,124,0.15)',
-            borderRadius: '10px',
-            padding: '16px 20px',
-            display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap',
-            lineHeight: 1,
-          }}>
-
-            {/* MEU KPI — Syne SemiBold, dourado */}
-            <span style={{
-              fontFamily: FF_SYNE, fontSize: '20px', fontWeight: 600,
-              textTransform: 'uppercase', letterSpacing: '1.5px',
-              color: '#f4d47c',
-            }}>
-              Meu KPI
-            </span>
-
-            {/* Separador */}
-            <div style={{ width: '1px', height: '14px', background: 'rgba(244,212,124,0.3)', flexShrink: 0 }} />
-
-            {/* ABRIL DE 2026 — DM Sans Medium + bolinha verde */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="animate-pulse" style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
-              <span style={{
-                fontFamily: FF_DM, fontSize: '13px', fontWeight: 500,
-                textTransform: 'uppercase', letterSpacing: '1px',
-                color: '#72708f', fontVariantNumeric: 'tabular-nums',
-              }}>
-                {mesLabel}
-              </span>
-            </div>
-
-            {/* Separador + ATUALIZADO ATÉ + data */}
-            {data.dataReferencia && (
-              <>
-                <div style={{ width: '1px', height: '14px', background: 'rgba(244,212,124,0.3)', flexShrink: 0 }} />
-                <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '8px' }}>
-                  <span style={{
-                    fontFamily: FF_SYNE, fontSize: '13px', fontWeight: 600,
-                    textTransform: 'uppercase', letterSpacing: '1px',
-                    color: '#72708f',
-                  }}>
-                    Atualizado até
-                  </span>
-                  <span style={{
-                    fontFamily: FF_DM, fontSize: '13px', fontWeight: 500,
-                    color: '#72708f', fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    {data.dataReferencia}
-                  </span>
-                </div>
-              </>
-            )}
-
-          </div>
-        </div>
+        <PainelHeader titulo="Meu KPI" mesLabel={mesLabel} dataReferencia={data.dataReferencia} />
 
         {/* ── Linha dourada HALO ────────────────────────────────────────────── */}
-        <div style={{
-          height: '6px', borderRadius: '3px',
-          background: 'linear-gradient(90deg, rgba(184,137,59,0.4) 0%, rgba(244,212,124,0.9) 50%, rgba(184,137,59,0.4) 100%)',
-          boxShadow: '0 0 12px rgba(244,212,124,0.20)',
-        }} />
+        <LinhaHorizontalDourada />
 
         {/* ── KPIs Principais ───────────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <MeuKpiSectionTitle>KPIs PRINCIPAIS</MeuKpiSectionTitle>
+          <PainelSectionTitle>KPIs PRINCIPAIS</PainelSectionTitle>
           <div className="mkpi-grid">
             {kpiCards.map((card, i) => (
               <MeuKpiCard key={card.label} card={card} delay={i * 70} />
@@ -540,7 +481,7 @@ export default function GestorMeuKPIClient({ data }: { data: KpiGestorData }) {
 
         {/* ── KPIs Complementares ───────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <MeuKpiSectionTitle>KPIs COMPLEMENTARES</MeuKpiSectionTitle>
+          <PainelSectionTitle>KPIs COMPLEMENTARES</PainelSectionTitle>
           <DadosComplementares data={data} />
         </div>
 
