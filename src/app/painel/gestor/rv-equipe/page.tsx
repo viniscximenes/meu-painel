@@ -37,7 +37,6 @@ export default async function RvEquipePage() {
     return (
       <PainelShell profile={profile} title="RV Equipe" iconName="Coins">
         <div style={cssVars} className="space-y-4">
-          <GoldLine />
           <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
             <strong>Planilha não configurada</strong>
             <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
@@ -56,7 +55,6 @@ export default async function RvEquipePage() {
     return (
       <PainelShell profile={profile} title="RV Equipe" iconName="Coins">
         <div style={cssVars} className="space-y-4">
-          <GoldLine />
           <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
             <strong>RV não configurado</strong>
             <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
@@ -101,8 +99,6 @@ export default async function RvEquipePage() {
   return (
     <PainelShell profile={profile} title="RV Equipe" iconName="Coins">
       <div style={cssVars} className="space-y-4">
-        <GoldLine />
-
         {erroSheets && (
           <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
             style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
@@ -123,15 +119,6 @@ export default async function RvEquipePage() {
         )}
       </div>
     </PainelShell>
-  )
-}
-
-function GoldLine() {
-  return (
-    <div style={{
-      height: '1px',
-      background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
-    }} />
   )
 }
 

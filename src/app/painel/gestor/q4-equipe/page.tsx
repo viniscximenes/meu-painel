@@ -17,7 +17,7 @@ export default async function Q4EquipePage() {
 
   if (!planilha) {
     return (
-      <PainelShell profile={profile} title="Q4 Equipe" iconName="Trophy">
+      <PainelShell profile={profile} title={<><span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>Q4</span>{' '}Equipe</>} iconName="Trophy">
         <QuartilEquipeClient operadores={[]} dataAtualizacao={null} mesLabel={mesLabel} />
       </PainelShell>
     )
@@ -58,7 +58,7 @@ export default async function Q4EquipePage() {
   })
 
   return (
-    <PainelShell profile={profile} title="Q4 Equipe" iconName="Trophy">
+    <PainelShell profile={profile} title={<><span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>Q4</span>{' '}Equipe</>} iconName="Trophy">
       <QuartilEquipeClient operadores={operadores} dataAtualizacao={dataAtualizacao} mesLabel={mesLabel} />
     </PainelShell>
   )

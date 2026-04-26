@@ -1,10 +1,12 @@
 'use client'
 
+import React from 'react'
+
 const FF_SYNE = "'Syne', sans-serif"
 const FF_DM   = "'DM Sans', sans-serif"
 
 interface PainelHeaderProps {
-  titulo: string
+  titulo: React.ReactNode
   mesLabel: string
   dataReferencia?: string | null
 }

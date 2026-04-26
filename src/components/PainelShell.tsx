@@ -7,7 +7,7 @@ import Header from './Header'
 
 interface PainelShellProps {
   profile: Profile
-  title: string
+  title: React.ReactNode
   iconName?: string
   children: React.ReactNode
 }

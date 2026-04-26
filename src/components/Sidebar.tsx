@@ -9,7 +9,7 @@ import {
   ChevronDown, BarChart2,
   Target, Database, SlidersHorizontal, BookOpen, ClipboardList,
   CalendarDays, Ticket, Clock, Gauge, Wallet,
-  BarChart3, Coins, Trophy, FileText, Copy,
+  BarChart3, Coins, Trophy, FileText,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -219,7 +219,7 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
       </Link>
       <Link href="/painel/gestor/q4-equipe" onClick={onClose}
         className={pathname === '/painel/gestor/q4-equipe' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
-        <Trophy size={18} strokeWidth={1.5} /> Q4 Equipe
+        <Trophy size={18} strokeWidth={1.5} /> <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>Q4</span>{' '}Equipe
       </Link>
 
       {/* ── PAINEL GESTOR separator ─────────────────────────────────────────── */}
@@ -255,18 +255,42 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
         </button>
       </div>
 
-      <div style={{ maxHeight: contestacaoExpandido ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: contestacaoExpandido ? '320px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-1">
+
+          {/* ── Sub-cabeçalho GESTOR ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '8px 12px 4px' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(123,163,217,0.15)' }} />
+            <span style={{ fontFamily: 'var(--ff-syne)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(123,163,217,0.55)' }}>
+              Gestor
+            </span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(123,163,217,0.15)' }} />
+          </div>
+
+          {/* Exportar PDF — GESTOR (rota a definir) */}
+          <div
+            className="sidebar-item-inactive"
+            style={{ color: '#7ba3d9' }}
+          >
+            <FileText size={18} strokeWidth={1.5} /> Exportar PDF
+          </div>
+
+          {/* ── Sub-cabeçalho OPERADOR ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '8px 12px 4px' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(123,163,217,0.15)' }} />
+            <span style={{ fontFamily: 'var(--ff-syne)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(123,163,217,0.55)' }}>
+              Operador
+            </span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(123,163,217,0.15)' }} />
+          </div>
+
+          {/* Exportar PDF — funcional */}
           <Link href="/painel/gestor/contestacao-rv/exportar-pdf" onClick={onClose}
             className={pathname === '/painel/gestor/contestacao-rv/exportar-pdf' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
             style={pathname !== '/painel/gestor/contestacao-rv/exportar-pdf' ? { color: '#7ba3d9' } : undefined}>
             <FileText size={18} strokeWidth={1.5} /> Exportar PDF
           </Link>
-          <Link href="/painel/gestor/contestacao-rv/copiar-e-colar" onClick={onClose}
-            className={pathname === '/painel/gestor/contestacao-rv/copiar-e-colar' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-            style={pathname !== '/painel/gestor/contestacao-rv/copiar-e-colar' ? { color: '#7ba3d9' } : undefined}>
-            <Copy size={18} strokeWidth={1.5} /> Copiar e Colar
-          </Link>
+
         </div>
       </div>
 
