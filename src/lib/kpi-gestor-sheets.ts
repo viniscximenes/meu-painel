@@ -1,5 +1,5 @@
 // SERVER ONLY — reads planilha KPI GESTOR via column mapping configurável
-import { buscarLinhasPlanilha, getMapeamentoKpiGestorColunas } from '@/lib/sheets'
+import { buscarLinhasPlanilha, getMapeamentoKpiGestorColunas, extrairDataAtualizacao } from '@/lib/sheets'
 import { parseTempoSeg } from '@/lib/diario-utils'
 import { extrairValor } from '@/lib/kpi-coluna-utils'
 
@@ -53,13 +53,13 @@ export interface KpiGestorData {
 
 export async function lerKpiGestor(spreadsheet_id: string, aba: string): Promise<KpiGestorData | null> {
   const [{ rows }, mapeamento] = await Promise.all([
-    buscarLinhasPlanilha(spreadsheet_id, aba, 10),
+    buscarLinhasPlanilha(spreadsheet_id, aba, 50),
     getMapeamentoKpiGestorColunas(),
   ])
   if (!rows.length) return null
 
   const dados = rows[0]
-  const dataReferencia = rows[2]?.[0]?.trim() || null
+  const dataReferencia = extrairDataAtualizacao(rows)
 
   function ev(key: string): string | null {
     return extrairValor(dados, mapeamento, key)

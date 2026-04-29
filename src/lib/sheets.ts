@@ -28,6 +28,40 @@ function sheetsAPI() {
   return google.sheets({ version: 'v4', auth: getAuth() })
 }
 
+/**
+ * Retorna a data/hora da última modificação da planilha no formato "DD/MM/YYYY HH:MM"
+ * (horário de Brasília). Usa a Drive API v3; tolera falhas retornando null.
+ */
+export async function getSpreadsheetModifiedTime(spreadsheetId: string): Promise<string | null> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key:  process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+      scopes: ['https://www.googleapis.com/auth/drive.metadata.readonly'],
+    })
+    const drive = google.drive({ version: 'v3', auth })
+    const res = await withTimeout(
+      drive.files.get({ fileId: spreadsheetId, fields: 'modifiedTime' }) as Promise<{ data: { modifiedTime?: string } }>
+    )
+    const iso = res.data.modifiedTime
+    if (!iso) return null
+    const d = new Date(iso)
+    const fmt = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+      hour12: false,
+    })
+    const parts = fmt.formatToParts(d)
+    const get = (type: string) => parts.find(p => p.type === type)?.value ?? '00'
+    return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}`
+  } catch {
+    return null
+  }
+}
+
 // ── Resolução tolerante de nome de aba ───────────────────────────────────────
 // TTL-cache por (spreadsheetId + nomeAlvo) para evitar um extra spreadsheets.get
 // em cada request. Válido por 5 minutos por processo Node.
@@ -445,6 +479,24 @@ export async function buscarLinhasPlanilha(
   } catch (e) {
     console.error('[buscarLinhasPlanilha]', e)
     return { headers: [], rows: [] }
+  }
+}
+
+// ── Buscar apenas coluna A (para data de atualização) ────────────────────────
+export async function buscarColunaA(
+  spreadsheetId: string,
+  aba: string,
+  limite = 300,
+): Promise<string[][]> {
+  if (!spreadsheetId || !aba) return []
+  try {
+    const range = `${aba}!A1:A${limite}`
+    const res = await withTimeout(
+      sheetsAPI().spreadsheets.values.get({ spreadsheetId, range })
+    )
+    return (res.data.values ?? []) as string[][]
+  } catch {
+    return []
   }
 }
 

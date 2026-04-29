@@ -5,6 +5,7 @@ import {
   getPlanilhaAtiva,
   getPlanilhaPorTipo,
   buscarLinhasPlanilha,
+  buscarColunaA,
   encontrarColunaIdent,
   matchCelulaOperador,
   resolverNomeAba,
@@ -18,7 +19,6 @@ import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { getAppConfig } from '@/lib/app-config'
 import PainelShell from '@/components/PainelShell'
 import MeuKPIClient, { type MeuKPIProps } from './MeuKPIClient'
-import VisaoRapidaToggle from '@/components/VisaoRapidaToggle'
 import { AlertTriangle, Settings } from 'lucide-react'
 import Link from 'next/link'
 
@@ -49,7 +49,6 @@ export default async function MeuKPIPage() {
     return (
       <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
         <div style={cssVars} className="space-y-4">
-          <GoldLine />
           <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
             <strong>Planilha não configurada</strong>
             <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>A supervisão ainda não ativou nenhuma planilha.</span>
@@ -65,10 +64,13 @@ export default async function MeuKPIPage() {
 
   try {
     const abaResolvida = await resolverNomeAba(planilha.spreadsheet_id, 'KPI CONSOLIDADO').catch(() => planilha.aba)
-    const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, abaResolvida, limiteLinhas)
+    const [{ headers, rows }, colA] = await Promise.all([
+      buscarLinhasPlanilha(planilha.spreadsheet_id, abaResolvida, limiteLinhas),
+      buscarColunaA(planilha.spreadsheet_id, abaResolvida),
+    ])
     if (!headers.length) throw new Error('Falha ao carregar dados da planilha. Verifique a conexão com o Google Sheets ou tente novamente.')
     const col = encontrarColunaIdent(headers)
-    const dataAtualizacao = extrairDataAtualizacao(rows)
+    const dataAtualizacao = extrairDataAtualizacao(colA)
 
     const meuRow = rows.find(r => matchCelulaOperador(r[col] ?? '', profile.username, profile.nome))
 
@@ -76,7 +78,6 @@ export default async function MeuKPIPage() {
       return (
         <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
           <div style={cssVars} className="space-y-4">
-            <GoldLine />
             <EmptyState icon={<AlertTriangle size={24} className="text-amber-400" />}>
               <strong>Dados não encontrados</strong>
               <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
@@ -168,45 +169,6 @@ export default async function MeuKPIPage() {
   return (
     <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
       <div style={cssVars} className="space-y-4">
-        <GoldLine />
-
-        {/* Header */}
-        <div style={{
-          background: 'var(--void2)',
-          border: '1px solid rgba(201,168,76,0.1)',
-          borderRadius: '14px',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontFamily: 'var(--ff-display)',
-              fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
-              background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-            }}>
-              Meu KPI
-            </span>
-            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mesLabel}</span>
-            {dadosProps?.dataAtualizacao && (
-              <>
-                <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Sincronizado <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{dadosProps.dataAtualizacao}</strong>
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-          {dadosProps && <VisaoRapidaToggle />}
-        </div>
 
         {erroSheets && (
           <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
@@ -222,15 +184,6 @@ export default async function MeuKPIPage() {
         {dadosProps && <MeuKPIClient {...dadosProps} />}
       </div>
     </PainelShell>
-  )
-}
-
-function GoldLine() {
-  return (
-    <div style={{
-      height: '1px',
-      background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
-    }} />
   )
 }
 

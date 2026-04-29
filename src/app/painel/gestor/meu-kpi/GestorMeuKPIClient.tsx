@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
-import type { ReactNode } from 'react'
-import { Flame, Shield, Package, CalendarX, Activity, Clock, ChevronRight } from 'lucide-react'
+import { useMemo } from 'react'
+import { Flame, Shield, Package, CalendarX, Activity, Clock } from 'lucide-react'
 import { formatHHMMSS } from '@/lib/diario-utils'
 import type { KpiGestorData } from '@/lib/kpi-gestor-sheets'
 import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
 import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
-
-const FF_SYNE = "'Syne', sans-serif"
-const FF_DM   = "'DM Sans', sans-serif"
+import { MeuKpiCard, type KpiCardData, type Status } from '@/components/kpi-individual/MeuKpiCard'
+import { DadosComplementares, type SubsecaoConfig } from '@/components/kpi-individual/DadosComplementares'
 
 // ── Metas ─────────────────────────────────────────────────────────────────────
 const META_CHURN              = 1097
@@ -18,33 +16,6 @@ const META_TX_RET_AMARELO_PCT = 60
 const META_TMA_SEG            = 731   // 00:12:11
 const META_ABS_PCT            = 5
 const META_INDISP_PCT         = 14.5
-
-// ── Status ────────────────────────────────────────────────────────────────────
-type Status = 'verde' | 'amarelo' | 'vermelho' | 'neutro'
-
-// Cor do badge (texto, fundo, borda)
-const BADGE_CFG: Record<Status, { label: string; textColor: string; bg: string; border: string }> = {
-  verde:    { label: 'DENTRO',       textColor: '#22c55e',  bg: 'rgba(74,222,128,0.13)',  border: 'rgba(34,197,94,0.72)' },
-  amarelo:  { label: 'ATENÇÃO',      textColor: '#fbba2d',  bg: 'rgba(255,193,60,0.30)',  border: 'rgba(255,193,60,0.62)' },
-  vermelho: { label: 'FORA DA META', textColor: '#e33939',  bg: 'rgba(242,96,96,0.13)',   border: 'rgba(227,57,57,0.72)' },
-  neutro:   { label: 'SEM META',     textColor: '#72708f',  bg: 'rgba(114,112,143,0.13)', border: 'rgba(114,112,143,0.5)' },
-}
-
-// Cor do valor gigante (72%)
-const VALUE_COLOR: Record<Status, string> = {
-  verde:    'rgba(74,222,128,0.72)',
-  amarelo:  'rgba(255,193,60,0.72)',
-  vermelho: 'rgba(227,57,57,0.72)',
-  neutro:   '#72708f',
-}
-
-// Cor do título, ícone e flor (herda status)
-const TITLE_COLOR: Record<Status, string> = {
-  verde:    '#72708f',                // dentro: neutro-lavanda
-  amarelo:  'rgba(255,193,60,0.62)', // atenção: amarelo 62%
-  vermelho: 'rgba(227,57,57,0.74)',  // fora: vermelho 74%
-  neutro:   '#72708f',                // sem meta: neutro-lavanda
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatNum(n: number): string { return n.toLocaleString('pt-BR') }
@@ -63,16 +34,8 @@ function mesLabelDeData(dataStr: string | null): string {
   return new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
 }
 
-// ── KPI Cards data ─────────────────────────────────────────────────────────────
-interface KPICard {
-  label:  string
-  icon:   ReactNode
-  valor:  string | null
-  status: Status
-  meta:   string | null
-}
-
-function computarKPICards(data: KpiGestorData): KPICard[] {
+// ── KPI Cards ─────────────────────────────────────────────────────────────────
+function computarKPICards(data: KpiGestorData): KpiCardData[] {
   const txRet  = data.txRetBrutaPct
   const tma    = data.tmaSeg
   const abs    = data.absPct
@@ -135,291 +98,51 @@ function computarKPICards(data: KpiGestorData): KPICard[] {
   ]
 }
 
-// ── Complementares state ───────────────────────────────────────────────────────
-const LS_KEY = 'halo:gestor-kpi:subsecoes-expandidas'
-type SubKey  = 'ganhos' | 'qualidade' | 'comportamento' | 'presenca'
-const SUB_DEFAULT: Record<SubKey, boolean> = {
-  ganhos: true, qualidade: true, comportamento: true, presenca: true,
-}
-
-// ── SVG: Flor dourada (cor parametrizável) ─────────────────────────────────────
-function FlorDourada({ size = 10, color = '#c9a24a' }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 10" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <rect x="0"   y="3.5" width="3" height="3" fill={color} transform="rotate(45 1.5 5)"  />
-      <rect x="3.5" y="0"   width="3" height="3" fill={color} transform="rotate(45 5 1.5)"  />
-      <rect x="7"   y="3.5" width="3" height="3" fill={color} transform="rotate(45 8.5 5)"  />
-      <rect x="3.5" y="7"   width="3" height="3" fill={color} transform="rotate(45 5 8.5)"  />
-    </svg>
-  )
-}
-
-// ── Badge semáforo ─────────────────────────────────────────────────────────────
-function MeuKpiBadge({ status }: { status: Status }) {
-  const cfg = BADGE_CFG[status]
-  return (
-    <span style={{
-      fontFamily: FF_SYNE,
-      fontSize: '20px', fontWeight: 600, lineHeight: 1,
-      textTransform: 'uppercase', letterSpacing: '1px',
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: '100%', maxWidth: '193px', height: '29px',
-      borderRadius: '6px', border: `1px solid ${cfg.border}`,
-      background: cfg.bg, color: cfg.textColor,
-      flexShrink: 0,
-    }}>
-      {cfg.label}
-    </span>
-  )
-}
-
-// ── Section title com flor + linha ─────────────────────────────────────────────
-function MeuKpiSectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      <FlorDourada />
-      <span style={{
-        fontFamily: FF_SYNE,
-        fontSize: '12px', fontWeight: 600,
-        letterSpacing: '0.14em',
-        color: '#f4d47c', whiteSpace: 'nowrap',
-      }}>
-        {children}
-      </span>
-      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(244,212,124,0.2) 0%, transparent 100%)' }} />
-    </div>
-  )
-}
-
-// ── KPI Card ───────────────────────────────────────────────────────────────────
-function MeuKpiCard({ card, delay }: { card: KPICard; delay: number }) {
-  const hasValue   = card.valor !== null
-  const titleColor = hasValue ? TITLE_COLOR[card.status] : '#474658'
-  const valColor   = hasValue ? VALUE_COLOR[card.status] : '#474658'
-  const label      = card.label === 'Indisponibilidade' ? 'Indisp.' : card.label
-
-  return (
-    <div style={{
-      background: '#070714',
-      border: '1px solid rgba(244,212,124,0.15)',
-      borderRadius: '10px',
-      padding: '20px 24px',
-      display: 'flex',
-      alignItems: 'stretch',
-      gap: '20px',
-      animation: 'kpiCardIn 0.4s ease both',
-      animationDelay: `${delay}ms`,
-    }}>
-
-      {/* Coluna esquerda: header (topo) + valor (base) */}
-      <div style={{
-        flex: '0 0 48%',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        minHeight: '120px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: titleColor, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            {card.icon}
-          </span>
-          <span style={{
-            fontFamily: FF_SYNE,
-            fontSize: '20px', fontWeight: 600,
-            textTransform: 'uppercase', letterSpacing: '0.06em',
-            color: titleColor,
-            overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>
-            {label}
-          </span>
-        </div>
-
-        <div>
-          <div style={{
-            fontFamily: FF_DM,
-            fontSize: '64px', fontWeight: 900, lineHeight: 1,
-            color: valColor,
-            fontVariantNumeric: 'tabular-nums',
-            letterSpacing: '-0.02em',
-          }}>
-            {card.valor ?? '—'}
-          </div>
-          {!hasValue && (
-            <span style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, color: '#474658', marginTop: '4px', display: 'block' }}>
-              Sem dados
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Linha divisória vertical — dentro do padding */}
-      <div style={{
-        width: '1px',
-        background: '#211F3C',
-        flexShrink: 0,
-        marginTop: '8px',
-        marginBottom: '8px',
-      }} />
-
-      {/* Coluna direita: badge no topo + meta abaixo */}
-      <div style={{
-        flex: '1 1 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        gap: '10px',
-        paddingTop: '8px',
-      }}>
-        {hasValue ? (
-          <>
-            <MeuKpiBadge status={card.status} />
-            {card.meta && (
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'baseline',
-                gap: '4px',
-                color: '#72708f',
-                lineHeight: 1.2,
-              }}>
-                <span style={{ fontFamily: FF_SYNE, fontSize: '20px', fontWeight: 600 }}>
-                  META:
-                </span>
-                <span style={{
-                  fontFamily: FF_DM,
-                  fontSize: '20px', fontWeight: 500,
-                  fontVariantNumeric: 'tabular-nums',
-                }}>
-                  {card.meta.replace('META: ', '')}
-                </span>
-              </div>
-            )}
-          </>
-        ) : (
-          <span style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, color: '#474658' }}>
-            Sem mapeamento
-          </span>
-        )}
-      </div>
-
-    </div>
-  )
-}
-
-// ── Dados Complementares ───────────────────────────────────────────────────────
-function DadosComplementares({ data }: { data: KpiGestorData }) {
-  const [expanded, setExpanded] = useState<Record<SubKey, boolean>>(SUB_DEFAULT)
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY)
-      if (raw) setExpanded(prev => ({ ...prev, ...(JSON.parse(raw) as Partial<Record<SubKey, boolean>>) }))
-    } catch { /* ignore */ }
-  }, [])
-
-  function toggle(key: SubKey) {
-    setExpanded(prev => {
-      const next = { ...prev, [key]: !prev[key] }
-      try { localStorage.setItem(LS_KEY, JSON.stringify(next)) } catch { /* ignore */ }
-      return next
-    })
-  }
-
-  const SUBSECOES: Array<{ key: SubKey; titulo: string; items: Array<{ label: string; valor: string }> }> = [
+// ── Subsecões Complementares ───────────────────────────────────────────────────
+function gestorSubsecoes(data: KpiGestorData): SubsecaoConfig[] {
+  return [
     {
       key: 'ganhos', titulo: 'GANHOS & RETENÇÃO',
       items: [
-        { label: '% Variação Ticket',     valor: data.varTicket },
-        { label: 'Tx. Retenção Liq. 15d', valor: data.txRetLiq15d },
+        { label: '% Variação Ticket',     valor: data.varTicket    ?? '—' },
+        { label: 'Tx. Retenção Liq. 15d', valor: data.txRetLiq15d  ?? '—' },
       ],
     },
     {
       key: 'qualidade', titulo: 'QUALIDADE DO ATENDIMENTO',
       items: [
-        { label: 'Atendidas',         valor: data.atendidas },
-        { label: 'Transfer (%)',       valor: data.transfer },
-        { label: 'Short Call (%)',     valor: data.shortCall },
-        { label: 'Rechamada D+7 (%)', valor: data.rechamadaD7 },
-        { label: 'Tx. Tabulação (%)', valor: data.txTabulacao },
-        { label: 'CSAT',              valor: data.csat },
+        { label: 'Atendidas',         valor: data.atendidas   ?? '—' },
+        { label: 'Transfer (%)',       valor: data.transfer    ?? '—' },
+        { label: 'Short Call (%)',     valor: data.shortCall   ?? '—' },
+        { label: 'Rechamada D+7 (%)', valor: data.rechamadaD7 ?? '—' },
+        { label: 'Tx. Tabulação (%)', valor: data.txTabulacao ?? '—' },
+        { label: 'CSAT',              valor: data.csat        ?? '—' },
       ],
     },
     {
       key: 'comportamento', titulo: 'COMPORTAMENTO E PAUSAS',
       items: [
-        { label: 'Engajamento',        valor: data.engajamento },
-        { label: 'NR17 (%)',           valor: data.nr17 },
-        { label: 'Pessoal (%)',        valor: data.pessoal },
-        { label: 'Outras Pausas (%)', valor: data.outrasPausas },
+        { label: 'Engajamento',       valor: data.engajamento  ?? '—' },
+        { label: 'NR17 (%)',          valor: data.nr17         ?? '—' },
+        { label: 'Pessoal (%)',       valor: data.pessoal      ?? '—' },
+        { label: 'Outras Pausas (%)', valor: data.outrasPausas ?? '—' },
       ],
     },
     {
       key: 'presenca', titulo: 'PRESENÇA',
       items: [
-        { label: 'Tempo Projetado', valor: data.tempoProjetado },
-        { label: 'Tempo de Login',  valor: data.tempoLogin },
+        { label: 'Tempo Projetado', valor: data.tempoProjetado ?? '—' },
+        { label: 'Tempo de Login',  valor: data.tempoLogin     ?? '—' },
       ],
     },
   ]
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-      {SUBSECOES.map(sub => {
-        const isOpen = expanded[sub.key]
-        return (
-          <div key={sub.key}>
-            <button type="button" className="mkpi-sub-btn" onClick={() => toggle(sub.key)}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.10em', color: '#f4d47c' }}>
-                  {sub.titulo}
-                </span>
-                <span style={{ color: 'rgba(114,112,143,0.4)', userSelect: 'none' }}>·</span>
-                <span style={{ fontFamily: FF_SYNE, fontSize: '10px', fontWeight: 600, color: 'rgba(114,112,143,0.7)' }}>
-                  {sub.items.length} indicadores
-                </span>
-              </div>
-              <ChevronRight size={14} style={{
-                color: '#72708f', flexShrink: 0,
-                transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                transition: 'transform 250ms cubic-bezier(0.4,0,0.2,1)',
-              }} />
-            </button>
-
-            <div className={`mkpi-sub-content${isOpen ? ' open' : ''}`}>
-              <div className="mkpi-sub-inner">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', padding: '6px 0 10px' }}>
-                  {sub.items.map(({ label, valor }) => {
-                    const empty = !valor || valor === '—'
-                    return (
-                      <div key={label} title={empty ? 'Sem dados disponíveis ainda' : undefined} style={{
-                        background: '#070714',
-                        border: '1px solid rgba(244,212,124,0.15)',
-                        borderRadius: '10px', padding: '10px 12px',
-                        minHeight: '72px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                      }}>
-                        <p style={{ fontFamily: FF_SYNE, fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#72708f', lineHeight: 1.3, margin: 0 }}>
-                          {label}
-                        </p>
-                        <p style={{ fontFamily: FF_DM, fontSize: '13px', fontWeight: 600, fontVariantNumeric: 'tabular-nums', margin: '4px 0 0', color: empty ? 'rgba(114,112,143,0.3)' : '#72708f' }}>
-                          {empty ? '—' : valor}
-                        </p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function GestorMeuKPIClient({ data }: { data: KpiGestorData }) {
   const mesLabel = useMemo(() => mesLabelDeData(data.dataReferencia), [data.dataReferencia])
   const kpiCards = useMemo(() => computarKPICards(data), [data])
+  const subsecoes = useMemo(() => gestorSubsecoes(data), [data])
 
   return (
     <>
@@ -501,7 +224,10 @@ export default function GestorMeuKPIClient({ data }: { data: KpiGestorData }) {
         {/* ── KPIs Complementares ───────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <PainelSectionTitle>KPIs COMPLEMENTARES</PainelSectionTitle>
-          <DadosComplementares data={data} />
+          <DadosComplementares
+            subsecoes={subsecoes}
+            lsKey="halo:gestor-kpi:subsecoes-expandidas"
+          />
         </div>
 
       </div>

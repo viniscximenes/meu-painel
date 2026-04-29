@@ -1,6 +1,6 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
-import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, matchCelulaOperador } from '@/lib/sheets'
+import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, matchCelulaOperador, extrairDataAtualizacao } from '@/lib/sheets'
 import { getRVGestorConfig, calcularRVGestor } from '@/lib/rv-gestor'
 import type { ResultadoRVGestor } from '@/lib/rv-gestor-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
@@ -82,14 +82,14 @@ export default async function GestorMeuRvPage() {
 
   try {
     const [gestorData, monitoriaData, opData] = await Promise.all([
-      buscarLinhasPlanilha(planilha.spreadsheet_id, 'KPI GESTOR', 5),
+      buscarLinhasPlanilha(planilha.spreadsheet_id, 'KPI GESTOR', 50),
       buscarLinhasPlanilha(planilha.spreadsheet_id, 'MONITORIA').catch(() => ({ headers: [], rows: [] })),
       buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba).catch(() => ({ headers: [], rows: [] })),
     ])
 
     const headers = gestorData.headers
     const dataRow = gestorData.rows[0] ?? []
-    dataAtualizacao = gestorData.rows[2]?.[0]?.trim() || null
+    dataAtualizacao = extrairDataAtualizacao(gestorData.rows)
 
     // Monitorias — raw count from planilha
     const enviadas = monitoriaData.rows.filter(r => (r[13] ?? '').toLowerCase().trim() === 'sim')
