@@ -1,5 +1,5 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
-import { getPlanilhaAtiva } from '@/lib/sheets'
+import { getPlanilhaAtiva, getPlanilhaPorTipo, resolverNomeAba } from '@/lib/sheets'
 import { lerKpiConsolidado } from '@/lib/kpi-consolidado-sheets'
 import PainelShell from '@/components/PainelShell'
 import KpiEquipeClient from './KpiEquipeClient'
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function GestorKpiEquipePage() {
   const profile  = await requireGestorOuAdmin()
-  const planilha = await getPlanilhaAtiva().catch(() => null)
+  const planilha = await getPlanilhaPorTipo('kpi_quartil').then(p => p ?? getPlanilhaAtiva()).catch(() => null)
 
   const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
   const cssVars  = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
@@ -38,7 +38,8 @@ export default async function GestorKpiEquipePage() {
   let erroSheets: string | null = null
 
   try {
-    kpiData = await lerKpiConsolidado(planilha.spreadsheet_id, planilha.aba)
+    const aba = await resolverNomeAba(planilha.spreadsheet_id, 'KPI CONSOLIDADO').catch(() => planilha.aba)
+    kpiData = await lerKpiConsolidado(planilha.spreadsheet_id, aba)
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido ao carregar planilha'
   }

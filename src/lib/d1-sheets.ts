@@ -2,6 +2,7 @@
 // Servidor apenas — importa googleapis.
 
 import { google } from 'googleapis'
+import { resolverNomeAba } from '@/lib/sheets'
 
 const ABA_D1 = 'D1'
 
@@ -53,10 +54,11 @@ function parseTaxa(v: string | undefined): number | null {
 export async function lerAbaD1(spreadsheetId: string): Promise<D1SheetData> {
   const vazia: D1SheetData = { ultimaAtualizacao: null, operadores: [] }
   try {
+    const aba = await resolverNomeAba(spreadsheetId, ABA_D1)
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `'${ABA_D1}'!A1:F200`,
+        range: `'${aba}'!A1:F200`,
       })
     )
     const values = (res.data.values ?? []) as string[][]

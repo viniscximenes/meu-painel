@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
-import { X, BookOpen, Save, AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { useState, useTransition, useRef, useEffect, useId, forwardRef } from 'react'
+import { X, BookOpen, Save, AlertTriangle, CheckCircle, Info, ChevronDown, Check } from 'lucide-react'
 import { HaloSpinner } from '@/components/HaloSpinner'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
-import { TIPOS_REGISTRO, hojeFormatado, parseTempo, type TipoRegistro } from '@/lib/diario-utils'
+import { TIPOS_REGISTRO, hojeFormatado, calcularDeficitForaJornada, JORNADA_OBRIGATORIA_SEGUNDOS, type TipoRegistro } from '@/lib/diario-utils'
 import { salvarRegistroDiarioAction } from './actions'
-import { DicasPreenchimentoAccordion } from '@/components/diario/DicasPreenchimentoAccordion'
 
 interface Props {
   aberto: boolean
@@ -14,20 +13,255 @@ interface Props {
   onSalvo: () => void
 }
 
-const TIPO_CORES: Record<TipoRegistro, string> = {
-  'Pausa justificada': '#f59e0b',
-  'Fora da jornada':   '#60a5fa',
-  'Geral':             '#a78bfa',
-  'Outros':            '#94a3b8',
+const FF_SYNE = "'Syne', sans-serif"
+const FF_DM   = "'DM Sans', sans-serif"
+
+const LABEL_STYLE: React.CSSProperties = {
+  display: 'block',
+  fontFamily: FF_SYNE,
+  fontSize: '11px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  color: '#474658',
+  marginBottom: '8px',
 }
 
-const JORNADA_PADRAO_MIN = 380 // 06:20:00
-
-function fmtHHMM(min: number): string {
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+function inputStyle(hasError?: boolean): React.CSSProperties {
+  return {
+    width: '100%',
+    backgroundColor: '#03040C',
+    border: `1px solid ${hasError ? 'rgba(227,57,57,0.6)' : 'rgba(114,112,143,0.5)'}`,
+    borderRadius: '10px',
+    padding: '10px 14px',
+    fontSize: '13px',
+    fontWeight: 600,
+    fontFamily: FF_SYNE,
+    color: '#A6A2A2',
+    outline: 'none',
+    transition: 'border-color 150ms ease, box-shadow 150ms ease',
+    boxSizing: 'border-box' as const,
+  }
 }
+
+function numInputStyle(hasError?: boolean): React.CSSProperties {
+  return {
+    ...inputStyle(hasError),
+    fontFamily: FF_DM,
+    fontVariantNumeric: 'tabular-nums',
+  }
+}
+
+function focusRing(e: React.FocusEvent<HTMLElement>) {
+  const el = e.currentTarget as HTMLElement
+  el.style.borderColor = 'rgba(244,212,124,0.5)'
+  el.style.boxShadow = '0 0 0 3px rgba(244,212,124,0.08)'
+}
+
+function blurRing(e: React.FocusEvent<HTMLElement>, hasError?: boolean) {
+  const el = e.currentTarget as HTMLElement
+  el.style.borderColor = hasError ? 'rgba(227,57,57,0.6)' : 'rgba(114,112,143,0.5)'
+  el.style.boxShadow = 'none'
+}
+
+// ── SelectHalo ────────────────────────────────────────────────────────────────
+
+interface SelectHaloOption {
+  value: string
+  label: string
+}
+
+interface SelectHaloProps {
+  value: string
+  onChange: (val: string) => void
+  options: SelectHaloOption[]
+  disabled?: boolean
+  hasError?: boolean
+  showDividerAfterFirst?: boolean
+}
+
+const SelectHalo = forwardRef<HTMLButtonElement, SelectHaloProps>(
+  ({ value, onChange, options, disabled = false, hasError = false, showDividerAfterFirst = false }, ref) => {
+    const [aberto, setAberto] = useState(false)
+    const [highlighted, setHighlighted] = useState(-1)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const uid = useId()
+    const listboxId = `listbox-${uid}`
+
+    const selectedLabel = options.find(o => o.value === value)?.label ?? ''
+
+    // Close on click outside
+    useEffect(() => {
+      if (!aberto) return
+      function onDown(e: MouseEvent) {
+        if (!containerRef.current?.contains(e.target as Node)) {
+          setAberto(false)
+          setHighlighted(-1)
+        }
+      }
+      document.addEventListener('mousedown', onDown)
+      return () => document.removeEventListener('mousedown', onDown)
+    }, [aberto])
+
+    function open() {
+      if (disabled) return
+      setAberto(true)
+      const idx = options.findIndex(o => o.value === value)
+      setHighlighted(idx >= 0 ? idx : 0)
+    }
+
+    function close() {
+      setAberto(false)
+      setHighlighted(-1)
+    }
+
+    function select(val: string) {
+      onChange(val)
+      close()
+    }
+
+    function handleKeyDown(e: React.KeyboardEvent) {
+      if (disabled) return
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (!aberto) { open(); return }
+        setHighlighted(p => Math.min(p + 1, options.length - 1))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (!aberto) { open(); return }
+        setHighlighted(p => Math.max(p - 1, 0))
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        if (aberto && highlighted >= 0) select(options[highlighted].value)
+        else if (!aberto) open()
+      } else if (e.key === 'Escape') {
+        if (aberto) {
+          e.nativeEvent.stopPropagation() // prevent modal Esc from firing
+          close()
+        }
+      } else if (e.key === 'Tab') {
+        close()
+      }
+    }
+
+    const triggerBorder = hasError
+      ? 'rgba(227,57,57,0.6)'
+      : aberto
+        ? 'rgba(244,212,124,0.5)'
+        : 'rgba(114,112,143,0.5)'
+
+    return (
+      <div ref={containerRef} style={{ position: 'relative' }}>
+        <button
+          ref={ref}
+          type="button"
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={aberto}
+          aria-controls={listboxId}
+          disabled={disabled}
+          onClick={() => aberto ? close() : open()}
+          onKeyDown={handleKeyDown}
+          style={{
+            width: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            backgroundColor: '#03040C',
+            border: `1px solid ${triggerBorder}`,
+            borderRadius: '10px',
+            padding: '10px 14px',
+            fontSize: '13px',
+            fontWeight: 600,
+            fontFamily: FF_SYNE,
+            color: '#A6A2A2',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.5 : 1,
+            outline: 'none',
+            boxShadow: aberto ? '0 0 0 3px rgba(244,212,124,0.08)' : 'none',
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
+            textAlign: 'left',
+            boxSizing: 'border-box',
+          }}
+          onMouseEnter={e => {
+            if (!aberto && !disabled)
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(244,212,124,0.35)'
+          }}
+          onMouseLeave={e => {
+            if (!aberto && !disabled)
+              (e.currentTarget as HTMLElement).style.borderColor = triggerBorder
+          }}
+        >
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {selectedLabel}
+          </span>
+          <ChevronDown
+            size={16}
+            style={{
+              color: '#f4d47c', flexShrink: 0, marginLeft: '8px',
+              transform: aberto ? 'rotate(180deg)' : 'none',
+              transition: 'transform 200ms ease',
+            }}
+          />
+        </button>
+
+        {aberto && (
+          <div
+            role="listbox"
+            id={listboxId}
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 4px)',
+              left: 0, right: 0,
+              background: '#070714',
+              border: '1px solid rgba(244,212,124,0.20)',
+              borderRadius: '10px',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+              padding: '4px',
+              maxHeight: '280px',
+              overflowY: 'auto',
+              zIndex: 200,
+            }}
+          >
+            {options.map((opt, idx) => {
+              const isSelected = opt.value === value
+              const isHighlighted = highlighted === idx
+              return (
+                <div key={opt.value || '__geral__'}>
+                  <div
+                    role="option"
+                    aria-selected={isSelected}
+                    onMouseDown={(e) => { e.preventDefault(); select(opt.value) }}
+                    onMouseEnter={() => setHighlighted(idx)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontFamily: FF_SYNE,
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: isSelected ? '#f4d47c' : isHighlighted ? '#e8c96d' : '#A6A2A2',
+                      background: isSelected ? 'rgba(244,212,124,0.10)' : isHighlighted ? 'rgba(244,212,124,0.06)' : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'background 100ms ease, color 100ms ease',
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                    {isSelected && <Check size={14} style={{ color: '#f4d47c', flexShrink: 0 }} />}
+                  </div>
+                  {showDividerAfterFirst && idx === 0 && (
+                    <div style={{ height: '1px', background: '#211F3C', margin: '4px 2px' }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+)
+SelectHalo.displayName = 'SelectHalo'
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) {
   const [tipo,         setTipo]         = useState<TipoRegistro>('Pausa justificada')
@@ -40,7 +274,7 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
   const [saving,       startSave]       = useTransition()
   const [sucesso,      setSucesso]      = useState(false)
   const [erroGlobal,   setErroGlobal]   = useState('')
-  const firstRef = useRef<HTMLSelectElement>(null)
+  const firstRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (aberto) {
@@ -59,9 +293,8 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
     return () => document.removeEventListener('keydown', onKey)
   }, [aberto, onFechar])
 
-  // Quando tipo muda para Geral, colaborador fica vazio (= setor inteiro) e travado
   function handleTipo(t: TipoRegistro) {
-    setTipo(t)
+    setTipo(t as TipoRegistro)
     if (t === 'Geral') setColaborador('')
   }
 
@@ -69,15 +302,27 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
   const isForaJornada = tipo === 'Fora da jornada'
   const isGeral       = tipo === 'Geral'
 
-  const logadoMin = isForaJornada && tempo.trim() ? parseTempo(tempo.trim()) : 0
-  const deficitMin = isForaJornada && logadoMin > 0 ? Math.max(0, JORNADA_PADRAO_MIN - logadoMin) : null
+  const isTempoValido = isForaJornada && /^\d{1,2}:\d{2}:\d{2}$/.test(tempo.trim())
+  const deficitInfo   = isTempoValido ? calcularDeficitForaJornada(tempo.trim()) : null
+
+  const tipoOptions = TIPOS_REGISTRO.map(t => ({ value: t, label: t }))
+  const colaboradorOptions = [
+    { value: '', label: 'Geral — Setor inteiro' },
+    ...OPERADORES_DISPLAY.map(op => ({ value: op.nome, label: op.nome })),
+  ]
 
   function validar(): boolean {
     const e: Record<string, string> = {}
     if (!tipo) e.tipo = 'Selecione o tipo.'
     if (!observacoes.trim()) e.observacoes = 'Observações obrigatórias.'
     if (!data) e.data = 'Informe a data.'
-    if (precisaTempo && !tempo.trim()) e.tempo = 'Tempo obrigatório para este tipo.'
+    if (precisaTempo) {
+      if (!tempo.trim()) {
+        e.tempo = 'Tempo obrigatório para este tipo.'
+      } else if (isForaJornada && !/^\d{1,2}:\d{2}:\d{2}$/.test(tempo.trim())) {
+        e.tempo = 'Formato inválido. Use HH:MM:SS (ex: 01:35:05)'
+      }
+    }
     setErros(e)
     return Object.keys(e).length === 0
   }
@@ -118,89 +363,110 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px) saturate(160%)' }}
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onFechar() }}
     >
       <div
-        className="animate-fadeInScale w-full max-w-xl rounded-2xl overflow-hidden flex flex-col glass-premium"
-        style={{ border: '1px solid rgba(201,168,76,0.25)', maxHeight: '90vh' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="novo-registro-title"
+        className="animate-fadeInScale w-full flex flex-col"
+        style={{
+          maxWidth: '560px',
+          borderRadius: '20px',
+          overflow: 'hidden',
+          background: '#070714',
+          border: '1px solid rgba(244,212,124,0.15)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.70)',
+          maxHeight: '90vh',
+        }}
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <div
-          className="flex items-center justify-between px-6 py-4 shrink-0"
-          style={{ borderBottom: '1px solid var(--border)' }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '20px 24px',
+            borderBottom: '1px solid #211F3C',
+            flexShrink: 0,
+          }}
         >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl" style={{ background: 'rgba(201,168,76,0.10)', color: 'var(--gold-light)' }}>
-              <BookOpen size={16} />
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <BookOpen size={20} style={{ color: '#f4d47c', flexShrink: 0 }} />
             <div>
-              <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Novo Registro</h3>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Diário de Bordo</p>
+              <h3
+                id="novo-registro-title"
+                style={{
+                  fontFamily: FF_SYNE, fontSize: '18px', fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                  color: '#A6A2A2', margin: 0, lineHeight: 1,
+                }}
+              >
+                Novo Registro
+              </h3>
+              <p style={{
+                fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+                color: '#72708F', margin: '4px 0 0',
+              }}>
+                Diário de Bordo
+              </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onFechar}
             aria-label="Fechar"
-            className="p-2 rounded-xl transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(255,255,255,0.06)'; el.style.color = 'var(--text-primary)' }}
-            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.color = 'var(--text-muted)' }}
+            style={{
+              color: '#72708F', background: 'none', border: 'none',
+              cursor: 'pointer', padding: '4px', lineHeight: 0,
+              transition: 'color 150ms ease',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#A6A2A2' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#72708F' }}
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Corpo */}
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-
-          <DicasPreenchimentoAccordion />
-
+        {/* ── Corpo ── */}
+        <div
+          style={{
+            overflowY: 'auto', flex: 1,
+            padding: '24px',
+            display: 'flex', flexDirection: 'column', gap: '20px',
+          }}
+        >
           {/* Linha 1: Tipo + Colaborador */}
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                Tipo <span style={{ color: '#f87171' }}>*</span>
+              <label style={LABEL_STYLE}>
+                Tipo <span style={{ color: 'rgba(227,57,57,0.74)' }}>*</span>
               </label>
-              <select
+              <SelectHalo
                 ref={firstRef}
                 value={tipo}
-                onChange={(e) => handleTipo(e.target.value as TipoRegistro)}
-                className="select"
-                style={{ borderColor: erros.tipo ? 'rgba(239,68,68,0.5)' : undefined }}
-              >
-                {TIPOS_REGISTRO.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-              {erros.tipo && <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>{erros.tipo}</p>}
-              <span
-                className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                style={{ background: `${TIPO_CORES[tipo]}18`, color: TIPO_CORES[tipo], border: `1px solid ${TIPO_CORES[tipo]}30` }}
-              >
-                {tipo}
-              </span>
+                onChange={(v) => handleTipo(v as TipoRegistro)}
+                options={tipoOptions}
+                hasError={!!erros.tipo}
+              />
+              {erros.tipo && (
+                <p style={{ fontFamily: FF_DM, fontSize: '10px', marginTop: '4px', color: 'rgba(227,57,57,0.9)' }}>
+                  {erros.tipo}
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                Colaborador
-              </label>
-              <select
+              <label style={LABEL_STYLE}>Colaborador</label>
+              <SelectHalo
                 value={colaborador}
-                onChange={(e) => setColaborador(e.target.value)}
-                className="select"
+                onChange={setColaborador}
+                options={colaboradorOptions}
                 disabled={isGeral}
-                style={{ opacity: isGeral ? 0.5 : 1, cursor: isGeral ? 'not-allowed' : undefined }}
-              >
-                <option value="">Geral — Setor inteiro</option>
-                {OPERADORES_DISPLAY.map((op) => (
-                  <option key={op.id} value={op.nome}>{op.nome}</option>
-                ))}
-              </select>
+                showDividerAfterFirst
+              />
               {isGeral && (
-                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                <p style={{ fontFamily: FF_DM, fontSize: '10px', marginTop: '4px', color: '#474658' }}>
                   Registro Geral é sempre do setor inteiro.
                 </p>
               )}
@@ -209,121 +475,160 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
 
           {/* Observações */}
           <div>
-            <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-              Observações <span style={{ color: '#f87171' }}>*</span>
+            <label style={LABEL_STYLE}>
+              Observações <span style={{ color: 'rgba(227,57,57,0.74)' }}>*</span>
             </label>
             <textarea
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
-              rows={3}
+              rows={4}
               placeholder="Descreva o ocorrido em detalhes..."
-              className="input"
-              style={{ resize: 'vertical', minHeight: '80px', borderColor: erros.observacoes ? 'rgba(239,68,68,0.5)' : undefined }}
+              style={{
+                ...inputStyle(!!erros.observacoes),
+                resize: 'vertical',
+                minHeight: '100px',
+              }}
+              onFocus={focusRing}
+              onBlur={e => blurRing(e, !!erros.observacoes)}
             />
             {erros.observacoes && (
-              <p className="text-[10px] mt-0.5" style={{ color: '#f87171' }}>{erros.observacoes}</p>
+              <p style={{ fontFamily: FF_DM, fontSize: '10px', marginTop: '4px', color: 'rgba(227,57,57,0.9)' }}>
+                {erros.observacoes}
+              </p>
             )}
           </div>
 
           {/* Linha 3: GLPI + Tempo + Data */}
-          <div className="grid grid-cols-3 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
             <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                GLPI
-              </label>
+              <label style={LABEL_STYLE}>GLPI</label>
               <input
                 type="text"
                 value={glpi}
                 onChange={(e) => setGlpi(e.target.value)}
                 placeholder="#0000"
-                className="input"
+                style={numInputStyle()}
+                onFocus={focusRing}
+                onBlur={e => blurRing(e)}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                {isForaJornada ? 'Tempo logado no dia' : 'Tempo'} {precisaTempo && <span style={{ color: '#f87171' }}>*</span>}
+              <label style={LABEL_STYLE}>
+                {isForaJornada ? 'Tempo logado' : 'Tempo'}{' '}
+                {precisaTempo && <span style={{ color: 'rgba(227,57,57,0.74)' }}>*</span>}
               </label>
               <input
                 type="text"
                 value={tempo}
                 onChange={(e) => setTempo(e.target.value)}
-                placeholder={isForaJornada ? '06:15:00' : '20min, 1:30'}
-                className="input"
-                style={{ borderColor: erros.tempo ? 'rgba(239,68,68,0.5)' : undefined }}
+                placeholder="00:00:00"
+                style={numInputStyle(!!erros.tempo)}
+                onFocus={focusRing}
+                onBlur={e => blurRing(e, !!erros.tempo)}
               />
-              {erros.tempo && <p className="text-[10px] mt-0.5" style={{ color: '#f87171' }}>{erros.tempo}</p>}
+              {erros.tempo && (
+                <p style={{ fontFamily: FF_DM, fontSize: '10px', marginTop: '4px', color: 'rgba(227,57,57,0.9)' }}>
+                  {erros.tempo}
+                </p>
+              )}
+              {isForaJornada && (
+                <p style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '10px', color: '#474658', marginTop: '4px' }}>
+                  Ex: 06:20:00 = jornada completa | 00:00:00 = não logou
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-                Data <span style={{ color: '#f87171' }}>*</span>
+              <label style={LABEL_STYLE}>
+                Data <span style={{ color: 'rgba(227,57,57,0.74)' }}>*</span>
               </label>
               <input
                 type="text"
                 value={data}
                 onChange={(e) => setData(e.target.value)}
                 placeholder="DD/MM/AAAA"
-                className="input"
-                style={{ borderColor: erros.data ? 'rgba(239,68,68,0.5)' : undefined }}
+                style={numInputStyle(!!erros.data)}
+                onFocus={focusRing}
+                onBlur={e => blurRing(e, !!erros.data)}
               />
-              {erros.data && <p className="text-[10px] mt-0.5" style={{ color: '#f87171' }}>{erros.data}</p>}
+              {erros.data && (
+                <p style={{ fontFamily: FF_DM, fontSize: '10px', marginTop: '4px', color: 'rgba(227,57,57,0.9)' }}>
+                  {erros.data}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Preview déficit — Fora da jornada */}
-          {isForaJornada && tempo.trim() && logadoMin > 0 && (
-            <div
-              className="rounded-xl px-4 py-3 flex items-start gap-3"
-              style={{
-                background: 'rgba(96,165,250,0.07)',
-                border: '1px solid rgba(96,165,250,0.22)',
-              }}
-            >
-              <Info size={14} className="shrink-0 mt-0.5" style={{ color: '#60a5fa' }} />
-              <div className="space-y-1">
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  Você digitou <strong style={{ color: '#93c5fd' }}>{tempo.trim()}</strong> (tempo logado no dia)
+          {deficitInfo && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: '10px',
+              padding: '12px 16px',
+              background: 'rgba(96,165,250,0.06)',
+              border: '1px solid rgba(96,165,250,0.20)',
+              borderRadius: '10px',
+            }}>
+              <Info size={14} style={{ color: '#60a5fa', flexShrink: 0, marginTop: '1px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <p style={{ fontFamily: FF_DM, fontSize: '12px', color: '#A6A2A2', margin: 0 }}>
+                  Tempo logado: <strong style={{ color: '#93c5fd' }}>{tempo.trim()}</strong>
                 </p>
-                {deficitMin !== null && deficitMin > 0 ? (
-                  <p className="text-xs font-semibold" style={{ color: '#f87171' }}>
-                    Será salvo como déficit: <strong>{fmtHHMM(deficitMin)}</strong>
-                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '4px' }}>
-                      (06:20:00 esperado − {fmtHHMM(logadoMin)} trabalhado)
-                    </span>
+                {deficitInfo.deficitSeg === 0 ? (
+                  <p style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, color: 'rgba(106,196,73,0.95)', margin: 0 }}>
+                    Déficit: 00:00:00 — jornada completa.
                   </p>
                 ) : (
-                  <p className="text-xs font-semibold" style={{ color: '#34d399' }}>
-                    Jornada completa — nenhum déficit registrado.
+                  <p style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, margin: 0,
+                    color: deficitInfo.deficitSeg === JORNADA_OBRIGATORIA_SEGUNDOS ? 'rgba(227,57,57,0.9)' : '#FFB922',
+                  }}>
+                    Déficit: {deficitInfo.deficitFormatado}
                   </p>
                 )}
               </div>
             </div>
           )}
 
-          {isForaJornada && !tempo.trim() && (
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              Jornada padrão: 06:20:00. O tempo que for informado acima será convertido em déficit ao salvar.
-            </p>
-          )}
-
           {erroGlobal && (
-            <div className="flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm animate-shake"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}
+            <div
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: '10px',
+                padding: '12px 16px',
+                background: 'rgba(227,57,57,0.06)',
+                border: '1px solid rgba(227,57,57,0.22)',
+                borderRadius: '10px',
+                fontFamily: FF_DM, fontSize: '13px', color: 'rgba(227,57,57,0.9)',
+              }}
               role="alert"
             >
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
               {erroGlobal}
             </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* ── Footer ── */}
         <div
-          className="px-6 py-4 flex items-center justify-between gap-3 shrink-0"
-          style={{ borderTop: '1px solid var(--border)' }}
+          style={{
+            padding: '16px 24px',
+            borderTop: '1px solid #211F3C',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: '12px', flexShrink: 0,
+          }}
         >
-          <button type="button" onClick={onFechar} className="btn-ghost text-sm">
+          <button
+            type="button"
+            onClick={onFechar}
+            style={{
+              fontFamily: FF_SYNE, fontWeight: 600, fontSize: '12px',
+              textTransform: 'uppercase', letterSpacing: '0.05em',
+              color: '#72708F', cursor: 'pointer',
+              background: 'none', border: 'none', padding: '6px 0',
+              transition: 'color 150ms ease',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#A6A2A2' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#72708F' }}
+          >
             Cancelar
           </button>
           <button
@@ -331,7 +636,11 @@ export default function NovoRegistroModal({ aberto, onFechar, onSalvo }: Props) 
             onClick={handleSave}
             disabled={saving || sucesso}
             className="btn-primary flex items-center gap-2"
-            style={{ minWidth: '140px', opacity: saving || sucesso ? 0.9 : 1 }}
+            style={{
+              fontFamily: FF_SYNE, fontWeight: 600, fontSize: '12px',
+              textTransform: 'uppercase', letterSpacing: '0.05em',
+              minWidth: '150px', opacity: saving || sucesso ? 0.9 : 1,
+            }}
           >
             {saving ? (
               <HaloSpinner size="sm" />

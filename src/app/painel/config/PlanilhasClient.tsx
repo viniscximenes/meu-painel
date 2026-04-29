@@ -238,6 +238,7 @@ function NovaForm({
         created_at: new Date().toISOString(),
         referencia_mes: null,
         referencia_ano: null,
+        tipo: null,
       }
       onAdicionada(nova, ativar)
     })

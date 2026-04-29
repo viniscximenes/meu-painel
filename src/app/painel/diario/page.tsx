@@ -15,7 +15,7 @@ export default async function DiarioPage() {
   const mesLabel = `${MESES[agora.getMonth()]} ${agora.getFullYear()}`
 
   return (
-    <PainelShell profile={profile} title="Diário de Bordo">
+    <PainelShell profile={profile} title="Diário de Bordo" iconName="BookOpen">
       <DiarioClient registros={registros} mesLabel={mesLabel} role={profile.role} />
     </PainelShell>
   )

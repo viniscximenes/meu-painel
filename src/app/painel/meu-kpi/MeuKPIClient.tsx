@@ -15,7 +15,6 @@ import { setCursorStyle } from '@/components/CursorProvider'
 
 export interface MeuKPIProps {
   kpis:            KPIItem[]
-  basicos:         Meta[]
   complementares:  { label: string; valor: string }[]
   posicaoRanking:  number
   meuTxRet:        number
@@ -343,11 +342,11 @@ const LS_KEY_VISAO_RAPIDA = 'halo:meu-kpi:visao-rapida'
 // ── Componente Principal ──────────────────────────────────────────────────────
 
 export default function MeuKPIClient({
-  kpis, basicos, complementares,
+  kpis, complementares,
   posicaoRanking, meuTxRet, totalNoRanking,
   vizinhoAcima, vizinhoAbaixo, txRetLider,
 }: MeuKPIProps) {
-  const basicosKPI = basicos.map(m => kpis.find(k => k.nome_coluna === m.nome_coluna)).filter(Boolean) as KPIItem[]
+  const basicosKPI = kpis
   const is1 = posicaoRanking === 1
 
   const diasInfo = useMemo(() => {
@@ -356,7 +355,7 @@ export default function MeuKPIClient({
   }, [])
 
   const atendidas = useMemo(() => {
-    const raw = complementares.find(c => c.label === 'Atendidas')?.valor ?? ''
+    const raw = complementares.find(c => c.label === 'atendidas')?.valor ?? ''
     const n = parseFloat(raw.replace(/[^\d.,]/g, '').replace(',', '.'))
     return isNaN(n) ? 0 : n
   }, [complementares])
@@ -385,15 +384,14 @@ export default function MeuKPIClient({
 
   const alertas = useMemo(
     () => gerarAlertasOperador(basicosKPI, posicaoRanking, vizinhoAcima, meuTxRet),
-    // kpis e basicos são props estáticas por render; deps granulares evitam re-cálculo
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kpis, basicos, posicaoRanking, vizinhoAcima, meuTxRet],
+    [kpis, posicaoRanking, vizinhoAcima, meuTxRet],
   )
 
   const kpisVisaoRapida = useMemo(
     () => selecionarKPIsVisaoRapida(basicosKPI),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kpis, basicos],
+    [kpis],
   )
   const kpisVisiveis = visaoRapida ? kpisVisaoRapida : basicosKPI
 
@@ -1138,13 +1136,26 @@ function KPICard({ kpi, delay, cardIndex, diasInfo, atendidas, podioPos }: {
 
       {/* ── Zona 2: Valor principal ── */}
       <div style={{ flex: 1, marginBottom: '14px' }}>
-        <span style={{ fontFamily: 'var(--ff-body)', fontSize: '48px', fontWeight: 600, lineHeight: 1, color: 'rgba(255,255,255,0.95)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', display: 'block' }}>
-          {displayValue}
-        </span>
-        {ctxLabel && (
-          <span style={{ fontFamily: 'var(--ff-body)', fontSize: '11px', color: 'rgba(255,255,255,0.38)', marginTop: '4px', display: 'block' }}>
-            {ctxLabel}
-          </span>
+        {kpi.valor === '—' ? (
+          <>
+            <span style={{ fontFamily: 'var(--ff-body)', fontSize: '48px', fontWeight: 600, lineHeight: 1, color: '#474658', display: 'block' }}>
+              —
+            </span>
+            <span style={{ fontFamily: 'var(--ff-display)', fontSize: '11px', fontWeight: 600, color: '#474658', marginTop: '4px', display: 'block' }}>
+              Sem dados
+            </span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontFamily: 'var(--ff-body)', fontSize: '48px', fontWeight: 600, lineHeight: 1, color: 'rgba(255,255,255,0.95)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', display: 'block' }}>
+              {displayValue}
+            </span>
+            {ctxLabel && (
+              <span style={{ fontFamily: 'var(--ff-body)', fontSize: '11px', color: 'rgba(255,255,255,0.38)', marginTop: '4px', display: 'block' }}>
+                {ctxLabel}
+              </span>
+            )}
+          </>
         )}
       </div>
 
@@ -1221,43 +1232,38 @@ const SUBSECOES_CONFIG: SubsecaoConfig[] = [
     key: 'ganhos',
     titulo: 'GANHOS & RETENÇÃO',
     items: [
-      { campo: '% Variação Ticket',            displayLabel: 'Ticket' },
-      { campo: 'Tx. Retenção Líquida 15d (%)', displayLabel: 'Tx. Retenção Líquida' },
-      { campo: 'Retidos Brutos',               displayLabel: 'Retidos Brutos' },
-      { campo: 'Retidos Líquidos 15d',         displayLabel: 'Retidos Líquidos' },
+      { campo: 'var_ticket',     displayLabel: 'Ticket' },
+      { campo: 'tx_ret_liq_15d', displayLabel: 'Tx. Retenção Líquida' },
     ],
   },
   {
     key: 'qualidade',
     titulo: 'QUALIDADE DO ATENDIMENTO',
     items: [
-      { campo: 'CSAT',              displayLabel: 'CSAT' },
-      { campo: 'Rechamada D+7 (%)', displayLabel: 'Rechamada' },
-      { campo: 'Short Call (%)',    displayLabel: 'Short Call' },
-      { campo: 'Transfer (%)',      displayLabel: 'Transferência' },
-      { campo: 'Atendidas',         displayLabel: 'Atendidas' },
+      { campo: 'csat',         displayLabel: 'CSAT' },
+      { campo: 'rechamada_d7', displayLabel: 'Rechamada' },
+      { campo: 'short_call',   displayLabel: 'Short Call' },
+      { campo: 'transfer',     displayLabel: 'Transferência' },
+      { campo: 'atendidas',    displayLabel: 'Atendidas' },
     ],
   },
   {
     key: 'comportamento',
     titulo: 'COMPORTAMENTO E PAUSAS',
     items: [
-      { campo: 'NR17 (%)',          displayLabel: 'NR17' },
-      { campo: 'Pessoal (%)',       displayLabel: 'Pessoal (%)' },
-      { campo: 'Outras Pausas (%)', displayLabel: 'Outras Pausas (%)' },
-      { campo: 'Pessoal',           displayLabel: 'Pessoal' },
-      { campo: 'Outras Pausas',     displayLabel: 'Outras Pausas' },
-      { campo: 'Engajamento',       displayLabel: 'Engajamento' },
-      { campo: 'Tx. Tabulação (%)', displayLabel: 'Tx. Tabulação' },
+      { campo: 'nr17',          displayLabel: 'NR17' },
+      { campo: 'pessoal',       displayLabel: 'Pessoal (%)' },
+      { campo: 'outras_pausas', displayLabel: 'Outras Pausas (%)' },
+      { campo: 'engajamento',   displayLabel: 'Engajamento' },
+      { campo: 'tx_tabulacao',  displayLabel: 'Tx. Tabulação' },
     ],
   },
   {
     key: 'presenca',
     titulo: 'PRESENÇA',
     items: [
-      { campo: 'Tempo Projetado', displayLabel: 'Tempo Projetado' },
-      { campo: 'Tempo de Login',  displayLabel: 'Tempo de Login' },
-      { campo: 'Logins Mês',      displayLabel: 'Logins Mês' },
+      { campo: 'tempo_projetado', displayLabel: 'Tempo Projetado' },
+      { campo: 'tempo_login',     displayLabel: 'Tempo de Login' },
     ],
   },
 ]

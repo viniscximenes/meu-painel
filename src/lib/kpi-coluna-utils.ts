@@ -1,0 +1,24 @@
+// Utilitários compartilhados para extração de colunas de KPI por letra de coluna.
+// Importado por: /painel/meu-kpi/page.tsx, kpi-consolidado-sheets.ts
+
+/** Converte letra(s) de coluna para índice 0-based. Ex: 'A'→0, 'Z'→25, 'AA'→26, 'AR'→43 */
+export function letraColunaParaIndice(letra: string): number {
+  return letra.toUpperCase().trim().split('').reduce((acc, c) => acc * 26 + (c.charCodeAt(0) - 64), 0) - 1
+}
+
+/**
+ * Lê o valor bruto de uma célula usando o mapeamento de colunas configurado pelo admin.
+ * Retorna null se: KPI não mapeado, índice fora do range, ou célula vazia.
+ */
+export function extrairValor(
+  row: string[],
+  mapeamento: Record<string, string>,
+  kpiKey: string,
+): string | null {
+  const letra = mapeamento[kpiKey]
+  if (!letra) return null
+  const idx = letraColunaParaIndice(letra)
+  if (idx < 0 || idx >= row.length) return null
+  const v = (row[idx] ?? '').trim()
+  return v || null
+}

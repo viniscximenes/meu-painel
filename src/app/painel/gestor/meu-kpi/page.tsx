@@ -1,5 +1,5 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
-import { getPlanilhaAtiva } from '@/lib/sheets'
+import { getPlanilhaAtiva, getPlanilhaPorTipo, resolverNomeAba } from '@/lib/sheets'
 import { lerKpiGestor } from '@/lib/kpi-gestor-sheets'
 import PainelShell from '@/components/PainelShell'
 import GestorMeuKPIClient from './GestorMeuKPIClient'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function GestorMeuKpiPage() {
   const profile  = await requireGestorOuAdmin()
-  const planilha = await getPlanilhaAtiva().catch(() => null)
+  const planilha = await getPlanilhaPorTipo('kpi_quartil').then(p => p ?? getPlanilhaAtiva()).catch(() => null)
 
   const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
 
@@ -31,7 +31,8 @@ export default async function GestorMeuKpiPage() {
   let erro: string | null = null
 
   try {
-    kpiData = await lerKpiGestor(planilha.spreadsheet_id)
+    const aba = await resolverNomeAba(planilha.spreadsheet_id, 'KPI GESTOR').catch(() => 'KPI GESTOR')
+    kpiData = await lerKpiGestor(planilha.spreadsheet_id, aba)
   } catch (e) {
     erro = e instanceof Error ? e.message : 'Erro desconhecido ao carregar planilha'
   }

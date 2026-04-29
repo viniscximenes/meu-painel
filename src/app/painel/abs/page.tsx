@@ -2,11 +2,13 @@ import { requireGestorAdminOuAux } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { getPlanilhaAtiva } from '@/lib/sheets'
 import { lerAbaABS } from '@/lib/abs-sheets'
-import type { ABSSheetData } from '@/lib/abs-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { AlertTriangle, CalendarDays } from 'lucide-react'
 import ABSClient from './ABSClient'
 import { inicializarABSAction } from './actions'
+import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
+
+const FF_SYNE = "'Syne', sans-serif"
 
 export default async function ABSPage() {
   const profile = await requireGestorAdminOuAux()
@@ -36,81 +38,62 @@ export default async function ABSPage() {
     username: op.username,
   }))
 
-  const cssVars = {
-    '--void2': '#07070f',
-    '--void3': '#0d0d1a',
-  } as React.CSSProperties
-
   return (
     <PainelShell profile={profile} title="Controle de ABS" iconName="CalendarDays">
-      <div style={cssVars} className="space-y-6">
-
-        {/* ── Linha dourada ── */}
-        <div style={{
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
-        }} />
+      <div className="space-y-6 regiao-cards-painel">
 
         {/* ── Header ── */}
-        <div style={{
-          background: 'var(--void2)',
-          border: '1px solid rgba(201,168,76,0.1)',
-          borderRadius: '14px',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontFamily: 'var(--ff-display)',
-              fontSize: '16px',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>
-              Controle de ABS
-            </span>
+        <PainelHeader
+          titulo="CONTROLE DE ABS"
+          mesLabel={mesAnoLabel}
+          dataReferencia={hojeStr}
+        />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div
-                className="animate-pulse"
-                style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }}
-              />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Hoje: <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{hojeStr}</strong>
-              </span>
-            </div>
-          </div>
-
-          {planilha && (
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-              {planilha.nome}
-            </span>
-          )}
-        </div>
+        {/* ── Linha dourada ── */}
+        <LinhaHorizontalDourada />
 
         {/* ── Sem planilha ── */}
         {!planilha && !erroSheets && (
-          <div className="text-center py-12" style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+          <div style={{
+            textAlign: 'center',
+            padding: '48px 0',
+            fontFamily: FF_SYNE,
+            fontSize: '14px',
+            fontWeight: 600,
+            color: '#474658',
+          }}>
             Nenhuma planilha ativa configurada.
           </div>
         )}
 
         {/* ── Erro ── */}
         {erroSheets && (
-          <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
-            style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
-            <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              background: 'rgba(227,57,57,0.06)',
+              border: '1px solid rgba(227,57,57,0.30)',
+              borderRadius: '10px',
+              padding: '14px 18px',
+            }}
+          >
+            <AlertTriangle size={16} style={{ color: 'rgba(227,57,57,0.95)', flexShrink: 0, marginTop: '1px' }} />
             <div>
-              <p className="text-sm font-medium text-rose-300">Erro ao carregar aba ABS</p>
-              <p className="text-xs mt-0.5 text-rose-500">{erroSheets}</p>
+              <p style={{
+                fontFamily: FF_SYNE, fontSize: '13px', fontWeight: 600,
+                color: 'rgba(227,57,57,0.95)', margin: 0,
+              }}>
+                Erro ao carregar aba ABS
+              </p>
+              <p style={{
+                fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600,
+                color: 'rgba(227,57,57,0.75)', margin: '4px 0 0',
+              }}>
+                {erroSheets}
+              </p>
             </div>
           </div>
         )}
@@ -118,23 +101,29 @@ export default async function ABSPage() {
         {/* ── Aba não inicializada ── */}
         {planilha && absData && !absData.initialized && (
           <div style={{
-            background: 'rgba(245,158,11,0.06)',
-            border: '1px solid rgba(245,158,11,0.2)',
-            borderRadius: '12px',
-            padding: '20px 24px',
+            background: 'rgba(255,185,34,0.06)',
+            border: '1px solid rgba(255,185,34,0.30)',
+            borderRadius: '10px',
+            padding: '18px 22px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '16px',
             flexWrap: 'wrap',
           }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-              <CalendarDays size={18} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <CalendarDays size={18} style={{ color: '#FFB922', flexShrink: 0, marginTop: 1 }} />
               <div>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: '#fbbf24' }}>
-                  Aba ABS não inicializada
+                <p style={{
+                  fontFamily: FF_SYNE, fontSize: '13px', fontWeight: 600,
+                  textTransform: 'uppercase', color: '#FFB922', margin: 0,
+                }}>
+                  ABA ABS NÃO INICIALIZADA
                 </p>
-                <p style={{ fontSize: '11px', color: 'rgba(251,191,36,0.7)', marginTop: '3px' }}>
+                <p style={{
+                  fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600,
+                  color: 'rgba(255,185,34,0.75)', margin: '4px 0 0',
+                }}>
                   Clique em "Inicializar mês" para criar a aba com todos os dias úteis de {mesAnoLabel}.
                 </p>
               </div>
@@ -146,13 +135,16 @@ export default async function ABSPage() {
               <button
                 type="submit"
                 style={{
-                  padding: '8px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(245,158,11,0.4)',
-                  background: 'rgba(245,158,11,0.12)',
-                  color: '#fbbf24',
-                  fontSize: '12px',
+                  fontFamily: FF_SYNE,
+                  fontSize: '11px',
                   fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: '#FFB922',
+                  background: 'rgba(255,185,34,0.10)',
+                  border: '1px solid rgba(255,185,34,0.50)',
+                  borderRadius: '8px',
+                  padding: '8px 18px',
                   cursor: 'pointer',
                 }}
               >

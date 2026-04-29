@@ -1,15 +1,19 @@
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getMetas, computarKPIs } from '@/lib/kpi'
-import { normalizarChave } from '@/lib/kpi-utils'
 import {
   getPlanilhaAtiva,
+  getPlanilhaPorTipo,
   buscarLinhasPlanilha,
   encontrarColunaIdent,
   matchCelulaOperador,
+  resolverNomeAba,
   formatarDataCurta,
   extrairDataAtualizacao,
+  getMapeamentoKpiColunas,
 } from '@/lib/sheets'
+import { KPIS_PRINCIPAIS, KPIS_SECUNDARIOS } from '@/lib/kpis-config'
+import { letraColunaParaIndice } from '@/lib/kpi-coluna-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { getAppConfig } from '@/lib/app-config'
 import PainelShell from '@/components/PainelShell'
@@ -18,26 +22,20 @@ import VisaoRapidaToggle from '@/components/VisaoRapidaToggle'
 import { AlertTriangle, Settings } from 'lucide-react'
 import Link from 'next/link'
 
-const COLUNAS_COMPLEMENTARES = [
-  '% Variação Ticket','Retidos Brutos','Retidos Líquidos 15d',
-  'Tx. Retenção Líquida 15d (%)','Atendidas','Transfer (%)','Short Call (%)',
-  'Rechamada D+7 (%)','Tx. Tabulação (%)','CSAT','Engajamento',
-  'Tempo Projetado','Tempo de Login','Logins Mês','NR17 (%)','Pessoal','Pessoal (%)',
-  'Outras Pausas','Outras Pausas (%)',
-]
-
 export const dynamic = 'force-dynamic'
 
 export default async function MeuKPIPage() {
   const profile = await getProfile()
   if (profile.role === 'gestor') redirect('/painel')
 
-  const [planilha, metas, limiteRaw] = await Promise.all([
-    getPlanilhaAtiva().catch(() => null),
+  const [planilha, metas, limiteRaw, mapeamento] = await Promise.all([
+    getPlanilhaPorTipo('kpi_quartil').then(p => p ?? getPlanilhaAtiva()).catch(() => null),
     getMetas().catch(() => []),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
+    getMapeamentoKpiColunas().catch(() => ({} as Record<string, string>)),
   ])
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
+
 
   const agora = new Date()
   const mesLabel = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
@@ -66,7 +64,8 @@ export default async function MeuKPIPage() {
   let erroSheets: string | null = null
 
   try {
-    const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba, limiteLinhas)
+    const abaResolvida = await resolverNomeAba(planilha.spreadsheet_id, 'KPI CONSOLIDADO').catch(() => planilha.aba)
+    const { headers, rows } = await buscarLinhasPlanilha(planilha.spreadsheet_id, abaResolvida, limiteLinhas)
     if (!headers.length) throw new Error('Falha ao carregar dados da planilha. Verifique a conexão com o Google Sheets ou tente novamente.')
     const col = encontrarColunaIdent(headers)
     const dataAtualizacao = extrairDataAtualizacao(rows)
@@ -91,14 +90,25 @@ export default async function MeuKPIPage() {
     }
 
     const kpis = computarKPIs(headers, meuRow, metas)
-    const basicos = metas.filter(m => m.basico).sort((a, b) => a.ordem - b.ordem)
 
-    // Ranking por Tx. Retenção
-    const txRetHeader = headers.find(h => {
-      const n = normalizarChave(h)
-      return (n.includes('retenc') || n.includes('retenç')) && !n.includes('15d') && !n.includes('liquid')
-    }) ?? ''
-    const txRetIdx = txRetHeader ? headers.indexOf(txRetHeader) : -1
+    // 6 KPIs principais — sempre presentes, valor vem do mapeamento de colunas
+    const kpisPrincipais = KPIS_PRINCIPAIS.map(kpiDef => {
+      const letra = mapeamento[kpiDef.key]
+      const placeholder = {
+        nome_coluna: kpiDef.key, label: kpiDef.label, valor: '—', valorNum: 0,
+        unidade: '', status: 'neutro' as const, progresso: 0, basico: true, indice: -1,
+      }
+      if (!letra) return placeholder
+      const idx = letraColunaParaIndice(letra)
+      if (idx < 0 || idx >= headers.length) return placeholder
+      const existingKpi = kpis.find(k => k.indice === idx)
+      if (existingKpi) return { ...existingKpi, basico: true, label: kpiDef.label }
+      return { ...placeholder, indice: idx }
+    })
+
+    // Ranking por Tx. Retenção — via mapeamento de coluna
+    const txRetLetra = mapeamento['tx_ret_bruta']
+    const txRetIdx = txRetLetra ? letraColunaParaIndice(txRetLetra) : -1
 
     const parseNum = (v: string) => parseFloat(v.replace('%','').replace(',','.').trim() || '0') || 0
 
@@ -124,18 +134,21 @@ export default async function MeuKPIPage() {
       ? { posicao: myIdx + 2, txRet: todosComTxRet[myIdx + 1].txRet }
       : undefined
 
-    // Dados complementares
-    const complementares = COLUNAS_COMPLEMENTARES
-      .map(nome => {
-        const key = normalizarChave(nome)
-        const idx = headers.findIndex(h => normalizarChave(h) === key)
-        return { label: nome, valor: idx >= 0 ? (meuRow[idx] ?? '—') : '—' }
+    // Dados complementares — 14 KPIs secundários via mapeamento de colunas
+    const complementares = KPIS_SECUNDARIOS
+      .map(kpiDef => {
+        const letra = mapeamento[kpiDef.key]
+        if (!letra) return null
+        const idx = letraColunaParaIndice(letra)
+        if (idx < 0 || idx >= meuRow.length) return null
+        const val = (meuRow[idx] ?? '').trim()
+        if (!val || val === '—') return null
+        return { label: kpiDef.key, valor: val }
       })
-      .filter(d => d.valor !== '—' && d.valor !== '')
+      .filter(Boolean) as { label: string; valor: string }[]
 
     dadosProps = {
-      kpis,
-      basicos,
+      kpis: kpisPrincipais,
       complementares,
       posicaoRanking,
       meuTxRet,

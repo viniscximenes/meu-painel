@@ -7,6 +7,7 @@
     "dev:clean": "npx kill-port 3000 3001 3002 3003 3004 3005 3006 3007 3008 3009 3010 && rm -rf .next && next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest run",
     "lint": "next lint",
     "criar-usuarios": "node scripts/criar-usuarios.mjs",
     "dev:restart": "powershell -ExecutionPolicy Bypass -File kill-and-dev.ps1"
@@ -32,6 +33,7 @@
     "eslint-config-next": "^15.2.3",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.5"
   }
 }

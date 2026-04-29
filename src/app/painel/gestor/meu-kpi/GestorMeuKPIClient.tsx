@@ -78,56 +78,59 @@ function computarKPICards(data: KpiGestorData): KPICard[] {
   const abs    = data.absPct
   const indisp = data.indispPct
 
-  const churnStatus:  Status = data.churn <= META_CHURN ? 'verde' : 'vermelho'
-  const txRetStatus:  Status = txRet >= META_TX_RET_VERDE_PCT ? 'verde'
+  const churnStatus:  Status = data.churn === null ? 'neutro'
+    : data.churn <= META_CHURN ? 'verde' : 'vermelho'
+  const txRetStatus:  Status = txRet === null ? 'neutro'
+    : txRet >= META_TX_RET_VERDE_PCT ? 'verde'
     : txRet >= META_TX_RET_AMARELO_PCT ? 'amarelo' : 'vermelho'
-  const tmaStatus:    Status = tma > 0 && tma <= META_TMA_SEG ? 'verde'
+  const tmaStatus:    Status = tma === null ? 'neutro'
+    : tma > 0 && tma <= META_TMA_SEG ? 'verde'
     : tma > META_TMA_SEG ? 'vermelho' : 'neutro'
-  const absStatus:    Status = abs <= META_ABS_PCT ? 'verde' : 'vermelho'
-  const indispStatus: Status = indisp <= META_INDISP_PCT ? 'verde' : 'vermelho'
+  const absStatus:    Status = abs === null ? 'neutro' : abs <= META_ABS_PCT ? 'verde' : 'vermelho'
+  const indispStatus: Status = indisp === null ? 'neutro' : indisp <= META_INDISP_PCT ? 'verde' : 'vermelho'
 
   return [
     {
       label:  'Pedidos',
       icon:   <Package size={40} strokeWidth={1.25} />,
-      valor:  formatNum(data.pedidos),
+      valor:  data.pedidos !== null ? formatNum(data.pedidos) : null,
       status: 'neutro',
       meta:   null,
     },
     {
       label:  'Churn',
       icon:   <Flame size={40} strokeWidth={1.25} />,
-      valor:  formatNum(data.churn),
+      valor:  data.churn !== null ? formatNum(data.churn) : null,
       status: churnStatus,
-      meta:   `META: ≤${formatNum(META_CHURN)}`,
+      meta:   data.churn !== null ? `META: ≤${formatNum(META_CHURN)}` : null,
     },
     {
       label:  'Tx. Retenção',
       icon:   <Shield size={40} strokeWidth={1.25} />,
-      valor:  formatPct(txRet),
+      valor:  txRet !== null ? formatPct(txRet) : null,
       status: txRetStatus,
-      meta:   `META: ≥${META_TX_RET_VERDE_PCT}%`,
+      meta:   txRet !== null ? `META: ≥${META_TX_RET_VERDE_PCT}%` : null,
     },
     {
       label:  'TMA',
       icon:   <Clock size={40} strokeWidth={1.25} />,
-      valor:  tma > 0 ? formatHHMMSS(tma) : null,
+      valor:  tma !== null && tma > 0 ? formatHHMMSS(tma) : null,
       status: tmaStatus,
-      meta:   'META: ≤12:11',
+      meta:   tma !== null ? 'META: ≤12:11' : null,
     },
     {
       label:  'ABS',
       icon:   <CalendarX size={40} strokeWidth={1.25} />,
-      valor:  formatPct(abs),
+      valor:  abs !== null ? formatPct(abs) : null,
       status: absStatus,
-      meta:   `META: ≤${META_ABS_PCT}%`,
+      meta:   abs !== null ? `META: ≤${META_ABS_PCT}%` : null,
     },
     {
       label:  'Indisponibilidade',
       icon:   <Activity size={40} strokeWidth={1.25} />,
-      valor:  formatPct(indisp),
+      valor:  indisp !== null ? formatPct(indisp) : null,
       status: indispStatus,
-      meta:   `META: ≤${META_INDISP_PCT.toFixed(1).replace('.', ',')}%`,
+      meta:   indisp !== null ? `META: ≤${META_INDISP_PCT.toFixed(1).replace('.', ',')}%` : null,
     },
   ]
 }
@@ -190,8 +193,9 @@ function MeuKpiSectionTitle({ children }: { children: ReactNode }) {
 
 // ── KPI Card ───────────────────────────────────────────────────────────────────
 function MeuKpiCard({ card, delay }: { card: KPICard; delay: number }) {
-  const titleColor = TITLE_COLOR[card.status]
-  const valColor   = VALUE_COLOR[card.status]
+  const hasValue   = card.valor !== null
+  const titleColor = hasValue ? TITLE_COLOR[card.status] : '#474658'
+  const valColor   = hasValue ? VALUE_COLOR[card.status] : '#474658'
   const label      = card.label === 'Indisponibilidade' ? 'Indisp.' : card.label
 
   return (
@@ -230,14 +234,21 @@ function MeuKpiCard({ card, delay }: { card: KPICard; delay: number }) {
           </span>
         </div>
 
-        <div style={{
-          fontFamily: FF_DM,
-          fontSize: '64px', fontWeight: 900, lineHeight: 1,
-          color: card.valor ? valColor : '#374151',
-          fontVariantNumeric: 'tabular-nums',
-          letterSpacing: '-0.02em',
-        }}>
-          {card.valor ?? '—'}
+        <div>
+          <div style={{
+            fontFamily: FF_DM,
+            fontSize: '64px', fontWeight: 900, lineHeight: 1,
+            color: valColor,
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '-0.02em',
+          }}>
+            {card.valor ?? '—'}
+          </div>
+          {!hasValue && (
+            <span style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, color: '#474658', marginTop: '4px', display: 'block' }}>
+              Sem dados
+            </span>
+          )}
         </div>
       </div>
 
@@ -260,26 +271,34 @@ function MeuKpiCard({ card, delay }: { card: KPICard; delay: number }) {
         gap: '10px',
         paddingTop: '8px',
       }}>
-        <MeuKpiBadge status={card.status} />
-        {card.meta && (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'baseline',
-            gap: '4px',
-            color: '#72708f',
-            lineHeight: 1.2,
-          }}>
-            <span style={{ fontFamily: FF_SYNE, fontSize: '20px', fontWeight: 600 }}>
-              META:
-            </span>
-            <span style={{
-              fontFamily: FF_DM,
-              fontSize: '20px', fontWeight: 500,
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              {card.meta.replace('META: ', '')}
-            </span>
-          </div>
+        {hasValue ? (
+          <>
+            <MeuKpiBadge status={card.status} />
+            {card.meta && (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'baseline',
+                gap: '4px',
+                color: '#72708f',
+                lineHeight: 1.2,
+              }}>
+                <span style={{ fontFamily: FF_SYNE, fontSize: '20px', fontWeight: 600 }}>
+                  META:
+                </span>
+                <span style={{
+                  fontFamily: FF_DM,
+                  fontSize: '20px', fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {card.meta.replace('META: ', '')}
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <span style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, color: '#474658' }}>
+            Sem mapeamento
+          </span>
         )}
       </div>
 

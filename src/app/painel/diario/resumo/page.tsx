@@ -6,6 +6,7 @@ import { BookOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import OperadorResumoCard from './OperadorResumoCard'
 import type { TipoRegistro } from '@/lib/diario-utils'
+import { calcularDeficitForaJornada } from '@/lib/diario-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,21 +16,12 @@ export default async function DiarioResumoPage() {
   const profile = await requireGestor()
   const { registros: todos } = await buscarDiarioAtivo()
 
-  // >= 240min → salvo como tempo logado bruto → déficit = 380 − valor
-  // <  240min → já salvo como déficit → usar diretamente
-  const LIMIAR_BRUTO_MIN = 240
-  const JORNADA_MIN      = 380
-
   const operadoresComRegistros = OPERADORES_DISPLAY.map((op) => {
     const regs      = filtrarPorOperador(todos, op.username, op.nome)
     const minPausas = totalPausasJustificadas(regs)
     const minFora   = regs
       .filter((r) => r.tipo === 'Fora da jornada')
-      .reduce((s, r) => {
-        const min = r.tempoMin
-        if (min <= 0 || min >= JORNADA_MIN) return s
-        return s + (min >= LIMIAR_BRUTO_MIN ? JORNADA_MIN - min : min)
-      }, 0)
+      .reduce((s, r) => s + Math.floor(calcularDeficitForaJornada(r.tempo).deficitSeg / 60), 0)
     const tipoCounts = Object.fromEntries(
       TIPOS.map((t) => [t, regs.filter((r) => r.tipo === t).length])
     ) as Record<TipoRegistro, number>
@@ -37,7 +29,7 @@ export default async function DiarioResumoPage() {
   }).filter((item) => item.total > 0)
 
   return (
-    <PainelShell profile={profile} title="Diário por Operador">
+    <PainelShell profile={profile} title="Diário por Operador" iconName="BookOpen">
       <div className="space-y-6 max-w-2xl">
 
         {/* Header */}

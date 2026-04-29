@@ -1,3 +1,13 @@
+/* ── PRINCÍPIO: FONTE DE VERDADE DA PLANILHA ──────────────────────────────────
+ *
+ * Este módulo NUNCA recalcula absPct ou indispPct a partir de tempos brutos.
+ * Recebe os valores já prontos de OperadorContestacao (que aplica o princípio
+ * de fonte de verdade em contestacao-utils.ts) e apenas os mapeia para PdfData.
+ *
+ * Se precisar alterar como esses percentuais são calculados, editar somente
+ * calcularContestacao() em contestacao-utils.ts. Ver comentário de princípio lá.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
 import type { OperadorContestacao } from '@/lib/contestacao-utils'
 import { fmtPct, formatMinutos } from '@/lib/contestacao-utils'
 

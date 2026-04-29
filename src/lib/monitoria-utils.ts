@@ -57,9 +57,9 @@ export const SINALIZACOES = [
 export const NOTAS = ['Muito Ruim', 'Ruim', 'Neutro', 'Bom', 'Muito Bom'] as const
 
 export const STATUS_INFO: Record<StatusMonitoria, { color: string; bg: string; border: string; label: string }> = {
-  verde:    { color: '#4ade80', bg: 'rgba(34,197,94,0.10)',  border: 'rgba(34,197,94,0.25)',  label: 'Enviado'     },
-  amarelo:  { color: '#facc15', bg: 'rgba(234,179,8,0.10)',  border: 'rgba(234,179,8,0.25)',  label: 'Pendente'    },
-  vermelho: { color: '#f87171', bg: 'rgba(239,68,68,0.10)',  border: 'rgba(239,68,68,0.25)',  label: 'Incompleto'  },
+  verde:    { color: 'rgba(106,196,73,0.95)', bg: 'rgba(106,196,73,0.10)', border: 'rgba(106,196,73,0.30)', label: 'Enviado'    },
+  amarelo:  { color: '#FFB922',               bg: 'rgba(255,185,34,0.10)', border: 'rgba(255,185,34,0.30)', label: 'Pendente'   },
+  vermelho: { color: 'rgba(227,57,57,0.95)',  bg: 'rgba(227,57,57,0.10)', border: 'rgba(227,57,57,0.40)', label: 'Incompleto' },
 }
 
 /** Calcula status de uma monitoria pelos seus dados. */

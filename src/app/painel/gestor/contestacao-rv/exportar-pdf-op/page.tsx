@@ -16,20 +16,15 @@ export default async function ExportarPdfPage() {
   const profile  = await requireGestorOuAdmin()
   const planilha = await getPlanilhaAtiva().catch(() => null)
 
-  const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
-
   if (!planilha) {
     return (
-      <PainelShell profile={profile} title="Exportar PDF" iconName="FileText">
-        <div style={cssVars} className="p-6 space-y-4">
-          <GoldLine />
-          <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
-            <strong>Planilha não configurada</strong>
-            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-              A supervisão ainda não ativou nenhuma planilha.
-            </span>
-          </EmptyState>
-        </div>
+      <PainelShell profile={profile} title={<><span style={{ color: '#FFFFFF' }}>EXPORTAR PDF</span><span style={{ color: 'rgba(123, 163, 217, 0.5)', margin: '0 10px' }}>|</span><span style={{ color: '#FFFFFF' }}>OPERADOR</span></>} iconName="FileText">
+        <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
+          <strong>Planilha não configurada</strong>
+          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+            A supervisão ainda não ativou nenhuma planilha.
+          </span>
+        </EmptyState>
       </PainelShell>
     )
   }
@@ -87,51 +82,36 @@ export default async function ExportarPdfPage() {
       }
       const contestacao = calcularContestacao(kpiRow, registrosMes)
       contestacao.operadorEmail = profileMap.get(op.id) ?? ''
-      // cargo e supervisor não existem no schema ainda — deixar vazio
       return contestacao
     })
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido'
   }
 
-  // Apenas operadores com ao menos um registro relevante no mês
   const comRegistros = operadores.filter(op => op.registros.length > 0)
 
   return (
-    <PainelShell profile={profile} title="Exportar PDF" iconName="FileText">
-      <div style={cssVars} className="p-6 space-y-4">
-        <GoldLine />
-
-        {erroSheets && (
-          <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
-            style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
-            <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-rose-300">Erro ao carregar dados</p>
-              <p className="text-xs mt-0.5 text-rose-500">{erroSheets}</p>
-            </div>
+    <PainelShell profile={profile} title={<><span style={{ color: '#FFFFFF' }}>EXPORTAR PDF</span><span style={{ color: 'rgba(123, 163, 217, 0.5)', margin: '0 10px' }}>|</span><span style={{ color: '#FFFFFF' }}>OPERADOR</span></>} iconName="FileText">
+      {erroSheets && (
+        <div className="flex items-start gap-3 rounded-xl border px-4 py-3 mb-4"
+          style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
+          <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-rose-300">Erro ao carregar dados</p>
+            <p className="text-xs mt-0.5 text-rose-500">{erroSheets}</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {!erroSheets && (
-          <ExportarPdfClient
-            operadores={comRegistros}
-            todosOperadores={operadores}
-            mesLabel={mesLabel}
-            dataAtualizacao={dataAtualizacao}
-          />
-        )}
-      </div>
+      {!erroSheets && (
+        <ExportarPdfClient
+          operadores={comRegistros}
+          todosOperadores={operadores}
+          mesLabel={mesLabel}
+          dataAtualizacao={dataAtualizacao}
+        />
+      )}
     </PainelShell>
-  )
-}
-
-function GoldLine() {
-  return (
-    <div style={{
-      height: '1px',
-      background: 'linear-gradient(90deg, transparent 0%, #c9a84c 25%, #e8c96d 50%, #c9a84c 75%, transparent 100%)',
-    }} />
   )
 }
 

@@ -47,6 +47,9 @@ export default function ConfirmDeleteModal({ registro, onFechar, onApagado, onEr
       onClick={(e) => { if (e.target === e.currentTarget && !pending) onFechar() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-delete-title"
         className="animate-fadeInScale w-full max-w-md rounded-2xl overflow-hidden flex flex-col glass-premium"
         style={{ border: '1px solid rgba(201,168,76,0.25)' }}
       >
@@ -60,7 +63,7 @@ export default function ConfirmDeleteModal({ registro, onFechar, onApagado, onEr
               <Trash2 size={15} />
             </div>
             <div>
-              <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Apagar Registro</h3>
+              <h3 id="confirm-delete-title" className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Apagar Registro</h3>
               <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Esta ação não pode ser desfeita</p>
             </div>
           </div>

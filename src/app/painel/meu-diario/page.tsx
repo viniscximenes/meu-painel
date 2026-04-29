@@ -9,6 +9,7 @@ import {
   formatTempo,
   TIPOS_REGISTRO,
 } from '@/lib/diario'
+import { calcularDeficitForaJornada } from '@/lib/diario-utils'
 import PainelShell from '@/components/PainelShell'
 import MeuDiarioClient from './MeuDiarioClient'
 import type { MeuDiarioProps, RegistroExibir } from './MeuDiarioClient'
@@ -52,13 +53,9 @@ export default async function MeuDiarioPage() {
     // Estatísticas
     const totalPausasMin = totalPausasJustificadas(doMes)
 
-    // "Fora da jornada": valor ≥ 240min → salvo como tempo logado bruto → déficit = 380 − valor
-    //                    valor < 240min → já salvo como déficit → usar diretamente
-    const LIMIAR_BRUTO_MIN = 240
-    const JORNADA_MIN      = 380
     const totalForaJornadaMin = doMes
-      .filter(r => r.tipo === 'Fora da jornada' && r.tempoMin > 0 && r.tempoMin < JORNADA_MIN)
-      .reduce((acc, r) => acc + (r.tempoMin >= LIMIAR_BRUTO_MIN ? JORNADA_MIN - r.tempoMin : r.tempoMin), 0)
+      .filter(r => r.tipo === 'Fora da jornada')
+      .reduce((acc, r) => acc + Math.floor(calcularDeficitForaJornada(r.tempo).deficitSeg / 60), 0)
 
     const totalComGlpi = contarComGLPI(doMes)
 

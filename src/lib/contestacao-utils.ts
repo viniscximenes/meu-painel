@@ -1,3 +1,20 @@
+/* ── PRINCÍPIO: FONTE DE VERDADE DA PLANILHA ──────────────────────────────────
+ *
+ * operador.absPct e operador.indispPct (vindos do KPI CONSOLIDADO) são os valores
+ * canônicos. Qualquer reconstrução desses percentuais a partir de
+ * parseTempoSeg(tempoProjetado) / parseTempoSeg(tempoLogin) só é legítima quando
+ * o insumo de tempo mudou — ex: deficitMin > 0 adiciona tempo efetivo ao login.
+ *
+ * Quando deficitMin === 0: o ABS não mudou → retornar operador.absPct diretamente.
+ * Quando pausasMin === 0: a Indisp não mudou → retornar operador.indispPct diretamente.
+ *
+ * NUNCA usar a reconstrução como fonte de verdade quando os tempos não mudaram:
+ * a planilha pode usar fórmula, arredondamento ou precisão diferentes do parser,
+ * gerando drift silencioso (ex: planilha = 0,30 %; reconstruído = 0,34 %).
+ *
+ * Referência em commits/PRs futuros: "Fonte de verdade da planilha".
+ * ─────────────────────────────────────────────────────────────────────────── */
+
 // Pure utilities for Contestação RV calculations.
 // No Node.js imports — safe to use in both Server and Client Components.
 
@@ -6,29 +23,9 @@ import {
   filtrarPorOperador,
   totalPausasJustificadas,
   parseTempoSeg,
-  LIMIAR_BRUTO_MIN,
+  calcularDeficitForaJornada,
 } from '@/lib/diario-utils'
 import type { OperadorKpiRow } from '@/lib/kpi-consolidado-sheets'
-
-// TODO: mover pra config quando jornadas individuais forem suportadas
-const JORNADA_PADRAO_MIN = 380 // 06:20:00
-
-/**
- * Retorna o DÉFICIT em minutos para um registro "Fora da jornada".
- *
- * Dois casos:
- * - tempoMin >= LIMIAR_BRUTO_MIN (240) → registro antigo: armazena o tempo FEITO.
- *   Déficit = JORNADA_PADRAO - tempoFeito.
- * - tempoMin < LIMIAR_BRUTO_MIN → registro novo (via escreverRegistro): já armazena o déficit.
- *   Déficit = tempoMin diretamente.
- */
-function computeDeficitMin(r: DiarioRegistro): number {
-  if (r.tipo !== 'Fora da jornada') return 0
-  if (r.tempoMin >= LIMIAR_BRUTO_MIN) {
-    return Math.max(0, JORNADA_PADRAO_MIN - r.tempoMin)
-  }
-  return r.tempoMin
-}
 
 export interface RegistroRelevante {
   tipo: 'Pausa justificada' | 'Fora da jornada'
@@ -99,10 +96,10 @@ export function calcularContestacao(
   const relevantes: RegistroRelevante[] = registrosBrutos
     .filter(r => r.tipo === 'Pausa justificada' || r.tipo === 'Fora da jornada')
     .map(r => {
-      const isBruto = r.tipo === 'Fora da jornada' && r.tempoMin >= LIMIAR_BRUTO_MIN
       const deficitMin = r.tipo === 'Fora da jornada'
-        ? computeDeficitMin(r)
+        ? Math.floor(calcularDeficitForaJornada(r.tempo).deficitSeg / 60)
         : r.tempoMin  // Pausa justificada: tempo da pausa = impacto direto
+      const isBruto = r.tipo === 'Fora da jornada'
       return {
         tipo:       r.tipo as 'Pausa justificada' | 'Fora da jornada',
         observacoes: r.observacoes,
@@ -129,22 +126,33 @@ export function calcularContestacao(
   const pausasSeg  = pausasMin  * 60
   const deficitSeg = deficitMin * 60
 
-  // ABS contestado: déficit justificado adiciona tempo ao login efetivo
+  // ABS contestado: déficit justificado adiciona tempo ao login efetivo.
+  // Quando não há déficit, usa o valor original da planilha para evitar
+  // divergência de precisão entre o KPI consolidado e o parseTempoSeg().
   let absPctContestado: number | null = null
   if (operador.absPct !== null && tempoProjetadoSeg > 0 && tempoLoginSeg > 0) {
-    const loginContestadoSeg = Math.min(tempoLoginSeg + deficitSeg, tempoProjetadoSeg)
-    absPctContestado = Math.max(
-      0,
-      (tempoProjetadoSeg - loginContestadoSeg) / tempoProjetadoSeg * 100,
-    )
+    if (deficitMin === 0) {
+      absPctContestado = operador.absPct
+    } else {
+      const loginContestadoSeg = Math.min(tempoLoginSeg + deficitSeg, tempoProjetadoSeg)
+      absPctContestado = Math.max(
+        0,
+        (tempoProjetadoSeg - loginContestadoSeg) / tempoProjetadoSeg * 100,
+      )
+    }
   }
 
-  // Indisp contestada: pausas justificadas removidas do tempo em indisponibilidade
+  // Indisp contestada: pausas justificadas removidas do tempo em indisponibilidade.
+  // Quando não há pausas, usa o valor original da planilha pelo mesmo motivo.
   let indispPctContestada: number | null = null
   if (operador.indispPct !== null && tempoLoginSeg > 0) {
-    const indispOrigSeg = operador.indispPct / 100 * tempoLoginSeg
-    const indispContSeg = Math.max(0, indispOrigSeg - pausasSeg)
-    indispPctContestada = indispContSeg / tempoLoginSeg * 100
+    if (pausasMin === 0) {
+      indispPctContestada = operador.indispPct
+    } else {
+      const indispOrigSeg = operador.indispPct / 100 * tempoLoginSeg
+      const indispContSeg = Math.max(0, indispOrigSeg - pausasSeg)
+      indispPctContestada = indispContSeg / tempoLoginSeg * 100
+    }
   }
 
   const absDelta    = absPctContestado !== null && operador.absPct !== null

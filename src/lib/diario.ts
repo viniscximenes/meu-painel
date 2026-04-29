@@ -3,7 +3,7 @@
 // Utilitários puros estão em @/lib/diario-utils — importe daí nos Client Components.
 
 import { google } from 'googleapis'
-import { getPlanilhaAtiva } from '@/lib/sheets'
+import { getPlanilhaAtiva, resolverNomeAba } from '@/lib/sheets'
 
 // Re-exporta tudo que é seguro usar no servidor também
 export * from '@/lib/diario-utils'
@@ -13,8 +13,7 @@ import { TIPOS_REGISTRO, parseTempo } from '@/lib/diario-utils'
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
-const ABA_DIARIO        = 'DIARIO DE BORDO'
-const JORNADA_PADRAO_MIN = 380 // 06:20:00
+const ABA_DIARIO = 'DIARIO DE BORDO'
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -98,10 +97,11 @@ function rowToRegistro(row: string[], sheetRowIndex: number): DiarioRegistro {
  */
 export async function buscarDiario(spreadsheetId: string): Promise<DiarioRegistro[]> {
   try {
+    const aba = await resolverNomeAba(spreadsheetId, ABA_DIARIO)
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `${ABA_DIARIO}!A:H`,
+        range: `'${aba}'!A:H`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
@@ -150,18 +150,7 @@ export async function escreverRegistro(
   dados: NovoRegistroInput,
   criadoPor: string,
 ): Promise<void> {
-  // Para "Tempo logado": salvar apenas o déficit (jornada padrão − logado)
-  let tempoParaSalvar = dados.tempo
-  if (dados.tipo === 'Fora da jornada' && dados.tempo.trim()) {
-    const logadoMin = parseTempo(dados.tempo)
-    if (logadoMin > 0) {
-      const defMin = Math.max(0, JORNADA_PADRAO_MIN - logadoMin)
-      const h = Math.floor(defMin / 60)
-      const m = defMin % 60
-      tempoParaSalvar = `${h}:${String(m).padStart(2, '0')}`
-    }
-  }
-
+  const aba = await resolverNomeAba(spreadsheetId, ABA_DIARIO)
   const now = new Date()
   const criadoEm = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
 
@@ -170,7 +159,7 @@ export async function escreverRegistro(
     dados.tipo,
     dados.observacoes,
     dados.glpi,
-    tempoParaSalvar,
+    dados.tempo,
     dados.data,
     criadoPor,
     criadoEm,
@@ -178,7 +167,7 @@ export async function escreverRegistro(
   await withTimeout(
     sheetsAPI().spreadsheets.values.append({
       spreadsheetId,
-      range: `${ABA_DIARIO}!A:H`,
+      range: `'${aba}'!A:H`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [row] },
     })
@@ -194,30 +183,20 @@ export async function editarRegistro(
   sheetRowIndex: number,
   dados: EditarRegistroInput,
 ): Promise<void> {
-  let tempoParaSalvar = dados.tempo
-  if (dados.tipo === 'Fora da jornada' && dados.tempo.trim()) {
-    const logadoMin = parseTempo(dados.tempo)
-    if (logadoMin > 0) {
-      const defMin = Math.max(0, JORNADA_PADRAO_MIN - logadoMin)
-      const h = Math.floor(defMin / 60)
-      const m = defMin % 60
-      tempoParaSalvar = `${h}:${String(m).padStart(2, '0')}`
-    }
-  }
-
+  const aba = await resolverNomeAba(spreadsheetId, ABA_DIARIO)
   const sheetRow = sheetRowIndex + 1 // A1 notation: 1-based
   const row = [
     dados.colaborador,
     dados.tipo,
     dados.observacoes,
     dados.glpi,
-    tempoParaSalvar,
+    dados.tempo,
     dados.data,
   ]
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
-      range: `${ABA_DIARIO}!A${sheetRow}:F${sheetRow}`,
+      range: `'${aba}'!A${sheetRow}:F${sheetRow}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [row] },
     })
@@ -226,11 +205,12 @@ export async function editarRegistro(
 
 // ── Deleção na planilha ───────────────────────────────────────────────────────
 
-/** Retorna o sheetId numérico de uma aba pelo título. */
+/** Retorna o sheetId numérico de uma aba pelo título exato. */
 async function getAbaSheetId(spreadsheetId: string, abaTitle: string): Promise<number> {
   const res = await withTimeout(sheetsAPI().spreadsheets.get({ spreadsheetId }))
   const sheet = res.data.sheets?.find((s) => s.properties?.title === abaTitle)
-  return sheet?.properties?.sheetId ?? 0
+  if (!sheet?.properties?.sheetId) throw new Error(`Aba "${abaTitle}" não encontrada para deleção`)
+  return sheet.properties.sheetId
 }
 
 /**
@@ -239,7 +219,8 @@ async function getAbaSheetId(spreadsheetId: string, abaTitle: string): Promise<n
  * Usa batchUpdate → DeleteDimensionRequest para deleção exata.
  */
 export async function deletarRegistro(spreadsheetId: string, sheetRowIndex: number): Promise<void> {
-  const sheetId = await getAbaSheetId(spreadsheetId, ABA_DIARIO)
+  const aba = await resolverNomeAba(spreadsheetId, ABA_DIARIO)
+  const sheetId = await getAbaSheetId(spreadsheetId, aba)
   await withTimeout(
     sheetsAPI().spreadsheets.batchUpdate({
       spreadsheetId,

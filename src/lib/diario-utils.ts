@@ -44,7 +44,22 @@ export interface EditarRegistroInput {
 // ── Utilitários de tempo ──────────────────────────────────────────────────────
 
 export const JORNADA_OBRIGATORIA_SEGUNDOS = 22800 // 06:20:00
-export const LIMIAR_BRUTO_MIN = 240               // ≥240min = tempo logado bruto; <240 = déficit salvo
+
+/**
+ * Calcula o déficit de jornada a partir do tempo logado bruto.
+ * Contrato único: `tempoLogado` é sempre o tempo que o operador ficou logado (HH:MM:SS).
+ * Déficit = JORNADA_OBRIGATORIA_SEGUNDOS − tempoLogado. Se >= jornada, déficit = 0.
+ */
+export function calcularDeficitForaJornada(tempoLogado: string): {
+  tempoLogadoSeg: number
+  deficitSeg:     number
+  deficitFormatado: string | null
+} {
+  const tempoLogadoSeg = parseTempoSeg(tempoLogado || '00:00:00')
+  const deficitSeg     = Math.max(0, JORNADA_OBRIGATORIA_SEGUNDOS - tempoLogadoSeg)
+  const deficitFormatado = deficitSeg > 0 ? formatHHMMSS(deficitSeg) : null
+  return { tempoLogadoSeg, deficitSeg, deficitFormatado }
+}
 
 /** Parse de tempo com precisão de segundos. Aceita HH:MM:SS, H:MM, MM. */
 export function parseTempoSeg(raw: string): number {

@@ -3,7 +3,7 @@
 // Utilitários puros estão em @/lib/monitoria-utils — importe daí nos Client Components.
 
 import { google } from 'googleapis'
-import { getPlanilhaAtiva } from '@/lib/sheets'
+import { getPlanilhaAtiva, resolverNomeAba } from '@/lib/sheets'
 
 export * from '@/lib/monitoria-utils'
 
@@ -99,10 +99,11 @@ function inputToRow(dados: NovaMonitoriaInput): string[] {
 
 export async function buscarMonitorias(spreadsheetId: string): Promise<Monitoria[]> {
   try {
+    const aba = await resolverNomeAba(spreadsheetId, ABA_MONITORIA)
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `${ABA_MONITORIA}!A:N`,
+        range: `'${aba}'!A:N`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
@@ -134,10 +135,11 @@ export async function criarMonitoria(
   spreadsheetId: string,
   dados: NovaMonitoriaInput
 ): Promise<void> {
+  const aba = await resolverNomeAba(spreadsheetId, ABA_MONITORIA)
   await withTimeout(
     sheetsAPI().spreadsheets.values.append({
       spreadsheetId,
-      range: `${ABA_MONITORIA}!A:N`,
+      range: `'${aba}'!A:N`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [inputToRow(dados)] },
     })
@@ -148,11 +150,12 @@ export async function atualizarMonitoria(
   spreadsheetId: string,
   dados: AtualizarMonitoriaInput
 ): Promise<void> {
+  const aba = await resolverNomeAba(spreadsheetId, ABA_MONITORIA)
   const rowNumber = dados.sheetRowIndex + 1 // sheetRowIndex é 0-based
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
-      range: `${ABA_MONITORIA}!A${rowNumber}:N${rowNumber}`,
+      range: `'${aba}'!A${rowNumber}:N${rowNumber}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [inputToRow(dados)] },
     })
@@ -164,14 +167,16 @@ export async function atualizarMonitoria(
 async function getAbaSheetId(spreadsheetId: string, abaTitle: string): Promise<number> {
   const res = await withTimeout(sheetsAPI().spreadsheets.get({ spreadsheetId }))
   const sheet = res.data.sheets?.find((s) => s.properties?.title === abaTitle)
-  return sheet?.properties?.sheetId ?? 0
+  if (!sheet?.properties?.sheetId) throw new Error(`Aba "${abaTitle}" não encontrada para deleção`)
+  return sheet.properties.sheetId
 }
 
 export async function deletarMonitoria(
   spreadsheetId: string,
   sheetRowIndex: number
 ): Promise<void> {
-  const sheetId = await getAbaSheetId(spreadsheetId, ABA_MONITORIA)
+  const aba = await resolverNomeAba(spreadsheetId, ABA_MONITORIA)
+  const sheetId = await getAbaSheetId(spreadsheetId, aba)
   await withTimeout(
     sheetsAPI().spreadsheets.batchUpdate({
       spreadsheetId,

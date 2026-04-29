@@ -5,7 +5,7 @@ import type { DiarioRegistro, TipoRegistro } from '@/lib/diario-utils'
 import {
   formatarDataCompleta,
   parseTempoSeg, formatHHMMSS,
-  JORNADA_OBRIGATORIA_SEGUNDOS, LIMIAR_BRUTO_MIN,
+  calcularDeficitForaJornada,
 } from '@/lib/diario-utils'
 
 const TIPO_CORES: Record<TipoRegistro, { bg: string; color: string; border: string; label: string }> = {
@@ -29,17 +29,11 @@ export default function RegistroModal({ registro, role, onFechar, onEditar }: Pr
   const colaboradorLabel = registro.colaborador || 'Geral — Setor inteiro'
   const canEdit = role === 'admin' || role === 'gestor'
 
-  // Calcula valor de tempo com precisão de segundos, mesma lógica do card da lista
-  const tempoSeg = parseTempoSeg(registro.tempo)
   let tempoDisplay: string | null = null
   if (registro.tipo === 'Fora da jornada') {
-    if (registro.tempoMin >= LIMIAR_BRUTO_MIN) {
-      const deficitSeg = tempoSeg > 0 ? Math.max(0, JORNADA_OBRIGATORIA_SEGUNDOS - tempoSeg) : 0
-      tempoDisplay = deficitSeg > 0 ? formatHHMMSS(deficitSeg) : null
-    } else if (registro.tempoMin > 0) {
-      tempoDisplay = formatHHMMSS(registro.tempoMin * 60)
-    }
+    tempoDisplay = calcularDeficitForaJornada(registro.tempo).deficitFormatado
   } else {
+    const tempoSeg = parseTempoSeg(registro.tempo)
     tempoDisplay = tempoSeg > 0 ? formatHHMMSS(tempoSeg) : (registro.tempo || null)
   }
 
@@ -50,6 +44,9 @@ export default function RegistroModal({ registro, role, onFechar, onEditar }: Pr
       onClick={(e) => { if (e.target === e.currentTarget) onFechar() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="registro-detail-title"
         className="animate-fadeInScale w-full max-w-lg rounded-2xl overflow-hidden flex flex-col glass-premium"
         style={{ border: '1px solid rgba(201,168,76,0.25)', maxHeight: '88vh' }}
       >
@@ -77,7 +74,7 @@ export default function RegistroModal({ registro, role, onFechar, onEditar }: Pr
                   </span>
                 )}
               </div>
-              <h3 className="text-base font-bold mt-1.5" style={{ color: 'var(--text-primary)' }}>
+              <h3 id="registro-detail-title" className="text-base font-bold mt-1.5" style={{ color: 'var(--text-primary)' }}>
                 {colaboradorLabel}
               </h3>
             </div>

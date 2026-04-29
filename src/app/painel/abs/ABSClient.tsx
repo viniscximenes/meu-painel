@@ -4,7 +4,11 @@ import { useState, useRef, useEffect, useTransition } from 'react'
 import type { ABSSheetData, ABSStatus } from '@/lib/abs-utils'
 import { ABS_STATUS_OPTIONS } from '@/lib/abs-utils'
 import { atualizarStatusABSAction, aplicarStatusTodosAction } from './actions'
-import { getIniciaisNome } from '@/lib/operadores'
+import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
+import { AlertTriangle } from 'lucide-react'
+
+const FF_SYNE = "'Syne', sans-serif"
+const FF_DM   = "'DM Sans', sans-serif"
 
 interface OperadorInfo {
   id: number
@@ -18,7 +22,7 @@ interface Props {
   hoje: string // "DD/MM"
 }
 
-// ── Estilo de cada status ─────────────────────────────────────────────────────
+// ── Títulos para tooltip ──────────────────────────────────────────────────────
 
 const STATUS_TITLE: Record<string, string> = {
   P:   'Presente',
@@ -34,18 +38,20 @@ const STATUS_TITLE: Record<string, string> = {
   '':  'Não registrado',
 }
 
-const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  P:   { bg: 'rgba(34,197,94,0.15)',   color: '#4ade80', label: 'P' },
-  F:   { bg: 'rgba(239,68,68,0.18)',   color: '#f87171', label: 'F' },
-  FO:  { bg: 'rgba(59,130,246,0.18)',  color: '#60a5fa', label: 'FO' },
-  SC:  { bg: 'rgba(245,158,11,0.18)',  color: '#fbbf24', label: 'SC' },
-  CT:  { bg: 'rgba(245,158,11,0.18)',  color: '#fbbf24', label: 'CT' },
-  FE:  { bg: 'rgba(168,85,247,0.18)',  color: '#c084fc', label: 'FE' },
-  LI:  { bg: 'rgba(249,115,22,0.18)',  color: '#fb923c', label: 'LI' },
-  DS:  { bg: 'rgba(107,114,128,0.18)', color: '#9ca3af', label: 'DS' },
-  AT:  { bg: 'rgba(56,189,248,0.18)',  color: '#38bdf8', label: 'AT' },
-  '-': { bg: 'rgba(255,255,255,0.03)', color: '#374151', label: '·' },
-  '':  { bg: 'rgba(255,255,255,0.03)', color: '#374151', label: '·' },
+// ── Estilo HALO de cada status ────────────────────────────────────────────────
+
+const STATUS_STYLE: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  P:   { bg: 'rgba(106,196,73,0.18)',  color: 'rgba(106,196,73,0.95)',  border: 'rgba(106,196,73,0.30)',  label: 'P'  },
+  F:   { bg: 'rgba(227,57,57,0.18)',   color: 'rgba(227,57,57,0.95)',   border: 'rgba(227,57,57,0.30)',   label: 'F'  },
+  FO:  { bg: 'rgba(123,163,217,0.15)', color: '#7ba3d9',                border: 'rgba(123,163,217,0.25)', label: 'FO' },
+  SC:  { bg: 'rgba(255,185,34,0.15)',  color: '#FFB922',                border: 'rgba(255,185,34,0.30)',  label: 'SC' },
+  CT:  { bg: 'rgba(255,185,34,0.15)',  color: '#FFB922',                border: 'rgba(255,185,34,0.30)',  label: 'CT' },
+  FE:  { bg: 'rgba(176,170,255,0.15)', color: '#B0AAFF',                border: 'rgba(176,170,255,0.25)', label: 'FE' },
+  LI:  { bg: 'rgba(176,170,255,0.15)', color: '#B0AAFF',                border: 'rgba(176,170,255,0.25)', label: 'LI' },
+  AT:  { bg: 'rgba(232,201,109,0.15)', color: '#e8c96d',                border: 'rgba(232,201,109,0.25)', label: 'AT' },
+  DS:  { bg: 'rgba(114,112,143,0.10)', color: '#72708F',                border: 'rgba(114,112,143,0.20)', label: 'DS' },
+  '-': { bg: 'transparent',            color: '#474658',                border: '#211F3C',                label: '—'  },
+  '':  { bg: 'transparent',            color: '#474658',                border: '#211F3C',                label: '—'  },
 }
 
 // ── Célula interativa ─────────────────────────────────────────────────────────
@@ -68,6 +74,7 @@ function ABSCell({
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const st = STATUS_STYLE[status] ?? STATUS_STYLE['-']
+  const normalBorder = isHoje ? 'rgba(244,212,124,0.40)' : st.border
 
   useEffect(() => {
     if (!open) return
@@ -82,90 +89,125 @@ function ABSCell({
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && open) {
+            e.stopPropagation()
+            setOpen(false)
+          }
+        }}
         title={STATUS_TITLE[status] ?? status}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={STATUS_TITLE[status] ?? status}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(244,212,124,0.50)' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = normalBorder }}
         style={{
-          width: '34px',
-          height: '26px',
+          width: '38px',
+          height: '28px',
           borderRadius: '5px',
-          border: isHoje ? '1px solid rgba(201,168,76,0.6)' : '1px solid rgba(255,255,255,0.06)',
+          border: `1px solid ${normalBorder}`,
           background: st.bg,
           color: st.color,
           fontSize: '9px',
           fontWeight: 700,
+          fontFamily: FF_DM,
+          letterSpacing: '0.05em',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'opacity 0.1s',
-          fontFamily: 'monospace',
+          transition: 'border-color 150ms ease',
         }}
       >
         {st.label}
       </button>
 
       {open && (
-        <div style={{
-          position: 'absolute',
-          ...(openUp
-            ? { bottom: '100%', marginBottom: '3px' }
-            : { top: '100%', marginTop: '3px' }),
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 100,
-          background: '#0f1729',
-          border: '1px solid rgba(201,168,76,0.25)',
-          borderRadius: '10px',
-          padding: '6px',
-          minWidth: '120px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-        }}>
-          {ABS_STATUS_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => {
-                setOpen(false)
-                onUpdate(rowIndex, colIndex, opt.value)
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '5px 8px',
-                borderRadius: '6px',
-                border: 'none',
-                background: status === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent',
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = status === opt.value ? 'rgba(255,255,255,0.08)' : 'transparent' }}
-            >
-              <span style={{
-                width: '22px',
-                height: '18px',
-                borderRadius: '4px',
-                background: STATUS_STYLE[opt.value]?.bg ?? 'transparent',
-                color: STATUS_STYLE[opt.value]?.color ?? '#fff',
-                fontSize: '8px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontFamily: 'monospace',
-                flexShrink: 0,
-              }}>
-                {STATUS_STYLE[opt.value]?.label ?? opt.value}
-              </span>
-              <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                {opt.label}
-              </span>
-            </button>
-          ))}
+        <div
+          role="listbox"
+          style={{
+            position: 'absolute',
+            ...(openUp
+              ? { bottom: '100%', marginBottom: '4px' }
+              : { top: '100%', marginTop: '4px' }),
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            background: '#070714',
+            border: '1px solid rgba(244,212,124,0.20)',
+            borderRadius: '10px',
+            padding: '6px',
+            minWidth: '140px',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+          }}
+        >
+          {ABS_STATUS_OPTIONS.map((opt) => {
+            const isActive = status === opt.value
+            const optSt = STATUS_STYLE[opt.value] ?? STATUS_STYLE['-']
+            return (
+              <button
+                key={opt.value}
+                role="option"
+                aria-selected={isActive}
+                onClick={() => {
+                  setOpen(false)
+                  onUpdate(rowIndex, colIndex, opt.value)
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(244,212,124,0.06)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isActive ? 'rgba(244,212,124,0.10)' : 'transparent' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: isActive ? 'rgba(244,212,124,0.10)' : 'transparent',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  width: '100%',
+                  transition: 'background 100ms ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    width: '24px',
+                    height: '20px',
+                    borderRadius: '4px',
+                    background: optSt.bg,
+                    color: optSt.color,
+                    border: `1px solid ${optSt.border}`,
+                    fontSize: '8px',
+                    fontWeight: 700,
+                    fontFamily: FF_DM,
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {optSt.label}
+                  </span>
+                  <span style={{
+                    fontFamily: FF_SYNE,
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#A6A2A2',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {opt.label}
+                  </span>
+                </div>
+                {isActive && (
+                  <span style={{ color: '#f4d47c', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>✓</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -185,6 +227,7 @@ function AllDayCell({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const normalBorder = isHoje ? 'rgba(244,212,124,0.60)' : 'rgba(244,212,124,0.30)'
 
   useEffect(() => {
     if (!open) return
@@ -200,22 +243,23 @@ function AllDayCell({
       <button
         onClick={() => setOpen((v) => !v)}
         title="Aplicar a todos"
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(244,212,124,0.60)' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = normalBorder }}
         style={{
-          width: '34px',
-          height: '26px',
+          width: '38px',
+          height: '28px',
           borderRadius: '5px',
-          border: isHoje
-            ? '1px solid rgba(201,168,76,0.7)'
-            : '1px solid rgba(201,168,76,0.3)',
-          background: 'rgba(201,168,76,0.06)',
-          color: '#c9a84c',
+          border: `1px solid ${normalBorder}`,
+          background: 'rgba(244,212,124,0.06)',
+          color: '#e8c96d',
           fontSize: '10px',
           fontWeight: 700,
+          fontFamily: FF_DM,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontFamily: 'monospace',
+          transition: 'border-color 150ms ease',
         }}
       >
         ···
@@ -225,67 +269,88 @@ function AllDayCell({
         <div style={{
           position: 'absolute',
           bottom: '100%',
-          marginBottom: '3px',
+          marginBottom: '4px',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 100,
-          background: '#0f1729',
-          border: '1px solid rgba(201,168,76,0.35)',
+          background: '#070714',
+          border: '1px solid rgba(244,212,124,0.20)',
           borderRadius: '10px',
           padding: '6px',
-          minWidth: '130px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          minWidth: '140px',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
           display: 'flex',
           flexDirection: 'column',
           gap: '2px',
         }}>
-          <div style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#c9a84c', padding: '3px 8px 5px', borderBottom: '1px solid rgba(201,168,76,0.15)', marginBottom: '2px' }}>
+          <div style={{
+            fontFamily: FF_SYNE,
+            fontSize: '9px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.10em',
+            color: '#e8c96d',
+            padding: '4px 10px 6px',
+            borderBottom: '1px solid #211F3C',
+            marginBottom: '2px',
+          }}>
             Aplicar a todos
           </div>
-          {ABS_STATUS_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => {
-                setOpen(false)
-                onApplyAll(colIndex, opt.value)
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '5px 8px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-            >
-              <span style={{
-                width: '22px',
-                height: '18px',
-                borderRadius: '4px',
-                background: STATUS_STYLE[opt.value]?.bg ?? 'transparent',
-                color: STATUS_STYLE[opt.value]?.color ?? '#fff',
-                fontSize: '8px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontFamily: 'monospace',
-                flexShrink: 0,
-              }}>
-                {STATUS_STYLE[opt.value]?.label ?? opt.value}
-              </span>
-              <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                {opt.label}
-              </span>
-            </button>
-          ))}
+          {ABS_STATUS_OPTIONS.map((opt) => {
+            const optSt = STATUS_STYLE[opt.value] ?? STATUS_STYLE['-']
+            return (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  setOpen(false)
+                  onApplyAll(colIndex, opt.value)
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(244,212,124,0.06)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  width: '100%',
+                  transition: 'background 100ms ease',
+                }}
+              >
+                <span style={{
+                  width: '24px',
+                  height: '20px',
+                  borderRadius: '4px',
+                  background: optSt.bg,
+                  color: optSt.color,
+                  border: `1px solid ${optSt.border}`,
+                  fontSize: '8px',
+                  fontWeight: 700,
+                  fontFamily: FF_DM,
+                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  {optSt.label}
+                </span>
+                <span style={{
+                  fontFamily: FF_SYNE,
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#A6A2A2',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {opt.label}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -297,10 +362,16 @@ function AllDayCell({
 export default function ABSClient({ data: initialData, operadores, hoje }: Props) {
   const [data, setData] = useState<ABSSheetData>(initialData)
   const [, startTransition] = useTransition()
-  const [saving, setSaving] = useState<string | null>(null) // "rowIndex-colIndex"
-  const [savingAll, setSavingAll] = useState<number | null>(null) // colIndex
+  const [saving, setSaving] = useState<string | null>(null)
+  const [savingAll, setSavingAll] = useState<number | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const opMap = new Map(operadores.map((o) => [o.username, o]))
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
 
   function handleUpdate(rowIndex: number, colIndex: number, status: ABSStatus) {
     const key = `${rowIndex}-${colIndex}`
@@ -319,7 +390,7 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
       const res = await atualizarStatusABSAction(rowIndex, colIndex, status)
       if (!res.ok) {
         setData(initialData)
-        alert(`Erro ao salvar: ${res.erro}`)
+        showToast(`Erro ao salvar: ${res.erro}`)
       }
       setSaving(null)
     })
@@ -327,9 +398,7 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
 
   function handleApplyAll(colIndex: number, status: ABSStatus) {
     const label = ABS_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status
-    const confirmed = window.confirm(
-      `Aplicar "${label}" para TODOS os operadores neste dia?`
-    )
+    const confirmed = window.confirm(`Aplicar "${label}" para TODOS os operadores neste dia?`)
     if (!confirmed) return
 
     setSavingAll(colIndex)
@@ -348,7 +417,7 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
       const res = await aplicarStatusTodosAction(colIndex, status, rowIndexes)
       if (!res.ok) {
         setData(initialData)
-        alert(`Erro ao salvar: ${res.erro}`)
+        showToast(`Erro ao salvar: ${res.erro}`)
       }
       setSavingAll(null)
     })
@@ -369,24 +438,57 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
 
   return (
     <div className="space-y-6">
-      {/* ── Cards de resumo ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-        {[
-          { label: 'Faltas no mês', valor: totalFaltas, cor: totalFaltas > 0 ? '#f87171' : '#4ade80' },
-          { label: 'Operadores ≥ 2 faltas', valor: opComFaltas2.length, cor: opComFaltas2.length > 0 ? '#f87171' : '#4ade80' },
-          { label: 'Risco de RV', valor: opComFaltas2.length, cor: opComFaltas2.length > 0 ? '#f87171' : '#4ade80' },
-          { label: 'Registrados hoje', valor: registradosHoje, cor: '#94a3b8' },
-        ].map(({ label, valor, cor }) => (
+
+      {/* ── Cards de KPI ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        {([
+          {
+            label: 'FALTAS NO MÊS',
+            valor: totalFaltas,
+            cor: totalFaltas > 0 ? 'rgba(227,57,57,0.74)' : 'rgba(106,196,73,0.62)',
+          },
+          {
+            label: 'OPERADORES ≥ 2 FALTAS',
+            valor: opComFaltas2.length,
+            cor: opComFaltas2.length > 0 ? 'rgba(227,57,57,0.74)' : 'rgba(106,196,73,0.62)',
+          },
+          {
+            label: 'RISCO DE RV',
+            valor: opComFaltas2.length,
+            cor: opComFaltas2.length > 0 ? 'rgba(227,57,57,0.74)' : 'rgba(106,196,73,0.62)',
+          },
+          {
+            label: 'REGISTRADOS HOJE',
+            valor: registradosHoje,
+            cor: '#e8c96d',
+          },
+        ] as const).map(({ label, valor, cor }) => (
           <div key={label} style={{
-            background: '#0d0d1a',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '12px',
-            padding: '14px 16px',
+            background: '#070714',
+            border: '1px solid rgba(244,212,124,0.10)',
+            borderRadius: '10px',
+            padding: '18px 20px',
           }}>
-            <p style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748b' }}>
+            <p style={{
+              fontFamily: FF_SYNE,
+              fontSize: '10px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.10em',
+              color: '#474658',
+              margin: 0,
+            }}>
               {label}
             </p>
-            <p style={{ fontSize: '28px', fontWeight: 700, color: cor, marginTop: '4px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+            <p style={{
+              fontFamily: FF_DM,
+              fontSize: '36px',
+              fontWeight: 900,
+              color: cor,
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+              margin: '10px 0 0',
+            }}>
               {valor}
             </p>
           </div>
@@ -395,66 +497,93 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
 
       {/* ── Calendário / tabela ── */}
       <div style={{
-        background: '#0a0e18',
-        border: '1px solid rgba(201,168,76,0.10)',
-        borderRadius: '14px',
+        background: '#070714',
+        border: '1px solid rgba(244,212,124,0.10)',
+        borderRadius: '10px',
         overflow: 'hidden',
       }}>
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 'max-content' }}>
-            {/* Cabeçalho com datas */}
             <thead>
               <tr>
+                {/* Coluna OPERADOR — sticky left */}
                 <th style={{
                   position: 'sticky', left: 0, zIndex: 10,
-                  background: '#07070f',
-                  padding: '10px 14px',
+                  background: '#03040C',
+                  padding: '12px 16px',
                   textAlign: 'left',
-                  fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em',
-                  color: '#64748b',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
-                  borderRight: '1px solid rgba(255,255,255,0.06)',
-                  minWidth: '120px',
+                  fontFamily: FF_SYNE,
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.10em',
+                  color: '#474658',
+                  borderBottom: '1px solid #211F3C',
+                  borderRight: '1px solid #211F3C',
+                  minWidth: '140px',
+                  whiteSpace: 'nowrap',
                 }}>
                   Operador
                 </th>
+
+                {/* Colunas de data */}
                 {data.datas.map((data_str, i) => {
                   const isHoje = data_str === hoje
                   return (
                     <th key={i} style={{
-                      padding: '6px 4px',
+                      padding: '8px 4px',
                       textAlign: 'center',
-                      fontSize: '8px',
-                      color: isHoje ? '#e8c96d' : '#64748b',
-                      fontWeight: isHoje ? 700 : 600,
-                      background: isHoje ? 'rgba(201,168,76,0.06)' : '#07070f',
-                      borderBottom: '1px solid rgba(255,255,255,0.06)',
-                      borderRight: '1px solid rgba(255,255,255,0.04)',
-                      minWidth: '38px',
+                      background: isHoje ? 'rgba(244,212,124,0.06)' : '#03040C',
+                      borderBottom: '1px solid #211F3C',
+                      borderRight: '1px solid rgba(33,31,60,0.4)',
+                      minWidth: '40px',
                     }}>
-                      <div>{data.diasSemana[i] ?? ''}</div>
-                      <div style={{ fontWeight: 700, fontSize: '9px', marginTop: '1px' }}>
+                      <div style={{
+                        fontFamily: FF_SYNE,
+                        fontSize: '9px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        color: isHoje ? '#e8c96d' : '#474658',
+                        lineHeight: 1,
+                      }}>
+                        {data.diasSemana[i] ?? ''}
+                      </div>
+                      <div style={{
+                        fontFamily: FF_DM,
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: isHoje ? '#e8c96d' : '#72708F',
+                        fontVariantNumeric: 'tabular-nums',
+                        marginTop: '2px',
+                        lineHeight: 1,
+                      }}>
                         {data_str.split('/')[0]}
                       </div>
                     </th>
                   )
                 })}
+
+                {/* Coluna RESUMO — sticky right */}
                 <th style={{
-                  padding: '10px 10px',
+                  padding: '12px 12px',
                   textAlign: 'center',
-                  fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
-                  color: '#64748b',
-                  background: '#07070f',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
-                  borderLeft: '1px solid rgba(255,255,255,0.06)',
-                  minWidth: '80px',
+                  fontFamily: FF_SYNE,
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.10em',
+                  color: '#474658',
+                  background: '#03040C',
+                  borderBottom: '1px solid #211F3C',
+                  borderLeft: '1px solid #211F3C',
+                  minWidth: '90px',
+                  whiteSpace: 'nowrap',
                 }}>
                   Resumo
                 </th>
               </tr>
             </thead>
 
-            {/* Linhas de operadores */}
             <tbody>
               {data.operadores.map((op, opIdx) => {
                 const info = opMap.get(op.username)
@@ -465,30 +594,30 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                 const openUp = opIdx >= totalOps - 2
 
                 return (
-                  <tr key={op.username} style={{ background: zebra ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                  <tr
+                    key={op.username}
+                    style={{ background: zebra ? 'rgba(244,212,124,0.015)' : 'transparent' }}
+                  >
                     {/* Nome do operador */}
                     <td style={{
                       position: 'sticky', left: 0, zIndex: 5,
-                      background: zebra ? '#0b0f1c' : '#0a0e18',
-                      padding: '6px 14px',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderRight: '1px solid rgba(255,255,255,0.06)',
-                      minWidth: '120px',
+                      background: zebra ? 'rgba(244,212,124,0.015)' : '#070714',
+                      padding: '8px 16px',
+                      borderBottom: '1px solid rgba(33,31,60,0.5)',
+                      borderRight: '1px solid #211F3C',
+                      minWidth: '110px',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '22px', height: '22px', borderRadius: '6px',
-                          background: 'linear-gradient(135deg, #0f1729, #1a2540)',
-                          border: '1px solid rgba(66,139,255,0.25)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '7px', fontWeight: 700, color: '#ffffff', flexShrink: 0,
-                        }}>
-                          {info ? getIniciaisNome(info.nome) : op.username.substring(0, 2).toUpperCase()}
-                        </div>
-                        <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                          {info ? info.nome.split(' ')[0] : op.username}
-                        </span>
-                      </div>
+                      <span style={{
+                        fontFamily: FF_SYNE,
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        color: '#A6A2A2',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {info ? info.nome.split(' ')[0] : op.username}
+                      </span>
                     </td>
 
                     {/* Células de status */}
@@ -497,11 +626,11 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                       const isSaving = saving === `${op.rowIndex}-${dateIdx}`
                       return (
                         <td key={dateIdx} style={{
-                          padding: '3px 2px',
+                          padding: '3px 1px',
                           textAlign: 'center',
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          borderRight: '1px solid rgba(255,255,255,0.03)',
-                          background: isHoje ? 'rgba(201,168,76,0.03)' : undefined,
+                          borderBottom: '1px solid rgba(33,31,60,0.5)',
+                          borderRight: '1px solid rgba(33,31,60,0.4)',
+                          background: isHoje ? 'rgba(244,212,124,0.04)' : undefined,
                           opacity: isSaving ? 0.5 : 1,
                         }}>
                           <ABSCell
@@ -516,24 +645,69 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                       )
                     })}
 
-                    {/* Coluna de resumo */}
+                    {/* Coluna resumo */}
                     <td style={{
-                      padding: '6px 10px',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderLeft: '1px solid rgba(255,255,255,0.06)',
+                      padding: '8px 12px',
+                      borderBottom: '1px solid rgba(33,31,60,0.5)',
+                      borderLeft: '1px solid #211F3C',
                       textAlign: 'center',
                     }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: faltas >= 2 ? '#f87171' : '#4ade80', fontVariantNumeric: 'tabular-nums' }}>
-                          {faltas}F
-                        </span>
-                        <span style={{ fontSize: '9px', color: '#64748b' }}>{ausencias} aus.</span>
+                        {/* Faltas: número DM Sans + "F" Syne, baseline */}
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                          <span style={{
+                            fontFamily: FF_DM,
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            color: faltas >= 2 ? 'rgba(227,57,57,0.95)' : 'rgba(106,196,73,0.95)',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            {faltas}
+                          </span>
+                          <span style={{
+                            fontFamily: FF_SYNE,
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            color: '#474658',
+                          }}>
+                            F
+                          </span>
+                        </div>
+                        {/* Ausências: número DM Sans + " aus." Syne, baseline */}
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                          <span style={{
+                            fontFamily: FF_DM,
+                            fontSize: '10px',
+                            fontWeight: 500,
+                            color: '#72708F',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            {ausencias}
+                          </span>
+                          <span style={{
+                            fontFamily: FF_SYNE,
+                            fontSize: '9px',
+                            fontWeight: 600,
+                            color: '#474658',
+                          }}>
+                            {' '}aus.
+                          </span>
+                        </div>
+                        {/* Badge RISCO */}
                         {risco && (
                           <span style={{
-                            fontSize: '8px', fontWeight: 700, padding: '1px 5px',
-                            borderRadius: '99px', background: 'rgba(239,68,68,0.15)',
-                            border: '1px solid rgba(239,68,68,0.3)', color: '#f87171',
-                            textTransform: 'uppercase', letterSpacing: '0.06em',
+                            fontFamily: FF_SYNE,
+                            fontSize: '9px',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            padding: '2px 8px',
+                            borderRadius: '99px',
+                            background: 'rgba(227,57,57,0.10)',
+                            border: '1px solid rgba(227,57,57,0.50)',
+                            color: 'rgba(227,57,57,0.95)',
+                            whiteSpace: 'nowrap',
                           }}>
                             RISCO
                           </span>
@@ -546,21 +720,23 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
 
               {/* Linha "Aplicar a todos" */}
               <tr style={{
-                borderTop: '2px solid rgba(201,168,76,0.4)',
-                background: 'rgba(201,168,76,0.03)',
+                borderTop: '2px solid rgba(244,212,124,0.30)',
+                background: 'rgba(244,212,124,0.03)',
               }}>
                 <td style={{
                   position: 'sticky', left: 0, zIndex: 5,
-                  background: '#0a0d15',
-                  padding: '6px 14px',
-                  borderRight: '1px solid rgba(255,255,255,0.06)',
-                  minWidth: '120px',
+                  background: '#070714',
+                  padding: '6px 16px',
+                  borderRight: '1px solid #211F3C',
+                  minWidth: '140px',
                 }}>
                   <span style={{
+                    fontFamily: FF_SYNE,
                     fontSize: '10px',
-                    fontWeight: 700,
-                    color: '#c9a84c',
-                    letterSpacing: '0.04em',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    color: '#e8c96d',
                     whiteSpace: 'nowrap',
                   }}>
                     Aplicar a todos →
@@ -572,10 +748,10 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                   const isSavingCol = savingAll === dateIdx
                   return (
                     <td key={dateIdx} style={{
-                      padding: '3px 2px',
+                      padding: '3px 1px',
                       textAlign: 'center',
-                      borderRight: '1px solid rgba(255,255,255,0.03)',
-                      background: isHoje ? 'rgba(201,168,76,0.05)' : undefined,
+                      borderRight: '1px solid rgba(33,31,60,0.4)',
+                      background: isHoje ? 'rgba(244,212,124,0.05)' : undefined,
                       opacity: isSavingCol ? 0.5 : 1,
                     }}>
                       <AllDayCell
@@ -588,8 +764,8 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                 })}
 
                 <td style={{
-                  padding: '6px 10px',
-                  borderLeft: '1px solid rgba(255,255,255,0.06)',
+                  padding: '6px 12px',
+                  borderLeft: '1px solid #211F3C',
                 }} />
               </tr>
             </tbody>
@@ -597,30 +773,33 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
         </div>
       </div>
 
-      {/* ── Tabela resumo ── */}
+      {/* ── Tabela resumo por operador ── */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-          <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#64748b' }}>
-            Resumo por Operador
-          </span>
-          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.06) 0%, transparent 100%)' }} />
+        <div style={{ marginBottom: '16px' }}>
+          <PainelSectionTitle>RESUMO POR OPERADOR</PainelSectionTitle>
         </div>
 
         <div style={{
-          background: '#0a0e18',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
+          background: '#070714',
+          border: '1px solid rgba(244,212,124,0.10)',
+          borderRadius: '10px',
           overflow: 'hidden',
         }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#07070f' }}>
-                {['Operador','F','FO','SC','CT','FE','LI','AT','Status RV'].map((h) => (
+              <tr style={{ background: '#03040C' }}>
+                {['Operador', 'FALTA', 'FOLGA', 'S. CEDO', 'C. TARDE', 'FÉRIAS', 'LICENÇA', 'ATESTADO', 'STATUS RV'].map((h) => (
                   <th key={h} style={{
-                    padding: '8px 12px', textAlign: h === 'Operador' ? 'left' : 'center',
-                    fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.08em', color: '#64748b',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    padding: '14px 16px',
+                    textAlign: h === 'Operador' ? 'left' : 'center',
+                    fontFamily: FF_SYNE,
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.10em',
+                    color: '#A6A2A2',
+                    borderBottom: '1px solid #211F3C',
+                    whiteSpace: 'nowrap',
                   }}>
                     {h}
                   </th>
@@ -631,7 +810,7 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
               {data.operadores.map((op, i) => {
                 const info = opMap.get(op.username)
                 const counts = {
-                  F: op.status.filter((s) => s === 'F').length,
+                  F:  op.status.filter((s) => s === 'F').length,
                   FO: op.status.filter((s) => s === 'FO').length,
                   SC: op.status.filter((s) => s === 'SC').length,
                   CT: op.status.filter((s) => s === 'CT').length,
@@ -641,22 +820,72 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
                 }
                 const risco = counts.F >= 2
                 return (
-                  <tr key={op.username} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
-                    <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '11px', color: '#cbd5e1', fontWeight: 500 }}>
+                  <tr key={op.username} style={{ background: i % 2 === 0 ? 'rgba(244,212,124,0.015)' : 'transparent' }}>
+                    <td style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid rgba(33,31,60,0.5)',
+                      fontFamily: FF_SYNE,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      color: '#A6A2A2',
+                    }}>
                       {info ? info.nome.split(' ').slice(0, 2).join(' ') : op.username}
                     </td>
-                    {(['F','FO','SC','CT','FE','LI','AT'] as const).map((k) => (
-                      <td key={k} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '12px', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: k === 'F' && counts[k] >= 2 ? '#f87171' : counts[k] > 0 ? '#94a3b8' : '#374151' }}>
+                    {(['F', 'FO', 'SC', 'CT', 'FE', 'LI', 'AT'] as const).map((k) => (
+                      <td key={k} style={{
+                        padding: '12px 16px',
+                        textAlign: 'center',
+                        borderBottom: '1px solid rgba(33,31,60,0.5)',
+                        fontFamily: FF_DM,
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        fontVariantNumeric: 'tabular-nums',
+                        color: k === 'F' && counts[k] >= 2
+                          ? 'rgba(227,57,57,0.95)'
+                          : counts[k] > 0
+                            ? '#A6A2A2'
+                            : '#474658',
+                      }}>
                         {counts[k] || '—'}
                       </td>
                     ))}
-                    <td style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <td style={{
+                      padding: '12px 16px',
+                      textAlign: 'center',
+                      borderBottom: '1px solid rgba(33,31,60,0.5)',
+                    }}>
                       {risco ? (
-                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+                        <span style={{
+                          fontFamily: FF_SYNE,
+                          fontSize: '9px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          padding: '3px 10px',
+                          borderRadius: '99px',
+                          background: 'rgba(227,57,57,0.10)',
+                          border: '1px solid rgba(227,57,57,0.40)',
+                          color: 'rgba(227,57,57,0.95)',
+                          whiteSpace: 'nowrap',
+                        }}>
                           RISCO
                         </span>
                       ) : (
-                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.25)', color: '#4ade80' }}>
+                        <span style={{
+                          fontFamily: FF_SYNE,
+                          fontSize: '9px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          padding: '3px 10px',
+                          borderRadius: '99px',
+                          background: 'rgba(106,196,73,0.10)',
+                          border: '1px solid rgba(106,196,73,0.30)',
+                          color: 'rgba(106,196,73,0.95)',
+                          whiteSpace: 'nowrap',
+                        }}>
                           OK
                         </span>
                       )}
@@ -668,6 +897,39 @@ export default function ABSClient({ data: initialData, operadores, hoje }: Props
           </table>
         </div>
       </div>
+
+      {/* ── Toast de erro ── */}
+      {toast && (
+        <div
+          className="animate-fadeInScale"
+          role="alert"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            background: '#070714',
+            border: '1px solid rgba(227,57,57,0.50)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '10px',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+            maxWidth: '360px',
+          }}
+        >
+          <AlertTriangle size={16} style={{ color: 'rgba(227,57,57,0.90)', flexShrink: 0, marginTop: '1px' }} />
+          <span style={{
+            fontFamily: FF_SYNE,
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'rgba(227,57,57,0.90)',
+          }}>
+            {toast}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

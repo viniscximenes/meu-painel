@@ -28,6 +28,50 @@ function sheetsAPI() {
   return google.sheets({ version: 'v4', auth: getAuth() })
 }
 
+// ── Resolução tolerante de nome de aba ───────────────────────────────────────
+// TTL-cache por (spreadsheetId + nomeAlvo) para evitar um extra spreadsheets.get
+// em cada request. Válido por 5 minutos por processo Node.
+
+const _abaCache = new Map<string, { resolved: string; ts: number }>()
+const ABA_CACHE_TTL = 5 * 60 * 1000
+
+/**
+ * Retorna o nome real da aba que corresponde a `nomeAlvo`:
+ *  1. Match exato
+ *  2. Match case-insensitive + trim
+ * Lança erro com lista de abas disponíveis se não encontrar.
+ */
+export async function resolverNomeAba(
+  spreadsheetId: string,
+  nomeAlvo: string,
+): Promise<string> {
+  const key = `${spreadsheetId}::${nomeAlvo}`
+  const cached = _abaCache.get(key)
+  if (cached && Date.now() - cached.ts < ABA_CACHE_TTL) return cached.resolved
+
+  const res = await withTimeout(
+    sheetsAPI().spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties.title',
+    })
+  )
+  const abas = (res.data.sheets ?? []).map(s => s.properties?.title ?? '').filter(Boolean)
+  const alvo = nomeAlvo.trim().toLowerCase()
+
+  const resolved =
+    abas.find(a => a === nomeAlvo) ??
+    abas.find(a => a.trim().toLowerCase() === alvo)
+
+  if (!resolved) {
+    throw new Error(
+      `Aba "${nomeAlvo}" não encontrada na planilha ${spreadsheetId}. Disponíveis: ${abas.map(a => `"${a}"`).join(', ')}`
+    )
+  }
+
+  _abaCache.set(key, { resolved, ts: Date.now() })
+  return resolved
+}
+
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 export interface Planilha {
@@ -39,6 +83,7 @@ export interface Planilha {
   created_at: string
   referencia_mes: number | null
   referencia_ano: number | null
+  tipo: 'mes_atual' | 'mes_passado' | 'kpi_quartil' | null
 }
 
 export interface LinhasPlanilha {
@@ -69,12 +114,187 @@ export async function listarPlanilhas(): Promise<Planilha[]> {
 export async function getPlanilhaAtiva(): Promise<Planilha | null> {
   try {
     const db = createAdminClient()
-    const { data } = await db
+    // Prefere tipo='mes_atual'; fallback para ativa=true (compatibilidade)
+    const { data: porTipo, error: errTipo } = await db
+      .from('planilhas')
+      .select('*')
+      .eq('tipo', 'mes_atual')
+      .maybeSingle()
+    if (errTipo) console.error('[getPlanilhaAtiva] erro tipo query:', errTipo.message)
+    if (porTipo) {
+      console.log('[getPlanilhaAtiva] via tipo=mes_atual id=%s', porTipo.spreadsheet_id)
+      return porTipo as Planilha
+    }
+    const { data, error } = await db
       .from('planilhas')
       .select('*')
       .eq('ativa', true)
-      .single()
+      .maybeSingle()
+    if (error) console.error('[getPlanilhaAtiva] erro ativa query:', error.message)
+    console.log('[getPlanilhaAtiva] via ativa=true id=%s', data?.spreadsheet_id ?? 'null')
     return (data ?? null) as Planilha | null
+  } catch (e) {
+    console.error('[getPlanilhaAtiva] catch:', e)
+    return null
+  }
+}
+
+export async function getPlanilhaPorTipo(
+  tipo: 'mes_atual' | 'mes_passado' | 'kpi_quartil'
+): Promise<Planilha | null> {
+  const db = createAdminClient()
+  const { data, error } = await db
+    .from('planilhas')
+    .select('*')
+    .eq('tipo', tipo)
+    .maybeSingle()
+  if (error) {
+    console.error('[getPlanilhaPorTipo] erro tipo=%s:', tipo, error.message)
+    return null
+  }
+  console.log('[getPlanilhaPorTipo] tipo=%s resultado:', tipo, data ? data.id : 'null')
+  return (data ?? null) as Planilha | null
+}
+
+export async function verificarAcessoPlanilha(spreadsheet_id: string): Promise<boolean> {
+  if (!spreadsheet_id) return false
+  try {
+    await withTimeout(
+      sheetsAPI().spreadsheets.get({
+        spreadsheetId: spreadsheet_id,
+        fields: 'spreadsheetId',
+      }),
+      8_000
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function salvarPlanilhaPorTipo(
+  tipo: 'mes_atual' | 'mes_passado' | 'kpi_quartil',
+  spreadsheet_id: string,
+  aba: string,
+  nome: string,
+): Promise<void> {
+  const db = createAdminClient()
+  const { error: delErr } = await db.from('planilhas').delete().eq('tipo', tipo)
+  if (delErr) console.warn('[salvarPlanilhaPorTipo] delete warn tipo=%s:', tipo, delErr.message)
+
+  const { error: insErr } = await db.from('planilhas').insert({
+    nome,
+    spreadsheet_id,
+    aba,
+    ativa: tipo === 'mes_atual',
+    tipo,
+  })
+  if (insErr) throw new Error(`[salvarPlanilhaPorTipo] insert falhou: ${insErr.message}`)
+  console.log('[salvarPlanilhaPorTipo] salvo tipo=%s id=%s', tipo, spreadsheet_id)
+}
+
+export async function apagarPlanilhaPorTipo(
+  tipo: 'mes_atual' | 'mes_passado' | 'kpi_quartil',
+): Promise<void> {
+  const db = createAdminClient()
+  await db.from('planilhas').delete().eq('tipo', tipo)
+}
+
+// ── Mapeamento de colunas KPI ─────────────────────────────────────────────────
+
+export async function getMapeamentoKpiColunas(): Promise<Record<string, string>> {
+  try {
+    const db = createAdminClient()
+    const { data, error } = await db.from('planilha_kpi_colunas').select('kpi_key, coluna')
+    if (error) {
+      console.error('[getMapeamentoKpiColunas]', error.message)
+      return {}
+    }
+    return Object.fromEntries((data ?? []).map(r => [r.kpi_key, r.coluna]))
+  } catch {
+    return {}
+  }
+}
+
+export async function salvarMapeamentoKpiColunasDb(
+  mapeamento: Record<string, string>
+): Promise<void> {
+  const db = createAdminClient()
+  const agora = new Date().toISOString()
+
+  const upserts = Object.entries(mapeamento)
+    .filter(([, coluna]) => coluna.trim() !== '')
+    .map(([kpi_key, coluna]) => ({ kpi_key, coluna: coluna.trim().toUpperCase(), atualizado_em: agora }))
+
+  const deletes = Object.entries(mapeamento)
+    .filter(([, coluna]) => coluna.trim() === '')
+    .map(([kpi_key]) => kpi_key)
+
+  if (upserts.length > 0) {
+    const { error } = await db
+      .from('planilha_kpi_colunas')
+      .upsert(upserts, { onConflict: 'kpi_key' })
+    if (error) throw new Error(`[salvarMapeamentoKpiColunas] upsert: ${error.message}`)
+  }
+
+  for (const key of deletes) {
+    await db.from('planilha_kpi_colunas').delete().eq('kpi_key', key)
+  }
+}
+
+// ── Mapeamento de colunas KPI GESTOR ─────────────────────────────────────────
+
+export async function getMapeamentoKpiGestorColunas(): Promise<Record<string, string>> {
+  try {
+    const db = createAdminClient()
+    const { data, error } = await db.from('planilha_kpi_gestor_colunas').select('kpi_key, coluna')
+    if (error) {
+      console.error('[getMapeamentoKpiGestorColunas]', error.message)
+      return {}
+    }
+    return Object.fromEntries((data ?? []).map(r => [r.kpi_key, r.coluna]))
+  } catch {
+    return {}
+  }
+}
+
+export async function salvarMapeamentoKpiGestorColunasDb(
+  mapeamento: Record<string, string>
+): Promise<void> {
+  const db = createAdminClient()
+  const agora = new Date().toISOString()
+
+  const upserts = Object.entries(mapeamento)
+    .filter(([, coluna]) => coluna.trim() !== '')
+    .map(([kpi_key, coluna]) => ({ kpi_key, coluna: coluna.trim().toUpperCase(), atualizado_em: agora }))
+
+  const deletes = Object.entries(mapeamento)
+    .filter(([, coluna]) => coluna.trim() === '')
+    .map(([kpi_key]) => kpi_key)
+
+  if (upserts.length > 0) {
+    const { error } = await db
+      .from('planilha_kpi_gestor_colunas')
+      .upsert(upserts, { onConflict: 'kpi_key' })
+    if (error) throw new Error(`[salvarMapeamentoKpiGestorColunas] upsert: ${error.message}`)
+  }
+
+  for (const key of deletes) {
+    await db.from('planilha_kpi_gestor_colunas').delete().eq('kpi_key', key)
+  }
+}
+
+/** Pronto para uso na próxima rodada de migração dos hardcodes. */
+export async function obterColunaKpi(key: string): Promise<string | null> {
+  if (key === 'email') return 'A' // coluna fixa, não configurável
+  try {
+    const db = createAdminClient()
+    const { data } = await db
+      .from('planilha_kpi_colunas')
+      .select('coluna')
+      .eq('kpi_key', key)
+      .maybeSingle()
+    return data?.coluna ?? null
   } catch {
     return null
   }

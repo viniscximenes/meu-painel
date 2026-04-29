@@ -12,6 +12,7 @@ import {
   type DiarioRegistro,
   type TipoRegistro,
 } from '@/lib/diario'
+import { calcularDeficitForaJornada } from '@/lib/diario-utils'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, matchCelulaOperador, encontrarColunaIdent } from '@/lib/sheets'
 import { getRVConfigRaw, extrairDadosContestacao } from '@/lib/rv'
 import { getMetas } from '@/lib/kpi'
@@ -139,19 +140,10 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
   const pausasJust  = registros.filter((r) => r.tipo === 'Pausa justificada')
   const foraJornada = registros.filter((r) => r.tipo === 'Fora da jornada')
 
-  // "Fora da jornada": valor ≥ 240min → salvo como tempo logado bruto → deficit = 380 − valor
-  //                    valor < 240min → já salvo como déficit → usar diretamente
-  const LIMIAR_BRUTO_MIN = 240
   const defsForaJornada = foraJornada.map((r) => {
-    const min = r.tempoMin
-    let def = 0
-    if (min > 0 && min < 380) def = min >= LIMIAR_BRUTO_MIN ? 380 - min : min
-    console.log(
-      `[Diário Déficit] ${operador.username} | ${r.data} raw="${r.tempo}" ${min}min → ` +
-      (min >= 380 ? 'completo(def=0)'
-        : min >= LIMIAR_BRUTO_MIN ? `bruto→def=${def}min`
-        : `déficit=${def}min`)
-    )
+    const { deficitSeg } = calcularDeficitForaJornada(r.tempo)
+    const def = Math.floor(deficitSeg / 60)
+    console.log(`[Diário Déficit] ${operador.username} | ${r.data} raw="${r.tempo}" → déficit=${def}min`)
     return def
   })
 
@@ -228,7 +220,7 @@ export default async function DiarioOperadorPage({ params }: PageProps) {
 
   // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
-    <PainelShell profile={profile} title={`Diário — ${operador.nome.split(' ')[0]}`}>
+    <PainelShell profile={profile} title={`Diário — ${operador.nome.split(' ')[0]}`} iconName="BookOpen">
       <div className="space-y-6" style={{ '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties}>
 
         {/* ── Linha dourada ── */}

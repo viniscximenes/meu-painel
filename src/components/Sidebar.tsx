@@ -9,7 +9,7 @@ import {
   ChevronDown, BarChart2,
   Target, Database, SlidersHorizontal, BookOpen, ClipboardList,
   CalendarDays, Ticket, Clock, Gauge, Wallet,
-  BarChart3, Coins, Trophy, FileText,
+  BarChart3, Coins, Trophy, FileText, Settings,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -285,9 +285,9 @@ function GestorNav({ pathname, onClose }: { pathname: string; onClose: () => voi
           </div>
 
           {/* Exportar PDF — funcional */}
-          <Link href="/painel/gestor/contestacao-rv/exportar-pdf" onClick={onClose}
-            className={pathname === '/painel/gestor/contestacao-rv/exportar-pdf' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-            style={pathname !== '/painel/gestor/contestacao-rv/exportar-pdf' ? { color: '#7ba3d9' } : undefined}>
+          <Link href="/painel/gestor/contestacao-rv/exportar-pdf-op" onClick={onClose}
+            className={pathname === '/painel/gestor/contestacao-rv/exportar-pdf-op' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/gestor/contestacao-rv/exportar-pdf-op' ? { color: '#7ba3d9' } : undefined}>
             <FileText size={18} strokeWidth={1.5} /> Exportar PDF
           </Link>
 
@@ -354,48 +354,62 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
       <MeusDadosGeraisBlock pathname={pathname} onClose={onClose} />
       <HistoricoBlock pathname={pathname} onClose={onClose} />
 
-      <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)}>
+      <SeparadorPainel titulo="PAINEL ADMIN" cor="#7ba3d9" corLinha="rgba(123,163,217,0.3)" />
+
+      <NavLabelCollapsible expanded={registrosExpandidos} onToggle={() => setRegistrosExpandidos((v) => !v)} cor="#7ba3d9">
         Registros Gerais
       </NavLabelCollapsible>
 
       <div style={{ maxHeight: registrosExpandidos ? '300px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
           <Link href="/painel/diario" onClick={onClose}
-            className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            className={pathname.startsWith('/painel/diario') ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={!pathname.startsWith('/painel/diario') ? { color: '#7ba3d9' } : undefined}>
             <BookOpen size={15} /> Diário de Bordo
           </Link>
           <Link href="/painel/monitoria" onClick={onClose}
-            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            className={pathname.startsWith('/painel/monitoria') ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={!pathname.startsWith('/painel/monitoria') ? { color: '#7ba3d9' } : undefined}>
             <ClipboardList size={15} /> Monitoria
           </Link>
           <Link href="/painel/abs" onClick={onClose}
-            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            className={pathname.startsWith('/painel/abs') ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={!pathname.startsWith('/painel/abs') ? { color: '#7ba3d9' } : undefined}>
             <CalendarDays size={15} /> ABS
           </Link>
-          <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} />
+          <GLPILink pathname={pathname} onClose={onClose} glpiPendentes={glpiPendentes} iconColor="#7ba3d9" textColor="#7ba3d9" />
         </div>
       </div>
 
-      <NavLabelCollapsible expanded={configExpandida} onToggle={() => setConfigExpandida((v) => !v)}>
+      <NavLabelCollapsible expanded={configExpandida} onToggle={() => setConfigExpandida((v) => !v)} cor="#7ba3d9">
         Configurações
       </NavLabelCollapsible>
 
-      <div style={{ maxHeight: configExpandida ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: configExpandida ? '280px' : '0px', overflow: 'hidden', transition: 'max-height 0.35s cubic-bezier(0.4,0,0.2,1)' }}>
         <div className="space-y-0.5">
+          <Link href="/painel/admin/configuracoes/planilhas" onClick={onClose}
+            className={pathname === '/painel/admin/configuracoes/planilhas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/admin/configuracoes/planilhas' ? { color: 'rgba(123,163,217,0.55)' } : undefined}>
+            <Settings size={15} /> Ajuste de Planilhas
+          </Link>
           <Link href="/painel/metas" onClick={onClose}
-            className={pathname === '/painel/metas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            className={pathname === '/painel/metas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/metas' ? { color: '#7ba3d9' } : undefined}>
             <Target size={15} /> Metas KPI
           </Link>
           <Link href="/painel/rv-config" onClick={onClose}
-            className={pathname === '/painel/rv-config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            className={pathname === '/painel/rv-config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/rv-config' ? { color: '#7ba3d9' } : undefined}>
             <SlidersHorizontal size={15} /> Config. RV
           </Link>
           <Link href="/painel/config" onClick={onClose}
-            className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/config' ? { color: '#7ba3d9' } : undefined}>
             <Database size={15} /> Planilhas
           </Link>
           <Link href="/painel/config/historico" onClick={onClose}
-            className={pathname === '/painel/config/historico' ? 'sidebar-item-active' : 'sidebar-item-inactive'}>
+            className={pathname === '/painel/config/historico' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
+            style={pathname !== '/painel/config/historico' ? { color: '#7ba3d9' } : undefined}>
             <Clock size={15} /> Histórico Config
           </Link>
         </div>
