@@ -37,6 +37,7 @@ export async function GET() {
         retencaoVal: 0, indispVal: 0, tmaValSeg: 0,
         ticketVal: 0, absVal: 0,
         monitoriasCompletas, totalMonitorias,
+        semDados: true,
       },
       config,
     )

@@ -23,7 +23,6 @@ export interface MeuRVGestorProps {
   totalMonitorias:     number
   totalOperadores:     number
   mesLabel:            string
-  dataAtualizacao:     string | null
 }
 
 type HoverComp = 'retracao' | 'indisp' | 'tma' | 'abs-deflator' | null
@@ -31,7 +30,7 @@ type HoverComp = 'retracao' | 'indisp' | 'tma' | 'abs-deflator' | null
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function MeuRVGestorClient({
-  rv, config, opKpis, absVal, monitoriasCompletas, totalMonitorias, totalOperadores, mesLabel, dataAtualizacao,
+  rv, config, opKpis, absVal, monitoriasCompletas, totalMonitorias, totalOperadores, mesLabel,
 }: MeuRVGestorProps) {
   const rvAnimado = useCountUp(rv.rvFinal, 800)
   const [regrasOpen, setRegrasOpen] = useState(false)
@@ -51,7 +50,7 @@ export default function MeuRVGestorClient({
       <div className="halo-cards-bg" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
         {/* ── Header ── */}
-        <PainelHeader titulo="Meu RV" mesLabel={mesLabel} dataReferencia={dataAtualizacao} />
+        <PainelHeader titulo="Meu RV" mesLabel={mesLabel} />
 
         {/* ── Linha dourada HALO ── */}
         <LinhaHorizontalDourada />

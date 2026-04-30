@@ -33,6 +33,7 @@ export interface DadosGestorParsed {
   absVal:               number   // %
   monitoriasCompletas:  number   // operators with 4+ sent
   totalMonitorias:      number   // total sent
+  semDados:             boolean  // pré-computado em page.tsx via null-check
 }
 
 export interface DeflatorAplicado {
@@ -127,9 +128,7 @@ export function calcularRVGestor(
   dados: DadosGestorParsed,
   config: RVGestorConfig,
 ): ResultadoRVGestor {
-  const { retencaoVal, indispVal, tmaValSeg, ticketVal, absVal, monitoriasCompletas } = dados
-
-  const semDados = retencaoVal === 0 && indispVal === 0 && tmaValSeg === 0
+  const { retencaoVal, indispVal, tmaValSeg, ticketVal, absVal, monitoriasCompletas, semDados } = dados
 
   // Elegibilidade — não interrompe o cálculo; RV é sempre computada
   const elegivel = !semDados && monitoriasCompletas >= 13

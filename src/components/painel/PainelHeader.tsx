@@ -29,18 +29,21 @@ export function PainelHeader({ titulo, mesLabel, dataReferencia }: PainelHeaderP
         {titulo}
       </span>
 
-      <div style={{ width: '1px', height: '14px', background: 'rgba(244,212,124,0.3)', flexShrink: 0 }} />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div className="animate-pulse" style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
-        <span style={{
-          fontFamily: FF_DM, fontSize: '13px', fontWeight: 500,
-          textTransform: 'uppercase', letterSpacing: '1px',
-          color: '#72708f', fontVariantNumeric: 'tabular-nums',
-        }}>
-          {mesLabel}
-        </span>
-      </div>
+      {mesLabel && (
+        <>
+          <div style={{ width: '1px', height: '14px', background: 'rgba(244,212,124,0.3)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="animate-pulse" style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
+            <span style={{
+              fontFamily: FF_DM, fontSize: '13px', fontWeight: 500,
+              textTransform: 'uppercase', letterSpacing: '1px',
+              color: '#72708f', fontVariantNumeric: 'tabular-nums',
+            }}>
+              {mesLabel}
+            </span>
+          </div>
+        </>
+      )}
 
       {dataReferencia && (
         <>

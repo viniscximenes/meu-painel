@@ -2,6 +2,7 @@ import { requireGestorOuAdmin } from '@/lib/auth'
 import { getPlanilhaPorTipo } from '@/lib/sheets'
 import { lerQuartilEquipe } from '@/lib/quartil-sheets'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
+import { createAdminClient } from '@/lib/supabase/admin'
 import PainelShell from '@/components/PainelShell'
 import QuartilEquipeClient from './QuartilEquipeClient'
 import type { OperadorQuartilData } from './QuartilEquipeClient'
@@ -13,7 +14,13 @@ export default async function Q4EquipePage() {
 
   const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
 
-  const planilha = await getPlanilhaPorTipo('kpi_quartil').catch(() => null)
+  const admin = createAdminClient()
+  const [planilha, ativosRes] = await Promise.all([
+    getPlanilhaPorTipo('kpi_quartil').catch(() => null),
+    admin.from('profiles').select('operador_id').eq('ativo', true).not('operador_id', 'is', null),
+  ])
+  const ativosIds = new Set((ativosRes.data ?? []).map(p => p.operador_id as number))
+  const operadoresAtivos = OPERADORES_DISPLAY.filter(op => ativosIds.has(op.id))
 
   if (!planilha) {
     return (
@@ -23,7 +30,7 @@ export default async function Q4EquipePage() {
     )
   }
 
-  const usernames = OPERADORES_DISPLAY.map(op => op.username)
+  const usernames = operadoresAtivos.map(op => op.username)
   const topicos = await lerQuartilEquipe(planilha.spreadsheet_id, usernames)
 
   const dataAtualizacao = topicos.find(t => t.id === 'txretencao')?.dataAtualizacao ?? null
@@ -34,7 +41,7 @@ export default async function Q4EquipePage() {
     for (const op of topico.operadores) {
       if (op.quartil !== 4) continue
       if (!opMap.has(op.username)) {
-        const display = OPERADORES_DISPLAY.find(o => o.username === op.username)
+        const display = operadoresAtivos.find(o => o.username === op.username)
         if (!display) continue
         opMap.set(op.username, { id: display.id, nome: display.nome, username: op.username, q4: [] })
       }

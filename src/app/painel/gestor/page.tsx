@@ -200,7 +200,8 @@ export default async function GestorPage() {
   const ticketVal   = parsePct(rawTicket)
   const absVal      = parsePct(rawAbs)
 
-  const dados = { retencaoVal, indispVal, tmaValSeg, ticketVal, absVal, monitoriasCompletas, totalMonitorias }
+  const dados = { retencaoVal, indispVal, tmaValSeg, ticketVal, absVal, monitoriasCompletas, totalMonitorias,
+    semDados: retencaoVal === 0 && indispVal === 0 && tmaValSeg === 0 }
   const rv: ResultadoRVGestor = calcularRVGestor(dados, config)
 
   // ── Status dos KPIs ───────────────────────────────────────────────────────

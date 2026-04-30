@@ -1,6 +1,7 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
 import { getPlanilhaAtiva, getPlanilhaPorTipo, resolverNomeAba } from '@/lib/sheets'
 import { lerKpiConsolidado } from '@/lib/kpi-consolidado-sheets'
+import { createAdminClient } from '@/lib/supabase/admin'
 import PainelShell from '@/components/PainelShell'
 import KpiEquipeClient from './KpiEquipeClient'
 import { AlertTriangle, Settings } from 'lucide-react'
@@ -34,12 +35,17 @@ export default async function GestorKpiEquipePage() {
     )
   }
 
+  const admin = createAdminClient()
+  const ativosRes = await admin.from('profiles').select('operador_id').eq('ativo', true).not('operador_id', 'is', null)
+  const ativosIds = new Set((ativosRes.data ?? []).map(p => p.operador_id as number))
+
   let kpiData: Awaited<ReturnType<typeof lerKpiConsolidado>> | null = null
   let erroSheets: string | null = null
 
   try {
     const aba = await resolverNomeAba(planilha.spreadsheet_id, 'KPI CONSOLIDADO').catch(() => planilha.aba)
     kpiData = await lerKpiConsolidado(planilha.spreadsheet_id, aba)
+    if (kpiData) kpiData.operadores = kpiData.operadores.filter(op => ativosIds.has(op.id))
   } catch (e) {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido ao carregar planilha'
   }

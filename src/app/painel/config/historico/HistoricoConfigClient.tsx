@@ -3,35 +3,116 @@
 import { useState, useTransition } from 'react'
 import type { Planilha } from '@/lib/sheets'
 import { salvarReferenciaAction } from './actions'
-import { HaloSpinner } from '@/components/HaloSpinner'
-import { CheckCircle2, XCircle, Pencil, X, Check } from 'lucide-react'
+import { Save, X } from 'lucide-react'
+import Link from 'next/link'
 
-const MESES = [
-  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
-]
+const FF_SYNE = "'Syne', sans-serif"
+const FF_DM   = "'DM Sans', sans-serif"
 
-interface HistoricoConfigClientProps {
-  planilhas: Planilha[]
+type Toast = { tipo: 'ok' | 'erro'; msg: string } | null
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function truncarId(id: string): string {
+  if (id.length <= 16) return id
+  return `${id.slice(0, 8)}…${id.slice(-4)}`
 }
 
-function mesAnoLabel(p: Planilha): string {
+function refLabel(p: Planilha): string | null {
   if (p.referencia_mes && p.referencia_ano)
-    return `${MESES[p.referencia_mes - 1]} ${p.referencia_ano}`
-  return '—'
+    return `${String(p.referencia_mes).padStart(2, '0')}/${p.referencia_ano}`
+  return null
 }
 
-function RowEditor({
-  planilha,
-  onDone,
-}: {
-  planilha: Planilha
-  onDone: () => void
-}) {
+// ── Agrupamento por ano ───────────────────────────────────────────────────────
+
+type Grupo = { ano: number | null; planilhas: Planilha[] }
+
+function agruparPorAno(planilhas: Planilha[]): Grupo[] {
+  const mapa = new Map<number | null, Planilha[]>()
+  for (const p of planilhas) {
+    const key = p.referencia_ano ?? null
+    if (!mapa.has(key)) mapa.set(key, [])
+    mapa.get(key)!.push(p)
+  }
+
+  for (const [, list] of mapa) {
+    list.sort((a, b) => {
+      if (a.referencia_mes === null && b.referencia_mes === null) return 0
+      if (a.referencia_mes === null) return 1
+      if (b.referencia_mes === null) return -1
+      return b.referencia_mes - a.referencia_mes
+    })
+  }
+
+  const grupos: Grupo[] = []
+  const anos = ([...mapa.keys()] as (number | null)[])
+    .filter((a): a is number => a !== null)
+    .sort((a, b) => b - a)
+
+  for (const ano of anos) {
+    grupos.push({ ano, planilhas: mapa.get(ano)! })
+  }
+  if (mapa.has(null)) {
+    const semRef = [...mapa.get(null)!].sort((a, b) => b.created_at.localeCompare(a.created_at))
+    grupos.push({ ano: null, planilhas: semRef })
+  }
+
+  return grupos
+}
+
+// ── Sub-componentes ───────────────────────────────────────────────────────────
+
+function FlorDourada() {
+  return (
+    <svg width={10} height={10} viewBox="0 0 10 10" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <rect x="0"   y="3.5" width="3" height="3" fill="#c9a24a" transform="rotate(45 1.5 5)"  />
+      <rect x="3.5" y="0"   width="3" height="3" fill="#c9a24a" transform="rotate(45 5 1.5)"  />
+      <rect x="7"   y="3.5" width="3" height="3" fill="#c9a24a" transform="rotate(45 8.5 5)"  />
+      <rect x="3.5" y="7"   width="3" height="3" fill="#c9a24a" transform="rotate(45 5 8.5)"  />
+    </svg>
+  )
+}
+
+function TituloAno({ ano }: { ano: number | null }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '24px', marginBottom: '16px' }}>
+      <FlorDourada />
+      <span style={{
+        fontFamily: ano !== null ? FF_DM : FF_SYNE,
+        fontWeight: ano !== null ? 700 : 600,
+        fontSize: '13px',
+        textTransform: ano !== null ? 'none' : 'uppercase',
+        letterSpacing: ano !== null ? '0.04em' : '0.10em',
+        fontVariantNumeric: 'tabular-nums',
+        color: '#A6A2A2', whiteSpace: 'nowrap', flexShrink: 0,
+      }}>
+        {ano !== null ? String(ano) : 'SEM REFERÊNCIA CONFIGURADA'}
+      </span>
+      <div style={{ flex: 1, height: '2px', background: 'rgba(244,212,124,0.30)' }} />
+    </div>
+  )
+}
+
+const INPUT_STYLE: React.CSSProperties = {
+  background: '#03040C',
+  border: '1px solid rgba(114,112,143,0.5)',
+  borderRadius: '8px',
+  color: '#A6A2A2',
+  fontFamily: FF_DM,
+  fontWeight: 500,
+  fontSize: '13px',
+  fontVariantNumeric: 'tabular-nums',
+  padding: '7px 10px',
+  outline: 'none',
+}
+
+function PlanilhaCard({ planilha, onToast }: { planilha: Planilha; onToast: (t: Toast) => void }) {
+  const ref = refLabel(planilha)
   const [mes, setMes] = useState<string>(planilha.referencia_mes?.toString() ?? '')
   const [ano, setAno] = useState<string>(planilha.referencia_ano?.toString() ?? '')
-  const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   function salvar() {
     const mesNum = mes ? parseInt(mes, 10) : null
@@ -43,177 +124,174 @@ function RowEditor({
     setErro(null)
     startTransition(async () => {
       const res = await salvarReferenciaAction(planilha.id, mesNum, anoNum)
-      if (res.ok) onDone()
-      else setErro(res.error ?? 'Erro')
+      if (res.ok) onToast({ tipo: 'ok', msg: 'Referência salva' })
+      else { setErro(res.error ?? 'Erro'); onToast({ tipo: 'erro', msg: res.error ?? 'Erro ao salvar' }) }
     })
   }
 
   function limpar() {
+    setMes('')
+    setAno('')
+    setErro(null)
     startTransition(async () => {
       const res = await salvarReferenciaAction(planilha.id, null, null)
-      if (res.ok) onDone()
-      else setErro(res.error ?? 'Erro')
+      if (res.ok) onToast({ tipo: 'ok', msg: 'Referência removida' })
+      else onToast({ tipo: 'erro', msg: res.error ?? 'Erro ao remover' })
     })
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{
+      background: '#070714',
+      border: '1px solid rgba(244,212,124,0.10)',
+      borderRadius: '10px',
+      padding: '20px 24px',
+      display: 'flex', flexDirection: 'column', gap: '14px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{
+            fontFamily: FF_SYNE, fontWeight: 600, fontSize: '16px',
+            textTransform: 'uppercase', letterSpacing: '0.04em', color: '#A6A2A2',
+          }}>
+            {planilha.nome}
+          </span>
+          <span style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '11px', color: '#474658', letterSpacing: '0.02em' }}>
+            ID: {truncarId(planilha.spreadsheet_id)}
+          </span>
+        </div>
+
+        <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
+          <span style={{
+            fontFamily: FF_SYNE, fontWeight: 600, fontSize: '11px',
+            textTransform: 'uppercase', letterSpacing: '0.06em', color: '#474658',
+          }}>
+            REFERÊNCIA:
+          </span>
+          <span style={{
+            fontFamily: FF_DM, fontWeight: 500, fontSize: '13px',
+            fontVariantNumeric: 'tabular-nums',
+            color: ref ? '#A6A2A2' : '#474658',
+            fontStyle: ref ? 'normal' : 'italic',
+          }}>
+            {ref ?? 'Não configurada'}
+          </span>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <select
+        <input
+          type="number"
+          placeholder="Mês (1–12)"
           value={mes}
           onChange={e => setMes(e.target.value)}
           disabled={isPending}
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '13px',
-            padding: '6px 10px',
-          }}
-        >
-          <option value="">Mês</option>
-          {MESES.map((m, i) => (
-            <option key={i} value={i + 1}>{m}</option>
-          ))}
-        </select>
+          min={1} max={12}
+          style={{ ...INPUT_STYLE, width: '110px' }}
+        />
         <input
           type="number"
           placeholder="Ano"
           value={ano}
           onChange={e => setAno(e.target.value)}
           disabled={isPending}
-          min={2020}
-          max={2100}
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '13px',
-            padding: '6px 10px',
-            width: '90px',
-          }}
+          min={2020} max={2100}
+          style={{ ...INPUT_STYLE, width: '100px' }}
         />
         <button
+          type="button"
           onClick={salvar}
           disabled={isPending}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '4px',
-            padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-            background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)',
-            color: '#f4d47c', cursor: 'pointer',
-          }}
+          className="btn-primary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', fontSize: '12px' }}
         >
-          {isPending ? <HaloSpinner size="sm" /> : <Check size={13} />}
-          Salvar
+          <Save size={13} />
+          SALVAR REFERÊNCIA
         </button>
-        {(planilha.referencia_mes || planilha.referencia_ano) && (
+        {ref && (
           <button
+            type="button"
             onClick={limpar}
             disabled={isPending}
             style={{
-              display: 'flex', alignItems: 'center', gap: '4px',
-              padding: '6px 10px', borderRadius: '8px', fontSize: '12px',
-              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-              color: '#f87171', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '7px 12px', borderRadius: '8px', fontSize: '12px',
+              background: 'transparent', border: '1px solid rgba(239,68,68,0.3)',
+              color: 'rgba(248,113,113,0.8)', cursor: 'pointer',
+              fontFamily: FF_DM, fontWeight: 500,
             }}
           >
-            <X size={13} /> Remover
+            <X size={12} /> LIMPAR
           </button>
         )}
-        <button
-          onClick={onDone}
-          disabled={isPending}
-          style={{
-            padding: '6px 10px', borderRadius: '8px', fontSize: '12px',
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-            color: 'var(--text-muted)', cursor: 'pointer',
-          }}
-        >
-          Cancelar
-        </button>
       </div>
-      {erro && <p style={{ fontSize: '12px', color: '#f87171', margin: 0 }}>{erro}</p>}
+
+      {erro && (
+        <p style={{ fontFamily: FF_DM, fontSize: '12px', color: '#f87171', margin: 0 }}>{erro}</p>
+      )}
     </div>
   )
 }
 
-export default function HistoricoConfigClient({ planilhas }: HistoricoConfigClientProps) {
-  const [editando, setEditando] = useState<string | null>(null)
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+export default function HistoricoConfigClient({ planilhas }: { planilhas: Planilha[] }) {
+  const [toast, setToast] = useState<Toast>(null)
+
+  function showToast(t: Toast) {
+    setToast(t)
+    setTimeout(() => setToast(null), 3000)
+  }
 
   if (!planilhas.length) {
     return (
       <div style={{
-        padding: '24px', borderRadius: '12px', textAlign: 'center',
-        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+        padding: '32px', borderRadius: '10px', textAlign: 'center',
+        background: '#070714', border: '1px solid rgba(244,212,124,0.10)',
       }}>
-        <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-          Nenhuma planilha cadastrada ainda.
+        <p style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '13px', color: '#72708F', marginBottom: '8px' }}>
+          Nenhuma planilha cadastrada.
         </p>
+        <Link
+          href="/painel/admin/configuracoes/planilhas"
+          style={{ fontFamily: FF_DM, fontSize: '12px', color: 'rgba(244,212,124,0.7)', textDecoration: 'underline' }}
+        >
+          Cadastrar em Ajuste de Planilhas
+        </Link>
       </div>
     )
   }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {planilhas.map(p => (
-        <div
-          key={p.id}
-          style={{
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: '12px',
-            padding: '14px 16px',
-            display: 'flex', flexDirection: 'column', gap: '10px',
-          }}
-        >
-          {/* Row info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', flex: 1, minWidth: '120px' }}>
-              {p.nome}
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {p.referencia_mes && p.referencia_ano
-                ? <CheckCircle2 size={13} style={{ color: '#4ade80', flexShrink: 0 }} />
-                : <XCircle size={13} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
-              }
-              <span style={{ fontSize: '12px', color: p.referencia_mes ? 'rgba(255,255,255,0.70)' : 'var(--text-muted)', minWidth: '120px' }}>
-                {mesAnoLabel(p)}
-              </span>
-            </div>
-            {p.ativa && (
-              <span style={{
-                fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                padding: '2px 8px', borderRadius: '99px',
-                background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399',
-              }}>
-                Ativa
-              </span>
-            )}
-            {editando !== p.id && (
-              <button
-                onClick={() => setEditando(p.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  padding: '5px 10px', borderRadius: '8px', fontSize: '11px',
-                  background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)',
-                  color: 'rgba(244,212,124,0.8)', cursor: 'pointer',
-                }}
-              >
-                <Pencil size={11} /> Editar
-              </button>
-            )}
-          </div>
+  const grupos = agruparPorAno(planilhas)
 
-          {editando === p.id && (
-            <RowEditor
-              planilha={p}
-              onDone={() => setEditando(null)}
-            />
-          )}
+  return (
+    <>
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 50,
+          background: toast.tipo === 'ok' ? 'rgba(106,196,73,0.12)' : 'rgba(239,68,68,0.12)',
+          border: `1px solid ${toast.tipo === 'ok' ? 'rgba(106,196,73,0.4)' : 'rgba(239,68,68,0.4)'}`,
+          borderRadius: '10px', padding: '12px 18px',
+          fontFamily: FF_SYNE, fontWeight: 600, fontSize: '13px',
+          color: toast.tipo === 'ok' ? '#4ade80' : '#f87171',
+          pointerEvents: 'none',
+        }}>
+          {toast.msg}
         </div>
-      ))}
-    </div>
+      )}
+
+      <div>
+        {grupos.map(grupo => (
+          <div key={grupo.ano ?? 'sem-ref'}>
+            <TituloAno ano={grupo.ano} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {grupo.planilhas.map(p => (
+                <PlanilhaCard key={p.id} planilha={p} onToast={showToast} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   )
 }

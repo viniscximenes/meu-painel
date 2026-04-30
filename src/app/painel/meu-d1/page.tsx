@@ -1,6 +1,6 @@
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, matchCelulaOperador } from '@/lib/sheets'
+import { getPlanilhaPorTipo, buscarLinhasPlanilha, encontrarColunaIdent, matchCelulaOperador } from '@/lib/sheets'
 import { lerAbaD1, matchEmailD1 } from '@/lib/d1-sheets'
 import { getAppConfig } from '@/lib/app-config'
 import { getRVConfig } from '@/lib/rv'
@@ -49,7 +49,7 @@ export default async function MeuD1Page() {
   if (profile.role === 'gestor') redirect('/painel')
 
   const [planilha, rvConfig, limiteRaw] = await Promise.all([
-    getPlanilhaAtiva().catch(() => null),
+    getPlanilhaPorTipo('kpi_quartil').catch(() => null),
     getRVConfig().catch(() => null),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
   ])

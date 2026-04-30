@@ -59,22 +59,25 @@ export default async function CopiarEColarPage() {
     const [kpiData, todosRegistros, profilesRes] = await Promise.all([
       lerKpiConsolidado(planilha.spreadsheet_id, planilha.aba),
       buscarDiario(planilha.spreadsheet_id),
-      admin.from('profiles').select('operador_id, email').not('operador_id', 'is', null),
+      admin.from('profiles').select('operador_id, email, ativo').not('operador_id', 'is', null),
     ])
 
     dataAtualizacao = kpiData.dataAtualizacao
 
     const profileMap = new Map<number, string>()
+    const ativosIds = new Set<number>()
     for (const p of (profilesRes.data ?? [])) {
       if (p.operador_id && p.email) profileMap.set(p.operador_id, p.email)
+      if (p.operador_id && (p.ativo ?? true)) ativosIds.add(p.operador_id)
     }
+    const operadoresAtivos = OPERADORES_DISPLAY.filter(op => ativosIds.has(op.id))
 
     const registrosMes = todosRegistros.filter(r => {
       if (!r.dataObj) return false
       return r.dataObj.getMonth() + 1 === mesFiltro && r.dataObj.getFullYear() === anoFiltro
     })
 
-    operadores = OPERADORES_DISPLAY.map(op => {
+    operadores = operadoresAtivos.map(op => {
       const kpiRow = kpiData.operadores.find(k => k.id === op.id) ?? {
         id: op.id, nome: op.nome, username: op.username, encontrado: false,
         pedidos: null, churn: null, txRetBrutaPct: null, tmaSeg: null,

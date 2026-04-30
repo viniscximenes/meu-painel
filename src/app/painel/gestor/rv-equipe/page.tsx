@@ -2,16 +2,20 @@ import React from 'react'
 import { requireGestorOuAdmin } from '@/lib/auth'
 import {
   getPlanilhaAtiva,
+  getPlanilhaPorTipo,
   buscarLinhasPlanilha,
   encontrarColunaIdent,
   matchCelulaOperador,
   formatarDataCurta,
   extrairDataAtualizacao,
+  resolverNomeAba,
 } from '@/lib/sheets'
 import { getRVConfig, calcularRV } from '@/lib/rv'
 import { getMetas, computarKPIs } from '@/lib/kpi'
+import { getAppConfig } from '@/lib/app-config'
 import { lerAbaABS, contarFaltasPorOperador } from '@/lib/abs-sheets'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
+import { createAdminClient } from '@/lib/supabase/admin'
 import PainelShell from '@/components/PainelShell'
 import RvEquipeClient from './RvEquipeClient'
 import type { OperadorRvData } from './RvEquipeClient'
@@ -23,17 +27,26 @@ export const dynamic = 'force-dynamic'
 export default async function RvEquipePage() {
   const profile = await requireGestorOuAdmin()
 
-  const [planilha, rvConfig, metas] = await Promise.all([
+  const admin = createAdminClient()
+
+  const [planilhaKpi, planilhaMes, rvConfig, metas, limiteRaw, ativosRes] = await Promise.all([
+    getPlanilhaPorTipo('kpi_quartil').catch(() => null),
     getPlanilhaAtiva().catch(() => null),
     getRVConfig().catch(() => null),
     getMetas().catch(() => []),
+    getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
+    admin.from('profiles').select('operador_id').eq('ativo', true).not('operador_id', 'is', null),
   ])
+
+  const ativosIds = new Set((ativosRes.data ?? []).map(p => p.operador_id as number))
+  const operadoresAtivos = OPERADORES_DISPLAY.filter(op => ativosIds.has(op.id))
+  const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 80
 
   const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
   const mesReferencia = new Date().toISOString().slice(0, 7)
   const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
 
-  if (!planilha) {
+  if (!planilhaKpi) {
     return (
       <PainelShell profile={profile} title="RV Equipe" iconName="Coins">
         <div style={cssVars} className="space-y-4">
@@ -71,16 +84,18 @@ export default async function RvEquipePage() {
   let erroSheets: string | null = null
 
   try {
+    const abaKpi = await resolverNomeAba(planilhaKpi.spreadsheet_id, 'KPI CONSOLIDADO').catch(() => 'KPI CONSOLIDADO')
+
     const [{ headers, rows }, absData] = await Promise.all([
-      buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba, 80),
-      lerAbaABS(planilha.spreadsheet_id).catch(() => null),
+      buscarLinhasPlanilha(planilhaKpi.spreadsheet_id, abaKpi, limiteLinhas),
+      planilhaMes ? lerAbaABS(planilhaMes.spreadsheet_id).catch(() => null) : Promise.resolve(null),
     ])
 
     const col = encontrarColunaIdent(headers)
     dataAtualizacao = extrairDataAtualizacao(rows)
     const faltasPorOp = absData ? contarFaltasPorOperador(absData) : {}
 
-    operadores = OPERADORES_DISPLAY.map(op => {
+    operadores = operadoresAtivos.map(op => {
       const row = rows.find(r => matchCelulaOperador(r[col] ?? '', op.username, op.nome))
       if (!row) {
         return { id: op.id, nome: op.nome, username: op.username, encontrado: false, resultado: null }

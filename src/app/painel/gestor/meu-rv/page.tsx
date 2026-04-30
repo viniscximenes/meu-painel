@@ -1,6 +1,16 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
-import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, matchCelulaOperador, extrairDataAtualizacao } from '@/lib/sheets'
+import {
+  getPlanilhaAtiva,
+  getPlanilhaPorTipo,
+  buscarLinhasPlanilha,
+  getMapeamentoKpiGestorColunas,
+  getMapeamentoKpiColunas,
+  matchCelulaOperador,
+  resolverNomeAba,
+  encontrarColunaIdent,
+} from '@/lib/sheets'
+import { extrairValor } from '@/lib/kpi-coluna-utils'
 import { getRVGestorConfig, calcularRVGestor } from '@/lib/rv-gestor'
 import type { ResultadoRVGestor } from '@/lib/rv-gestor-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
@@ -10,54 +20,47 @@ import { AlertTriangle, Settings } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
-function normH(s: string): string {
-  return s.replace(/\u00a0/g, ' ').replace(/\r|\t/g, ' ').toLowerCase().replace(/\s+/g, ' ').trim()
+// ── Parsers null-aware ────────────────────────────────────────────────────────
+// Retornam null quando a célula está ausente ou inválida.
+// Valor 0 legítimo é preservado como 0 (não confundido com ausência).
+
+function parsePctRV(raw: string | null): number | null {
+  if (!raw) return null
+  const s = raw.trim().replace(/\s/g, '').replace(',', '.')
+  if (!s || s.startsWith('#')) return null
+  const n = parseFloat(s.replace('%', ''))
+  if (isNaN(n)) return null
+  return n > 0 && n < 2 ? n * 100 : n
 }
 
-const KW: Record<string, string[]> = {
-  retracao: ['tx de retenção','tx retencao','retenção bruta','retencao bruta','tx retenção','retenção','retencao','taxa de retenção'],
-  indisp:   ['indisponibilidade','indisp'],
-  tma:      ['tma bruto','tma medio','tma médio','tma','tempo médio de atendimento','tempo medio de atendimento'],
-  ticket:   ['variação de ticket','variacao de ticket','% variação ticket','var ticket','variação ticket','variacao ticket','ticket'],
-  abs:      ['absenteísmo','absenteismo','ausência','ausencia','abs'],
+function parseTMARV(raw: string | null): number | null {
+  if (!raw) return null
+  const s = raw.trim()
+  if (!s || s.startsWith('#')) return null
+  const parts = s.split(':').map(p => parseInt(p, 10))
+  if (parts.some(isNaN)) return null
+  let secs = 0
+  if (parts.length === 3) secs = parts[0] * 3600 + parts[1] * 60 + parts[2]
+  else if (parts.length === 2) secs = parts[0] * 60 + parts[1]
+  else return null
+  return secs === 0 ? null : secs
 }
 
-function detectIdx(headers: string[], campo: string): number {
-  const normsH = headers.map(h => normH(h))
-  for (const kw of (KW[campo] ?? [])) {
-    const normKw = normH(kw)
-    const exact = normsH.indexOf(normKw)
-    if (exact !== -1) return exact
-    const cont = normsH.findIndex(h => h.includes(normKw))
-    if (cont !== -1) return cont
-  }
-  return -1
-}
-
-function parsePct(raw: string): number {
-  if (!raw) return 0
-  const n = parseFloat(raw.replace(/[%\s]/g, '').replace(',', '.'))
-  return isNaN(n) ? 0 : n
-}
-
-function parseSeg(raw: string): number {
-  if (!raw) return 0
-  const hms = raw.trim().match(/^(\d+):(\d{1,2}):(\d{1,2})$/)
-  if (hms) return parseInt(hms[1]) * 3600 + parseInt(hms[2]) * 60 + parseInt(hms[3])
-  const ms = raw.trim().match(/^(\d+):(\d{2})$/)
-  if (ms) return parseInt(ms[1]) * 60 + parseInt(ms[2])
-  const n = parseFloat(raw.replace(',', '.').replace(/[^\d.]/g, ''))
-  return isNaN(n) ? 0 : n
-}
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function GestorMeuRvPage() {
   const profile  = await requireGestorOuAdmin()
-  const planilha = await getPlanilhaAtiva().catch(() => null)
   const config   = await getRVGestorConfig()
+
+  // KPI GESTOR vive na planilha kpi_quartil; MONITORIA e op data vivem na mes_atual.
+  const [planilhaKpi, planilhaMes] = await Promise.all([
+    getPlanilhaPorTipo('kpi_quartil').catch(() => null),
+    getPlanilhaAtiva().catch(() => null),
+  ])
 
   const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
 
-  if (!planilha) {
+  if (!planilhaKpi) {
     return (
       <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
         <div style={cssVars} className="space-y-4">
@@ -77,21 +80,24 @@ export default async function GestorMeuRvPage() {
   let monitoriasCompletas           = 0
   let totalMonitorias               = 0
   let totalOperadores               = 0
-  let dataAtualizacao: string | null = null
-  let erroSheets: string | null      = null
+  let erroSheets: string | null = null
 
   try {
-    const [gestorData, monitoriaData, opData] = await Promise.all([
-      buscarLinhasPlanilha(planilha.spreadsheet_id, 'KPI GESTOR', 50),
-      buscarLinhasPlanilha(planilha.spreadsheet_id, 'MONITORIA').catch(() => ({ headers: [], rows: [] })),
-      buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba).catch(() => ({ headers: [], rows: [] })),
+    const abaGestor = await resolverNomeAba(planilhaKpi.spreadsheet_id, 'KPI GESTOR').catch(() => 'KPI GESTOR')
+
+    const [gestorData, monitoriaData, opData, mapeamentoGestor, mapeamentoOp] = await Promise.all([
+      buscarLinhasPlanilha(planilhaKpi.spreadsheet_id, abaGestor, 50),
+      planilhaMes
+        ? buscarLinhasPlanilha(planilhaMes.spreadsheet_id, 'MONITORIA').catch(() => ({ headers: [], rows: [] }))
+        : Promise.resolve({ headers: [], rows: [] }),
+      planilhaMes
+        ? buscarLinhasPlanilha(planilhaMes.spreadsheet_id, planilhaMes.aba).catch(() => ({ headers: [], rows: [] }))
+        : Promise.resolve({ headers: [], rows: [] }),
+      getMapeamentoKpiGestorColunas(),
+      getMapeamentoKpiColunas(),
     ])
 
-    const headers = gestorData.headers
-    const dataRow = gestorData.rows[0] ?? []
-    dataAtualizacao = extrairDataAtualizacao(gestorData.rows)
-
-    // Monitorias — raw count from planilha
+    // ── Monitorias ────────────────────────────────────────────────────────────
     const enviadas = monitoriaData.rows.filter(r => (r[13] ?? '').toLowerCase().trim() === 'sim')
     totalMonitorias = enviadas.length
     const porColaborador = new Map<string, number>()
@@ -99,9 +105,6 @@ export default async function GestorMeuRvPage() {
       const col = (r[0] ?? '').trim()
       if (col) porColaborador.set(col, (porColaborador.get(col) ?? 0) + 1)
     }
-
-    // Cross-reference with OPERADORES_DISPLAY (canonical list — excludes inactive/hidden operators)
-    // This prevents the planilha's extra rows (ex-employees, gestor herself) from polluting the count
     monitoriasCompletas = OPERADORES_DISPLAY.filter(op =>
       [...porColaborador.entries()].some(([nome, count]) =>
         count >= 4 && matchCelulaOperador(nome, op.username, op.nome)
@@ -109,53 +112,65 @@ export default async function GestorMeuRvPage() {
     ).length
     totalOperadores = OPERADORES_DISPLAY.length
 
-    // Operator KPIs for hover popups
+    // ── KPIs dos operadores (hover popups) ───────────────────────────────────
     if (opData.headers.length > 0) {
       const colIdent = encontrarColunaIdent(opData.headers)
-      const idxRet   = detectIdx(opData.headers, 'retracao')
-      const idxInd   = detectIdx(opData.headers, 'indisp')
-      const idxTma   = detectIdx(opData.headers, 'tma')
-      const idxTkt   = detectIdx(opData.headers, 'ticket')
-      const idxAbs   = detectIdx(opData.headers, 'abs')
-
       opKpis = OPERADORES_DISPLAY.map(op => {
         const row = opData.rows.find(r => matchCelulaOperador(r[colIdent] ?? '', op.username, op.nome))
         if (!row) return null
         return {
-          id: op.id,
-          nome: op.nome,
-          retencaoVal: parsePct(row[idxRet] ?? ''),
-          indispVal:   parsePct(row[idxInd] ?? ''),
-          tmaValSeg:   parseSeg(row[idxTma] ?? ''),
-          ticketVal:   parsePct(row[idxTkt] ?? ''),
-          absVal:      parsePct(row[idxAbs] ?? ''),
+          id:         op.id,
+          nome:       op.nome,
+          retencaoVal: parsePctRV(extrairValor(row, mapeamentoOp, 'tx_ret_bruta')) ?? 0,
+          indispVal:   parsePctRV(extrairValor(row, mapeamentoOp, 'indisp'))        ?? 0,
+          tmaValSeg:   parseTMARV(extrairValor(row, mapeamentoOp, 'tma'))           ?? 0,
+          ticketVal:   parsePctRV(extrairValor(row, mapeamentoOp, 'var_ticket'))    ?? 0,
+          absVal:      parsePctRV(extrairValor(row, mapeamentoOp, 'abs'))           ?? 0,
         } satisfies OpKpiData
       }).filter((o): o is OpKpiData => o !== null)
-
-      console.log('[AUDIT gestorMeuRV]', {
-        monitoriaRows: monitoriaData.rows.length,
-        enviadas: enviadas.length,
-        porColaboradorSize: porColaborador.size,
-        monitoriasCompletas,
-        totalOperadores,
-        opKpisLength: opKpis.length,
-      })
     }
 
-    // Gestor KPI values
-    const get = (campo: string) => {
-      const idx = detectIdx(headers, campo)
-      return idx >= 0 ? (dataRow[idx] ?? '') : ''
-    }
+    // ── Linha do gestor na aba KPI GESTOR ─────────────────────────────────────
+    const linhaGestor = gestorData.rows.find(row =>
+      matchCelulaOperador(row[0] ?? '', profile.username, profile.nome)
+    ) ?? null
 
-    const retencaoVal = parsePct(get('retracao'))
-    const indispVal   = parsePct(get('indisp'))
-    const tmaValSeg   = parseSeg(get('tma'))
-    const ticketVal   = parsePct(get('ticket'))
-    absVal            = parsePct(get('abs'))
+    console.log('[RV GESTOR] mapeamento usado:', mapeamentoGestor)
+    console.log('[RV GESTOR] linha do gestor encontrada:', linhaGestor)
+
+    // ── Extração via mapeamento configurável ──────────────────────────────────
+    const retencaoStr = linhaGestor ? extrairValor(linhaGestor, mapeamentoGestor, 'tx_ret_bruta') : null
+    const indispStr   = linhaGestor ? extrairValor(linhaGestor, mapeamentoGestor, 'indisp')       : null
+    const tmaStr      = linhaGestor ? extrairValor(linhaGestor, mapeamentoGestor, 'tma')          : null
+    const ticketStr   = linhaGestor ? extrairValor(linhaGestor, mapeamentoGestor, 'var_ticket')   : null
+    const absStr      = linhaGestor ? extrairValor(linhaGestor, mapeamentoGestor, 'abs')          : null
+
+    const retencaoVal = parsePctRV(retencaoStr)
+    const indispValN  = parsePctRV(indispStr)
+    const tmaValSeg   = parseTMARV(tmaStr)
+    const ticketVal   = parsePctRV(ticketStr)
+    const absValN     = parsePctRV(absStr)
+
+    absVal = absValN ?? 0
+
+    // semDados: todos os 3 campos críticos são null (mapeamento não configurado ou gestor não encontrado)
+    // Nota: 0 é valor válido — só null indica ausência real de dado.
+    const semDados = retencaoVal === null && indispValN === null && tmaValSeg === null
+
+    console.log('[RV GESTOR] valores extraídos:', { retencaoVal, indispVal: indispValN, tmaValSeg, ticketVal, absVal: absValN })
+    console.log('[RV GESTOR] semDados motivo:', semDados ? 'todos os 3 valores críticos são null' : 'OK')
 
     rv = calcularRVGestor(
-      { retencaoVal, indispVal, tmaValSeg, ticketVal, absVal, monitoriasCompletas, totalMonitorias },
+      {
+        retencaoVal:        retencaoVal ?? 0,
+        indispVal:          indispValN  ?? 0,
+        tmaValSeg:          tmaValSeg   ?? 0,
+        ticketVal:          ticketVal   ?? 0,
+        absVal,
+        monitoriasCompletas,
+        totalMonitorias,
+        semDados,
+      },
       config,
     )
   } catch (e) {
@@ -198,7 +213,6 @@ export default async function GestorMeuRvPage() {
             totalMonitorias={totalMonitorias}
             totalOperadores={totalOperadores}
             mesLabel={mesLabel}
-            dataAtualizacao={dataAtualizacao}
           />
         )}
       </div>
