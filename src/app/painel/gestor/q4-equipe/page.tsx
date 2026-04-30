@@ -1,5 +1,5 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
-import { getPlanilhaAtiva } from '@/lib/sheets'
+import { getPlanilhaPorTipo } from '@/lib/sheets'
 import { lerQuartilEquipe } from '@/lib/quartil-sheets'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import PainelShell from '@/components/PainelShell'
@@ -13,7 +13,7 @@ export default async function Q4EquipePage() {
 
   const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
 
-  const planilha = await getPlanilhaAtiva().catch(() => null)
+  const planilha = await getPlanilhaPorTipo('kpi_quartil').catch(() => null)
 
   if (!planilha) {
     return (

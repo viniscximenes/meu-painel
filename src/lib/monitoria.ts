@@ -3,7 +3,7 @@
 // Utilitários puros estão em @/lib/monitoria-utils — importe daí nos Client Components.
 
 import { google } from 'googleapis'
-import { getPlanilhaAtiva, resolverNomeAba } from '@/lib/sheets'
+import { getPlanilhaAtiva, resolverNomeAba, escaparNomeAba } from '@/lib/sheets'
 
 export * from '@/lib/monitoria-utils'
 
@@ -103,7 +103,7 @@ export async function buscarMonitorias(spreadsheetId: string): Promise<Monitoria
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `'${aba}'!A:N`,
+        range: `${escaparNomeAba(aba)}!A:N`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
@@ -139,7 +139,7 @@ export async function criarMonitoria(
   await withTimeout(
     sheetsAPI().spreadsheets.values.append({
       spreadsheetId,
-      range: `'${aba}'!A:N`,
+      range: `${escaparNomeAba(aba)}!A:N`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [inputToRow(dados)] },
     })
@@ -155,7 +155,7 @@ export async function atualizarMonitoria(
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
-      range: `'${aba}'!A${rowNumber}:N${rowNumber}`,
+      range: `${escaparNomeAba(aba)}!A${rowNumber}:N${rowNumber}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [inputToRow(dados)] },
     })

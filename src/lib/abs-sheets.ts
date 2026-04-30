@@ -2,6 +2,7 @@
 // Servidor apenas — importa googleapis.
 
 import { google } from 'googleapis'
+import { escaparNomeAba } from '@/lib/sheets'
 
 export type { ABSStatus, ABSSheetData } from '@/lib/abs-utils'
 export { ABS_STATUS_OPTIONS, ABA_ABS, contarFaltasPorOperador } from '@/lib/abs-utils'
@@ -100,7 +101,7 @@ export async function inicializarAbaABS(
   await withTimeout(
     api.spreadsheets.values.update({
       spreadsheetId,
-      range: `'${ABA_ABS}'!A1`,
+      range: `${escaparNomeAba(ABA_ABS)}!A1`,
       valueInputOption: 'RAW',
       requestBody: { values },
     })
@@ -118,7 +119,7 @@ export async function lerAbaABS(spreadsheetId: string): Promise<ABSSheetData> {
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `'${ABA_ABS}'!A:ZZ`,
+        range: `${escaparNomeAba(ABA_ABS)}!A:ZZ`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
@@ -163,7 +164,7 @@ export async function atualizarCelulaABS(
   // Col A=1 = Operador, Col B=2 = first date, etc.
   const sheetCol = colIndex + 2
   const colLetter = colIndexToLetter(sheetCol)
-  const cellRef = `'${ABA_ABS}'!${colLetter}${rowIndex}`
+  const cellRef = `${escaparNomeAba(ABA_ABS)}!${colLetter}${rowIndex}`
 
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({

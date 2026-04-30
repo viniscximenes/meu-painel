@@ -6,15 +6,18 @@ import { Settings, Trash2, ExternalLink, Edit2, Check, AlertTriangle, Save, Info
 import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
 import { HaloSpinner } from '@/components/HaloSpinner'
 import type { Planilha } from '@/lib/sheets'
-import { ABAS_ESPERADAS, abaEncontrada } from '@/lib/planilhas-config'
+import { ABAS_ESPERADAS, QUARTIL_SUB_ABAS, abaEncontrada } from '@/lib/planilhas-config'
 import type { TipoPlanilha } from '@/lib/planilhas-config'
 import { KPIS_PRINCIPAIS, KPIS_SECUNDARIOS, CATEGORIA_LABEL } from '@/lib/kpis-config'
 import type { KpiKey, KpiCategoria } from '@/lib/kpis-config'
+import { QUARTIL_TOPICOS } from '@/lib/quartil-config'
+import type { MapeamentoQuartil, QuartilTopicoId } from '@/lib/quartil-config'
 import {
   salvarPlanilhaOperacaoAction,
   apagarPlanilhaOperacaoAction,
   salvarMapeamentoKpiColunasAction,
   salvarMapeamentoKpiGestorColunasAction,
+  salvarMapeamentoQuartilAction,
 } from './actions'
 
 // ── Paleta ────────────────────────────────────────────────────────────────────
@@ -68,8 +71,27 @@ function DivisorSecao() {
 // ── Lista de abas com indicadores ─────────────────────────────────────────────
 
 function IndicadorAbas({ tipo, abas }: { tipo: TipoPlanilha; abas: string[] }) {
-  const esperadas = ABAS_ESPERADAS[tipo]
+  const esperadas    = ABAS_ESPERADAS[tipo]
   const algumFaltando = esperadas.some(e => !abaEncontrada(abas, e))
+
+  const isKpiQuartil   = tipo === 'kpi_quartil'
+  const abasIndividuais = isKpiQuartil
+    ? esperadas.filter(e => !e.startsWith('QUARTIL.'))
+    : esperadas
+
+  // Agregação das 5 sub-abas QUARTIL.*
+  const quartilEncontradas = isKpiQuartil
+    ? QUARTIL_SUB_ABAS.filter(a => abaEncontrada(abas, a))
+    : []
+  const quartilTotal   = QUARTIL_SUB_ABAS.length
+  const quartilCount   = quartilEncontradas.length
+  const quartilOk      = quartilCount === quartilTotal
+  const quartilFaltando = isKpiQuartil
+    ? QUARTIL_SUB_ABAS.filter(a => !abaEncontrada(abas, a))
+    : []
+  const quartilTooltip = quartilFaltando.length > 0
+    ? `Faltando: ${quartilFaltando.join(', ')}`
+    : undefined
 
   return (
     <div style={{ marginTop: '12px' }}>
@@ -81,7 +103,7 @@ function IndicadorAbas({ tipo, abas }: { tipo: TipoPlanilha; abas: string[] }) {
         Abas na planilha
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {esperadas.map(aba => {
+        {abasIndividuais.map(aba => {
           const ok = abaEncontrada(abas, aba)
           return (
             <div key={aba} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -96,6 +118,24 @@ function IndicadorAbas({ tipo, abas }: { tipo: TipoPlanilha; abas: string[] }) {
             </div>
           )
         })}
+
+        {isKpiQuartil && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} title={quartilTooltip}>
+            <span style={{ color: LABEL, fontSize: '10px' }}>•</span>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '3px' }}>
+              <span style={{ fontFamily: FF_SYNE, fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em', color: quartilOk ? TEXT : VERM_S, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                QUARTIL
+              </span>
+              <span style={{ fontFamily: FF_DM, fontSize: '12px', fontWeight: 500, color: quartilOk ? TEXT : VERM_S }}>
+                ({quartilCount}/{quartilTotal})
+              </span>
+            </span>
+            {quartilOk
+              ? <Check size={12} color={VERDE_S} />
+              : <AlertTriangle size={12} color={VERM_S} />
+            }
+          </div>
+        )}
       </div>
       {algumFaltando && (
         <p style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, color: VERM_S, marginTop: '8px' }}>
@@ -468,14 +508,203 @@ function TabelaMapeamentoKpi({
   )
 }
 
+// ── Tabela de mapeamento de colunas Quartil ───────────────────────────────────
+
+type ValoresQuartil = Record<QuartilTopicoId, { metrica: string; quadrante: string; data: string }>
+
+function TabelaMapeamentoQuartil({
+  mapeamentoInicial,
+  onToast,
+}: {
+  mapeamentoInicial: MapeamentoQuartil
+  onToast: (t: ToastState) => void
+}) {
+  const [valores, setValores] = useState<ValoresQuartil>(
+    () => Object.fromEntries(
+      QUARTIL_TOPICOS.map(t => [
+        t.id,
+        {
+          metrica:   mapeamentoInicial[t.id]?.metrica   ?? '',
+          quadrante: mapeamentoInicial[t.id]?.quadrante ?? '',
+          data:      mapeamentoInicial[t.id]?.data      ?? '',
+        },
+      ])
+    ) as ValoresQuartil
+  )
+  const [invalidos, setInvalidos] = useState<Set<string>>(new Set())
+  const [pending, startTransition] = useTransition()
+
+  function handleChange(topicoId: QuartilTopicoId, campo: 'metrica' | 'quadrante' | 'data', raw: string) {
+    const val = raw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
+    setValores(prev => ({ ...prev, [topicoId]: { ...prev[topicoId], [campo]: val } }))
+    setInvalidos(prev => { const n = new Set(prev); n.delete(`${topicoId}.${campo}`); return n })
+  }
+
+  function handleSalvar() {
+    const novosInvalidos = new Set<string>()
+    const colunaValida = /^[A-Z]{1,3}$/
+    for (const t of QUARTIL_TOPICOS) {
+      const v = valores[t.id]
+      if (v.metrica   && !colunaValida.test(v.metrica))   novosInvalidos.add(`${t.id}.metrica`)
+      if (v.quadrante && !colunaValida.test(v.quadrante)) novosInvalidos.add(`${t.id}.quadrante`)
+      if (t.temData && v.data && !colunaValida.test(v.data)) novosInvalidos.add(`${t.id}.data`)
+    }
+    if (novosInvalidos.size > 0) {
+      setInvalidos(novosInvalidos)
+      onToast({ msg: 'Algumas colunas estão inválidas. Use apenas letras (A-Z, máx. 3).', tipo: 'erro' })
+      return
+    }
+
+    const mapeamento = Object.fromEntries(
+      QUARTIL_TOPICOS.map(t => [
+        t.id,
+        {
+          metrica:   valores[t.id].metrica   || null,
+          quadrante: valores[t.id].quadrante || null,
+          data:      t.temData ? (valores[t.id].data || null) : null,
+        },
+      ])
+    ) as MapeamentoQuartil
+
+    startTransition(async () => {
+      const res = await salvarMapeamentoQuartilAction(mapeamento)
+      if (res.ok) {
+        onToast({ msg: 'Mapeamento Quartil salvo.', tipo: 'ok' })
+      } else {
+        onToast({ msg: res.error ?? 'Erro ao salvar mapeamento quartil.', tipo: 'erro' })
+      }
+    })
+  }
+
+  let zebraIdx = 0
+
+  return (
+    <>
+      <p style={{ fontFamily: FF_SYNE, fontSize: '12px', fontWeight: 600, color: MUTED, lineHeight: 1.6, maxWidth: '720px', margin: 0 }}>
+        Configure as colunas das 5 sub-abas de Quartil (CHURN, TX. RETENÇÃO, TMA, ABS, INDISPONIBILIDADE).
+        Os nomes das abas são fixos. Apenas a aba TX. RETENÇÃO tem coluna de data de atualização.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(244,212,124,0.04)', border: '1px solid rgba(244,212,124,0.10)', borderRadius: '8px' }}>
+        <Info size={12} color="#e8c96d" style={{ flexShrink: 0 }} />
+        <span style={{ fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, color: MUTED }}>
+          O operador está sempre na coluna A das 5 sub-abas e não pode ser alterado.
+        </span>
+      </div>
+
+      <div style={{ background: BG_TABLE, border: '1px solid rgba(244,212,124,0.10)', borderRadius: '10px', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: BG_THEAD, borderBottom: `1px solid ${BORDA}` }}>
+              {(['CAMPO', 'COLUNA NA PLANILHA', 'TÓPICO'] as const).map(h => (
+                <th key={h} scope="col" style={{ textAlign: 'left', padding: '14px 18px', fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600, letterSpacing: '0.10em', color: TEXT, textTransform: 'uppercase' }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {QUARTIL_TOPICOS.map(topico => {
+              const campos: { key: 'metrica' | 'quadrante' | 'data'; label: string }[] = [
+                { key: 'metrica',   label: topico.labelMetrica },
+                { key: 'quadrante', label: 'QUADRANTE' },
+                ...(topico.temData ? [{ key: 'data' as const, label: 'DATA ATUALIZAÇÃO' }] : []),
+              ]
+              return (
+                <React.Fragment key={topico.id}>
+                  <tr style={{ background: 'rgba(123,163,217,0.04)' }}>
+                    <td colSpan={3} style={{ padding: '10px 18px', fontFamily: FF_SYNE, fontSize: '10px', fontWeight: 600, letterSpacing: '0.10em', color: AZUL, textTransform: 'uppercase' }}>
+                      {topico.label} — aba {topico.aba}
+                    </td>
+                  </tr>
+                  {campos.map(({ key, label }) => {
+                    const fieldKey  = `${topico.id}.${key}`
+                    const isInvalido = invalidos.has(fieldKey)
+                    const zebra     = zebraIdx++ % 2 === 0
+                    return (
+                      <tr key={fieldKey} style={{
+                        background: zebra ? 'transparent' : 'rgba(244,212,124,0.015)',
+                        borderBottom: '1px solid rgba(33,31,60,0.5)',
+                      }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,212,124,0.03)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = zebra ? 'transparent' : 'rgba(244,212,124,0.015)')}
+                      >
+                        <td style={{ padding: '12px 18px', fontFamily: FF_SYNE, fontSize: '13px', fontWeight: 600, letterSpacing: '0.04em', color: TEXT, textTransform: 'uppercase' }}>
+                          {label}
+                        </td>
+                        <td style={{ padding: '10px 18px' }}>
+                          <input
+                            value={valores[topico.id][key]}
+                            onChange={e => handleChange(topico.id, key, e.target.value)}
+                            placeholder="Ex: B"
+                            maxLength={3}
+                            style={{
+                              background: BG_THEAD,
+                              border: `1px solid ${isInvalido ? 'rgba(227,57,57,0.50)' : 'rgba(114,112,143,0.5)'}`,
+                              borderRadius: '8px', padding: '6px 10px',
+                              width: '90px', textAlign: 'center',
+                              fontFamily: FF_DM, fontSize: '13px', fontWeight: 500,
+                              color: TEXT, textTransform: 'uppercase',
+                              outline: 'none',
+                            }}
+                            onFocus={e => {
+                              e.currentTarget.style.borderColor = 'rgba(244,212,124,0.5)'
+                              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(244,212,124,0.08)'
+                            }}
+                            onBlur={e => {
+                              e.currentTarget.style.borderColor = isInvalido ? 'rgba(227,57,57,0.50)' : 'rgba(114,112,143,0.5)'
+                              e.currentTarget.style.boxShadow = 'none'
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '10px 18px' }}>
+                          <span style={{
+                            fontFamily: FF_SYNE, fontSize: '9px', fontWeight: 600, letterSpacing: '0.06em',
+                            textTransform: 'uppercase', color: LAVANDA,
+                            background: 'rgba(176,170,255,0.10)', border: '1px solid rgba(176,170,255,0.25)',
+                            borderRadius: '99px', padding: '2px 8px', whiteSpace: 'nowrap',
+                          }}>
+                            {topico.aba}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </React.Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '18px' }}>
+        <button onClick={handleSalvar} disabled={pending}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: pending ? BORDA : GOLD,
+            border: 'none', borderRadius: '8px',
+            color: pending ? MUTED : '#03040C',
+            fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 700, letterSpacing: '0.10em',
+            padding: '10px 20px', cursor: pending ? 'not-allowed' : 'pointer',
+            textTransform: 'uppercase',
+          }}>
+          {pending ? <HaloSpinner size="sm" /> : <Save size={13} />}
+          {pending ? 'Salvando…' : 'SALVAR MAPEAMENTO QUARTIL'}
+        </button>
+      </div>
+    </>
+  )
+}
+
 // ── Principal ─────────────────────────────────────────────────────────────────
 
 interface Props {
   mesAtual:        Planilha | null; abasMesAtual:    string[]
   mesPassado:      Planilha | null; abasMesPassado:  string[]
   kpiQuartil:      Planilha | null; abasKpiQuartil:  string[]
-  mapeamentoInicial:       Record<string, string>
-  mapeamentoGestorInicial: Record<string, string>
+  mapeamentoInicial:        Record<string, string>
+  mapeamentoGestorInicial:  Record<string, string>
+  mapeamentoQuartilInicial: MapeamentoQuartil
 }
 
 export default function PlanilhasConfigClient({
@@ -484,6 +713,7 @@ export default function PlanilhasConfigClient({
   kpiQuartil, abasKpiQuartil,
   mapeamentoInicial,
   mapeamentoGestorInicial,
+  mapeamentoQuartilInicial,
 }: Props) {
   const [toast, setToast] = useState<ToastState | null>(null)
 
@@ -544,6 +774,12 @@ export default function PlanilhasConfigClient({
       </p>
 
       <TabelaMapeamentoKpi mapeamentoInicial={mapeamentoGestorInicial} onToast={mostrarToast} escopo="gestor" />
+
+      <DivisorSecao />
+
+      {/* ── Bloco 4: Mapeamento Quartil ── */}
+      <PainelSectionTitle>MAPEAMENTO QUARTIL</PainelSectionTitle>
+      <TabelaMapeamentoQuartil mapeamentoInicial={mapeamentoQuartilInicial} onToast={mostrarToast} />
 
       {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
     </div>

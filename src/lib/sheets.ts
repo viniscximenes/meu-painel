@@ -464,8 +464,8 @@ export async function buscarLinhasPlanilha(
     if (!tabName) return { headers: [], rows: [] }
 
     const range = limiteLinhas
-      ? `${tabName}!A1:ZZ${limiteLinhas}`
-      : `${tabName}!A:ZZ`
+      ? `${escaparNomeAba(tabName)}!A1:ZZ${limiteLinhas}`
+      : `${escaparNomeAba(tabName)}!A:ZZ`
 
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
@@ -482,6 +482,16 @@ export async function buscarLinhasPlanilha(
   }
 }
 
+// ── Escape de nome de aba para range A1 ──────────────────────────────────────
+// Nomes com qualquer caractere não alfanumérico (ponto, espaço, hífen…) precisam
+// ser envolvidos em aspas simples na notação A1. Aspas simples internas viram ''.
+export function escaparNomeAba(nome: string): string {
+  if (/[^A-Za-z0-9_]/.test(nome)) {
+    return `'${nome.replace(/'/g, "''")}'`
+  }
+  return nome
+}
+
 // ── Buscar apenas coluna A (para data de atualização) ────────────────────────
 export async function buscarColunaA(
   spreadsheetId: string,
@@ -490,7 +500,7 @@ export async function buscarColunaA(
 ): Promise<string[][]> {
   if (!spreadsheetId || !aba) return []
   try {
-    const range = `${aba}!A1:A${limite}`
+    const range = `${escaparNomeAba(aba)}!A1:A${limite}`
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({ spreadsheetId, range })
     )
@@ -654,7 +664,7 @@ export async function lerCelula(
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId: spreadsheet_id,
-        range: `'${aba}'!${celula}`,
+        range: `${escaparNomeAba(aba)}!${celula}`,
       })
     )
     const val = (res.data.values?.[0]?.[0] ?? '').toString().trim()
@@ -678,7 +688,7 @@ export async function lerRangeCelulas(
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId: spreadsheet_id,
-        range: `'${aba}'!${range}`,
+        range: `${escaparNomeAba(aba)}!${range}`,
       })
     )
     return (res.data.values ?? []).flat().map((v) => (v ?? '').toString().trim())

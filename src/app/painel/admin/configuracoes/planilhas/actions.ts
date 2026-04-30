@@ -12,6 +12,8 @@ import {
 } from '@/lib/sheets'
 import { KPIS_TODOS } from '@/lib/kpis-config'
 import type { TipoPlanilha } from '@/lib/planilhas-config'
+import { QUARTIL_TOPICOS, salvarMapeamentoQuartilDb } from '@/lib/quartil-config'
+import type { MapeamentoQuartil } from '@/lib/quartil-config'
 
 function extrairSpreadsheetId(raw: string): string | null {
   const trimmed = raw.trim()
@@ -146,6 +148,47 @@ export async function salvarMapeamentoKpiGestorColunasAction(
   revalidatePath('/painel/admin/configuracoes/planilhas')
   revalidatePath('/painel/gestor/meu-kpi')
   revalidatePath('/painel/gestor/meu-rv')
+
+  return { ok: true }
+}
+
+export async function salvarMapeamentoQuartilAction(
+  mapeamento: MapeamentoQuartil,
+): Promise<{ ok: boolean; error?: string }> {
+  try { await requireAdmin() } catch { return { ok: false, error: 'Acesso negado.' } }
+
+  const colunaValida = /^[A-Z]{1,3}$/
+
+  for (const topicoDef of QUARTIL_TOPICOS) {
+    const config = mapeamento[topicoDef.id]
+    if (!config) continue
+
+    for (const tipo of ['metrica', 'quadrante'] as const) {
+      const val = config[tipo]?.trim().toUpperCase() || ''
+      if (val && !colunaValida.test(val)) {
+        return { ok: false, error: `Coluna inválida para ${topicoDef.label} (${tipo}): "${config[tipo]}". Use apenas letras (A-Z).` }
+      }
+    }
+
+    if (topicoDef.temData) {
+      const val = config.data?.trim().toUpperCase() || ''
+      if (val && !colunaValida.test(val)) {
+        return { ok: false, error: `Coluna de data inválida para ${topicoDef.label}: "${config.data}". Use apenas letras (A-Z).` }
+      }
+    }
+  }
+
+  try {
+    await salvarMapeamentoQuartilDb(mapeamento)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('[salvarMapeamentoQuartilAction]', msg)
+    return { ok: false, error: msg }
+  }
+
+  revalidatePath('/painel/admin/configuracoes/planilhas')
+  revalidatePath('/painel/meu-quartil')
+  revalidatePath('/painel/gestor/q4-equipe')
 
   return { ok: true }
 }

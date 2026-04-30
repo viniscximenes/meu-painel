@@ -2,7 +2,15 @@
 // Servidor apenas — importa googleapis.
 
 import { google } from 'googleapis'
-import { getPlanilhaAtiva } from '@/lib/sheets'
+import { getPlanilhaAtiva, escaparNomeAba } from '@/lib/sheets'
+import {
+  QUARTIL_TOPICOS,
+  getMapeamentoQuartil,
+  type QuartilTopicoDef,
+  type QuartilTopicoId,
+  type MapeamentoQuartilTopico,
+} from '@/lib/quartil-config'
+import { letraColunaParaIndice } from '@/lib/kpi-coluna-utils'
 
 function sheetsAPI() {
   const auth = new google.auth.GoogleAuth({
@@ -26,8 +34,8 @@ function withTimeout<T>(p: Promise<T>, ms = 15_000): Promise<T> {
 
 export interface QuartilOperador {
   email:            string
-  metrica:          number       // valor numérico bruto (para referência)
-  metricaFormatada: string       // valor já formatado para exibição
+  metrica:          number
+  metricaFormatada: string
   quartil:          1 | 2 | 3 | 4
 }
 
@@ -40,18 +48,21 @@ export interface QuartilTopico {
   totalOperadores: number
 }
 
-// ── Config declarativa ────────────────────────────────────────────────────────
+// ── Config interna fixo por tópico (não configurável) ─────────────────────────
 
-interface QuartilTopicoConfig {
-  id:              string
+interface QuartilTopicoInterno {
   nomeTopico:      string
-  aba:             string
-  colunaMetrica:   number                                    // índice 0-based
-  colunaQuartil:   number
   sortOrder:       'asc' | 'desc'
-  colunaData:      number | null                             // null = sem data
   parseMetrica:    (raw: string | undefined) => number | null
   formatarMetrica: (n: number) => string
+}
+
+const TOPICO_INTERNO: Record<QuartilTopicoId, QuartilTopicoInterno> = {
+  churn:      { nomeTopico: 'Cancelados',        sortOrder: 'asc',  parseMetrica: parseInt_,        formatarMetrica: formatInt },
+  txretencao: { nomeTopico: 'Taxa de Retenção',  sortOrder: 'desc', parseMetrica: parsePct,         formatarMetrica: formatPct },
+  tma:        { nomeTopico: 'TMA',               sortOrder: 'asc',  parseMetrica: parseTMA,         formatarMetrica: formatTMA },
+  abs:        { nomeTopico: 'ABS',               sortOrder: 'asc',  parseMetrica: parsePctAbsoluto, formatarMetrica: formatPct },
+  indisp:     { nomeTopico: 'Indisponibilidade', sortOrder: 'asc',  parseMetrica: parsePct,         formatarMetrica: formatPct },
 }
 
 // ── Funções de parse ──────────────────────────────────────────────────────────
@@ -68,8 +79,6 @@ function matchEmail(emailPlanilha: string, username: string): boolean {
   return prefix === username.toLowerCase().trim()
 }
 
-// Taxa / percentual: aceita 0.685 ou 68.5%
-// Input esperado: fração decimal (0.685 = 68,5%) OU já em % (68.5 = 68,5%)
 export function parsePct(raw: string | undefined): number | null {
   if (!raw) return null
   const s = raw.toString().replace(/\s/g, '').replace(',', '.')
@@ -79,8 +88,6 @@ export function parsePct(raw: string | undefined): number | null {
   return n <= 1 ? n * 100 : n
 }
 
-// Percentual absoluto: planilha armazena valor já em % (ex: 0.4 = 0,4%, 5 = 5%)
-// NÃO aplica *100 — usar quando a coluna já está em escala percentual direta.
 export function parsePctAbsoluto(raw: string | undefined): number | null {
   if (!raw) return null
   const s = raw.toString().replace(/\s/g, '').replace(',', '.')
@@ -94,7 +101,6 @@ export function formatPct(n: number): string {
   return r % 1 === 0 ? `${r}%` : `${r.toFixed(1).replace('.', ',')}%`
 }
 
-// TMA: hh:mm:ss → segundos (0 = sem dados → null)
 export function parseTMA(raw: string | undefined): number | null {
   if (!raw) return null
   const s = raw.toString().trim()
@@ -116,7 +122,6 @@ export function formatTMA(secs: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-// Inteiro: cancelados
 export function parseInt_(raw: string | undefined): number | null {
   if (raw === undefined || raw === null || raw === '') return null
   const s = raw.toString().trim()
@@ -131,14 +136,6 @@ export function formatInt(n: number): string {
 
 // ── Emails da equipe ativa ────────────────────────────────────────────────────
 
-/**
- * Retorna Set<string> com prefixos de email dos operadores presentes na planilha ativa
- * (coluna A, normalizado: trim + lowercase + só a parte antes do @).
- *
- * USADO POR: telas de histórico futuras (Evolução, Por Mês) que precisam filtrar
- * ex-operadores ao comparar meses anteriores.
- * NÃO USADO NO MEU QUARTIL — quartil mostra rank da retenção inteira (toda Alloha).
- */
 export async function getEmailsEquipeAtiva(): Promise<Set<string>> {
   try {
     const planilha = await getPlanilhaAtiva()
@@ -147,7 +144,7 @@ export async function getEmailsEquipeAtiva(): Promise<Set<string>> {
       return new Set()
     }
     const aba = planilha.aba || ''
-    const range = aba ? `'${aba}'!A1:A300` : 'A1:A300'
+    const range = aba ? `${escaparNomeAba(aba)}!A1:A300` : 'A1:A300'
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId: planilha.spreadsheet_id,
@@ -159,7 +156,7 @@ export async function getEmailsEquipeAtiva(): Promise<Set<string>> {
     for (const v of valores) {
       const celula = v.toString().trim().toLowerCase()
       if (celula && celula.includes('@')) {
-        emails.add(celula.split('@')[0])   // guarda só o prefixo (antes do @)
+        emails.add(celula.split('@')[0])
       }
     }
     return emails
@@ -169,115 +166,90 @@ export async function getEmailsEquipeAtiva(): Promise<Set<string>> {
   }
 }
 
-// ── Declaração dos tópicos ────────────────────────────────────────────────────
-
-const TOPICOS: QuartilTopicoConfig[] = [
-  {
-    id: 'txretencao', nomeTopico: 'Taxa de Retenção',
-    aba: 'QUARTIL.TXRETENCAO', colunaMetrica: 5, colunaQuartil: 6,
-    sortOrder: 'desc', colunaData: 7,
-    parseMetrica: parsePct, formatarMetrica: formatPct,
-  },
-  {
-    id: 'tma', nomeTopico: 'TMA',
-    aba: 'QUARTIL.TMA', colunaMetrica: 2, colunaQuartil: 4,
-    sortOrder: 'asc', colunaData: null,
-    parseMetrica: parseTMA, formatarMetrica: formatTMA,
-  },
-  {
-    id: 'churn', nomeTopico: 'Cancelados',
-    aba: 'QUARTIL.CHURN', colunaMetrica: 2, colunaQuartil: 4,
-    sortOrder: 'asc', colunaData: null,
-    parseMetrica: parseInt_, formatarMetrica: formatInt,
-  },
-  {
-    id: 'indisp', nomeTopico: 'Indisponibilidade',
-    aba: 'QUARTIL.INDISPONIBILIDADE', colunaMetrica: 6, colunaQuartil: 7,
-    sortOrder: 'asc', colunaData: null,
-    parseMetrica: parsePct, formatarMetrica: formatPct,
-  },
-  {
-    id: 'abs', nomeTopico: 'ABS',
-    aba: 'QUARTIL.ABS', colunaMetrica: 4, colunaQuartil: 5,
-    sortOrder: 'asc', colunaData: null,
-    // ABS armazena valor já em % (0.4 = 0,4%) — não multiplicar por 100
-    parseMetrica: parsePctAbsoluto, formatarMetrica: formatPct,
-  },
-]
-
-// ── Leitura genérica ──────────────────────────────────────────────────────────
+// ── Leitura genérica de um tópico ────────────────────────────────────────────
 
 async function lerQuartilTopico(
-  config: QuartilTopicoConfig,
+  topicoDef: QuartilTopicoDef,
+  configColunas: MapeamentoQuartilTopico,
   spreadsheetId: string,
   username: string,
 ): Promise<QuartilTopico> {
+  const interno = TOPICO_INTERNO[topicoDef.id]
   const vazio: QuartilTopico = {
-    id: config.id, nomeTopico: config.nomeTopico,
+    id: topicoDef.id, nomeTopico: interno.nomeTopico,
     dataAtualizacao: null, operadorAtual: null,
     rankGlobal: null, totalOperadores: 0,
   }
+
+  if (!configColunas.metrica || !configColunas.quadrante) return vazio
+
+  const colMetricaIdx   = letraColunaParaIndice(configColunas.metrica)
+  const colQuadranteIdx = letraColunaParaIndice(configColunas.quadrante)
+  const colDataIdx      = configColunas.data ? letraColunaParaIndice(configColunas.data) : null
 
   try {
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `'${config.aba}'!A1:H300`,
+        range: `${escaparNomeAba(topicoDef.aba)}!A1:ZZ300`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
     if (values.length < 2) return vazio
 
-    const dataAtualizacao = config.colunaData !== null
-      ? (values[1]?.[config.colunaData] ?? '').trim() || null
+    const dataAtualizacao = colDataIdx !== null
+      ? (values[1]?.[colDataIdx] ?? '').trim() || null
       : null
 
-    // Coletar dados a partir da linha 2 (índice 1), pular cabeçalho
     type Row = { email: string; metrica: number; metricaFormatada: string; quartil: 1 | 2 | 3 | 4 }
     const lista: Row[] = []
     for (let i = 1; i < values.length; i++) {
       const row    = values[i]
       const email  = (row[0] ?? '').trim()
       if (!email) continue
-      const metrica = config.parseMetrica(row[config.colunaMetrica])
-      const quartil = parseQuartil(row[config.colunaQuartil])
+      const metrica = interno.parseMetrica(row[colMetricaIdx])
+      const quartil = parseQuartil(row[colQuadranteIdx])
       if (metrica === null || quartil === null) continue
-      lista.push({ email, metrica, metricaFormatada: config.formatarMetrica(metrica), quartil })
+      lista.push({ email, metrica, metricaFormatada: interno.formatarMetrica(metrica), quartil })
     }
 
     if (!lista.length) return { ...vazio, dataAtualizacao }
 
-    // Sort estável sobre TODOS os operadores Alloha (sem filtro de equipe)
     const ordenados = [...lista].sort((a, b) =>
-      config.sortOrder === 'desc' ? b.metrica - a.metrica : a.metrica - b.metrica
+      interno.sortOrder === 'desc' ? b.metrica - a.metrica : a.metrica - b.metrica
     )
     const rankIdx = ordenados.findIndex(op => matchEmail(op.email, username))
     const found   = rankIdx >= 0 ? ordenados[rankIdx] : null
 
     return {
-      id:              config.id,
-      nomeTopico:      config.nomeTopico,
+      id:              topicoDef.id,
+      nomeTopico:      interno.nomeTopico,
       dataAtualizacao,
-      operadorAtual:   found ? { email: found.email, metrica: found.metrica, metricaFormatada: found.metricaFormatada, quartil: found.quartil } : null,
+      operadorAtual:   found
+        ? { email: found.email, metrica: found.metrica, metricaFormatada: found.metricaFormatada, quartil: found.quartil }
+        : null,
       rankGlobal:      rankIdx >= 0 ? rankIdx + 1 : null,
       totalOperadores: lista.length,
     }
   } catch (e) {
-    console.error(`[lerQuartilTopico:${config.id}]`, e)
+    console.error(`[lerQuartilTopico:${topicoDef.id}]`, e)
     return vazio
   }
 }
 
-// ── Ponto de entrada público ─────────────────────────────────────────────────
+// ── Ponto de entrada público ──────────────────────────────────────────────────
 
 export async function lerTodosQuartis(
   spreadsheetId: string,
   username: string,
 ): Promise<QuartilTopico[]> {
-  return Promise.all(TOPICOS.map(c => lerQuartilTopico(c, spreadsheetId, username)))
+  const mapeamento = await getMapeamentoQuartil()
+  return Promise.all(
+    QUARTIL_TOPICOS.map(topico => lerQuartilTopico(topico, mapeamento[topico.id], spreadsheetId, username))
+  )
 }
 
-// ── Leitura de quartil para equipe (uma leitura por aba, não 14×) ─────────────
+// ── Leitura para equipe ───────────────────────────────────────────────────────
 
 export interface QuartilOperadorEquipe {
   username:         string
@@ -292,30 +264,39 @@ export interface QuartilTopicoEquipe {
   nomeTopico:      string
   dataAtualizacao: string | null
   totalOperadores: number
-  operadores:      QuartilOperadorEquipe[]  // só membros da equipe encontrados
+  operadores:      QuartilOperadorEquipe[]
 }
 
 async function lerQuartilTopicoEquipe(
-  config: QuartilTopicoConfig,
+  topicoDef: QuartilTopicoDef,
+  configColunas: MapeamentoQuartilTopico,
   spreadsheetId: string,
   usernames: string[],
 ): Promise<QuartilTopicoEquipe> {
+  const interno = TOPICO_INTERNO[topicoDef.id]
   const empty: QuartilTopicoEquipe = {
-    id: config.id, nomeTopico: config.nomeTopico,
+    id: topicoDef.id, nomeTopico: interno.nomeTopico,
     dataAtualizacao: null, totalOperadores: 0, operadores: [],
   }
+
+  if (!configColunas.metrica || !configColunas.quadrante) return empty
+
+  const colMetricaIdx   = letraColunaParaIndice(configColunas.metrica)
+  const colQuadranteIdx = letraColunaParaIndice(configColunas.quadrante)
+  const colDataIdx      = configColunas.data ? letraColunaParaIndice(configColunas.data) : null
+
   try {
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `'${config.aba}'!A1:H300`,
+        range: `${escaparNomeAba(topicoDef.aba)}!A1:ZZ300`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
     if (values.length < 2) return empty
 
-    const dataAtualizacao = config.colunaData !== null
-      ? (values[1]?.[config.colunaData] ?? '').trim() || null
+    const dataAtualizacao = colDataIdx !== null
+      ? (values[1]?.[colDataIdx] ?? '').trim() || null
       : null
 
     type Row = { email: string; metrica: number; metricaFormatada: string; quartil: 1 | 2 | 3 | 4 }
@@ -324,15 +305,15 @@ async function lerQuartilTopicoEquipe(
       const row    = values[i]
       const email  = (row[0] ?? '').trim()
       if (!email) continue
-      const metrica = config.parseMetrica(row[config.colunaMetrica])
-      const quartil = parseQuartil(row[config.colunaQuartil])
+      const metrica = interno.parseMetrica(row[colMetricaIdx])
+      const quartil = parseQuartil(row[colQuadranteIdx])
       if (metrica === null || quartil === null) continue
-      lista.push({ email, metrica, metricaFormatada: config.formatarMetrica(metrica), quartil })
+      lista.push({ email, metrica, metricaFormatada: interno.formatarMetrica(metrica), quartil })
     }
     if (!lista.length) return { ...empty, dataAtualizacao }
 
     const ordenados = [...lista].sort((a, b) =>
-      config.sortOrder === 'desc' ? b.metrica - a.metrica : a.metrica - b.metrica
+      interno.sortOrder === 'desc' ? b.metrica - a.metrica : a.metrica - b.metrica
     )
 
     const operadores: QuartilOperadorEquipe[] = []
@@ -350,11 +331,11 @@ async function lerQuartilTopicoEquipe(
     }
 
     return {
-      id: config.id, nomeTopico: config.nomeTopico,
+      id: topicoDef.id, nomeTopico: interno.nomeTopico,
       dataAtualizacao, totalOperadores: lista.length, operadores,
     }
   } catch (e) {
-    console.error(`[lerQuartilTopicoEquipe:${config.id}]`, e)
+    console.error(`[lerQuartilTopicoEquipe:${topicoDef.id}]`, e)
     return empty
   }
 }
@@ -363,5 +344,8 @@ export async function lerQuartilEquipe(
   spreadsheetId: string,
   usernames: string[],
 ): Promise<QuartilTopicoEquipe[]> {
-  return Promise.all(TOPICOS.map(c => lerQuartilTopicoEquipe(c, spreadsheetId, usernames)))
+  const mapeamento = await getMapeamentoQuartil()
+  return Promise.all(
+    QUARTIL_TOPICOS.map(topico => lerQuartilTopicoEquipe(topico, mapeamento[topico.id], spreadsheetId, usernames))
+  )
 }

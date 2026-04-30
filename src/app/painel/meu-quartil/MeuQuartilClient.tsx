@@ -1,10 +1,8 @@
 'use client'
 
-import {
-  BarChart3, Clock, XCircle, Activity, CalendarX,
-  MinusCircle, type LucideIcon,
-} from 'lucide-react'
-import { useCountUp } from '@/hooks/useCountUp'
+import { Shield, Clock, Flame, Activity, Calendar, type LucideIcon } from 'lucide-react'
+import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
+import { MeuKpiSectionTitle } from '@/components/kpi-individual/MeuKpiCard'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -23,244 +21,208 @@ export interface MeuQuartilProps {
   topicos:         QuartilTopicoData[]
 }
 
-// ── Paleta por quartil ────────────────────────────────────────────────────────
+// ── Paleta semântica por quartil ──────────────────────────────────────────────
 
-const QUARTIL_PALETA = {
-  1: { label: 'EXCELENTE',    cor: '#4ade80', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(74,222,128,0.25)'  },
-  2: { label: 'SATISFATÓRIO', cor: '#facc15', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(250,204,21,0.25)'  },
-  3: { label: 'ABAIXO',       cor: '#fb923c', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(251,146,60,0.25)'  },
-  4: { label: 'CRÍTICO',      cor: '#f87171', fundo: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)', borda: 'rgba(248,113,113,0.25)' },
-} as const
+const QUARTIL_COR: Record<1 | 2 | 3 | 4, string> = {
+  1: 'rgba(106,196,73,0.62)',
+  2: 'rgba(255,193,60,0.62)',
+  3: 'rgba(224,83,31,0.62)',
+  4: 'rgba(224,31,31,0.62)',
+}
 
 // ── Config visual por tópico ──────────────────────────────────────────────────
 
 interface TopicoVisual {
-  Icon:        LucideIcon
-  nomeCard:    string
-  labelRodape: (v: string) => string
+  Icon:       LucideIcon
+  nomeCard:   string
+  labelDados: string
 }
 
 const TOPICO_VISUAL: Record<string, TopicoVisual> = {
-  txretencao: { Icon: BarChart3, nomeCard: 'TAXA DE RETENÇÃO',   labelRodape: v => `Sua taxa: ${v}` },
-  tma:        { Icon: Clock,     nomeCard: 'TMA',                labelRodape: v => `Seu TMA: ${v}` },
-  churn:      { Icon: XCircle,   nomeCard: 'CANCELADOS',         labelRodape: v => `Seus cancelados: ${v}` },
-  indisp:     { Icon: Activity,  nomeCard: 'INDISPONIBILIDADE',  labelRodape: v => `Sua indisponibilidade: ${v}` },
-  abs:        { Icon: CalendarX, nomeCard: 'ABS',                labelRodape: v => `Seu ABS: ${v}` },
+  txretencao: { Icon: Shield,   nomeCard: 'TAXA DE RETENÇÃO',  labelDados: 'TX. RETENÇÃO'  },
+  tma:        { Icon: Clock,    nomeCard: 'TMA',               labelDados: 'TMA'            },
+  churn:      { Icon: Flame,    nomeCard: 'CANCELADOS',        labelDados: 'CANCELADOS'     },
+  abs:        { Icon: Calendar, nomeCard: 'ABS',               labelDados: 'ABS'            },
+  indisp:     { Icon: Activity, nomeCard: 'INDISPONIBILIDADE', labelDados: 'INDISPONIB.'    },
 }
 
-// ── Subcomponentes ────────────────────────────────────────────────────────────
+// ── Tokens ────────────────────────────────────────────────────────────────────
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '2px' }}>
-      <span style={{
-        fontSize: '9px', fontWeight: 700, letterSpacing: '0.14em',
-        textTransform: 'uppercase', color: 'rgba(244,212,124,0.7)',
-      }}>
-        {children}
-      </span>
-      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(201,168,76,0.18) 0%, transparent 100%)' }} />
-    </div>
-  )
-}
+const FF_SYNE = "'Syne', sans-serif"
+const FF_DM   = "'DM Sans', sans-serif"
 
-function CardIndisponivel({ id }: { id: string }) {
-  const visual = TOPICO_VISUAL[id]
-  const Icon   = visual?.Icon ?? BarChart3
-  const nome   = visual?.nomeCard ?? id.toUpperCase()
+const COR_NEUTRO  = '#A6A2A2'
+const COR_DASH    = '#474658'
+const COR_DIVISOR = '#211F3C'
+
+// ── Card ─────────────────────────────────────────────────────────────────────
+
+function QuartilTopicoCard({ topico }: { topico: QuartilTopicoData }) {
+  const visual = TOPICO_VISUAL[topico.id]
+    ?? { Icon: Shield, nomeCard: topico.id.toUpperCase(), labelDados: topico.id.toUpperCase() }
+  const { Icon, nomeCard, labelDados } = visual
+
+  const temDados = topico.quartil !== null
+  const cor      = temDados ? QUARTIL_COR[topico.quartil!] : COR_NEUTRO
 
   return (
     <div style={{
-      background: 'linear-gradient(to right, #15181f 0%, #0f1219 100%)',
-      border: '1px solid rgba(201, 168, 76, 0.10)',
-      borderRadius: '12px',
-      padding: '40px 24px',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      gap: '12px', textAlign: 'center',
+      position:     'relative',
+      background:   '#070714',
+      border:       '1px solid rgba(255,185,34,0.25)',
+      borderRadius: '20px',
+      height:       '186px',
+      width:        '100%',
+      overflow:     'hidden',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Icon size={18} style={{ color: 'rgba(244,212,124,0.8)', flexShrink: 0 }} />
-        <span style={{
-          fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em',
-          textTransform: 'uppercase', color: 'rgba(244,212,124,0.7)',
-        }}>
-          {nome}
-        </span>
-      </div>
-      <MinusCircle size={44} style={{ color: 'rgba(255,255,255,0.20)', marginTop: '8px' }} />
-      <p style={{
-        fontSize: '14px', fontWeight: 600, letterSpacing: '0.08em',
-        textTransform: 'uppercase', color: 'rgba(255,255,255,0.50)', margin: 0,
+
+      {/* ── Ícone — top 14, left 14, 38×41 ────────────────── */}
+      <div style={{
+        position:       'absolute',
+        top:            '18px',
+        left:           '14px',
+        width:          '44px',
+        height:         '44px',
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'center',
       }}>
-        DADOS INDISPONÍVEIS
-      </p>
-      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.40)', margin: 0, maxWidth: '280px' }}>
-        Seu email ainda não tem dados para este tópico no mês.
-      </p>
-    </div>
-  )
-}
-
-function QuartilCard({ topico }: { topico: QuartilTopicoData }) {
-  const visual  = TOPICO_VISUAL[topico.id]
-  const Icon    = visual?.Icon    ?? BarChart3
-  const nome    = visual?.nomeCard ?? topico.nomeTopico.toUpperCase()
-  const paleta  = QUARTIL_PALETA[topico.quartil!]
-  const rankAnim  = useCountUp(topico.rankGlobal      ?? 0, 800)
-  const totalAnim = useCountUp(topico.totalOperadores ?? 0, 800)
-
-  return (
-    <div style={{
-      background:    paleta.fundo,
-      border:        `1px solid ${paleta.borda}`,
-      borderRadius:  '12px',
-      padding:       '32px 28px 24px',
-      display:       'flex',
-      flexDirection: 'column',
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '28px' }}>
-        <Icon size={18} style={{ color: 'rgba(244,212,124,0.8)', flexShrink: 0 }} />
-        <span style={{
-          fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em',
-          textTransform: 'uppercase', color: 'rgba(244,212,124,0.8)',
-        }}>
-          {nome}
-        </span>
+        <Icon size={44} style={{ color: cor }} />
       </div>
 
-      {/* Bloco central */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      {/* ── Título — top 12, left 66, height 44 ────────────── */}
+      <div style={{
+        position:      'absolute',
+        top:           '18px',
+        left:          '72px',
+        height:        '44px',
+        display:       'flex',
+        alignItems:    'center',
+        fontFamily:    FF_SYNE,
+        fontWeight:    700,
+        fontSize:      '28px',
+        lineHeight:    1,
+        letterSpacing: '0.02em',
+        textTransform: 'uppercase',
+        color:         cor,
+        whiteSpace:    'nowrap',
+      }}>
+        {nomeCard}
+      </div>
 
-        {/* Q number + label */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{
-            fontSize: '68px', fontWeight: 800, lineHeight: 1,
-            color: paleta.cor, fontVariantNumeric: 'tabular-nums',
+      {/* ── Q grande — top 56 (12+44), left 14 ────────────── */}
+      <div style={{
+        position:            'absolute',
+        top:                 '62px',
+        left:                '14px',
+        fontFamily:          FF_DM,
+        fontSize:            '112px',
+        fontWeight:          900,
+        lineHeight:          1,
+        fontVariantNumeric:  'tabular-nums',
+        fontFeatureSettings: "'tnum'",
+        color:               temDados ? cor : COR_DASH,
+      }}>
+        {temDados ? `Q${topico.quartil}` : '—'}
+      </div>
+
+      {/* ── Divisória vertical — posição fixa 360px ─────────── */}
+      <div style={{
+        position:   'absolute',
+        left:       '460px',
+        top:        '14px',
+        bottom:     '14px',
+        width:      '2px',
+        background: COR_DIVISOR,
+      }} />
+
+      {/* ── Lado direito ───────────────────────────────────── */}
+      <div style={{
+        position:       'absolute',
+        top:            '14px',
+        left:           '480px',
+        right:          '28px',
+        bottom:         '14px',
+        display:        'flex',
+        flexDirection:  'column',
+        alignItems:     'flex-end',
+        justifyContent: 'flex-start',
+      }}>
+
+        {/* Rank + linha de apoio — largura limitada ao texto */}
+        <div style={{ width: 'fit-content' }}>
+          <div style={{
+            fontFamily:          FF_DM,
+            fontSize:            '48px',
+            fontWeight:          900,
+            color:               '#72708F',
+            fontVariantNumeric:  'tabular-nums',
+            fontFeatureSettings: "'tnum'",
+            lineHeight:          1,
           }}>
-            Q{topico.quartil}
-          </span>
-          <div style={{ width: '28px', height: '2px', background: paleta.cor, opacity: 0.6, borderRadius: '2px' }} />
-          <span style={{
-            fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
-            textTransform: 'uppercase', color: paleta.cor, opacity: 0.85, marginTop: '4px',
-          }}>
-            {paleta.label}
-          </span>
+            {topico.rankGlobal !== null
+              ? <>{topico.rankGlobal}º – {topico.totalOperadores}</>
+              : <span style={{ color: COR_DASH }}>—</span>
+            }
+          </div>
+          <div style={{ width: '100%', height: '2px', background: '#72708F', marginTop: '0', marginBottom: '4px' }} />
         </div>
 
-        {/* Rank global */}
-        {topico.rankGlobal !== null && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', paddingTop: '4px' }}>
-            <span style={{
-              fontSize: '34px', fontWeight: 700, lineHeight: 1,
-              color: 'rgba(255,255,255,0.95)', fontVariantNumeric: 'tabular-nums',
-            }}>
-              {Math.round(rankAnim)}º de {Math.round(totalAnim)}
-            </span>
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.50)' }}>operadores</span>
-          </div>
-        )}
+        {/* Label + valor */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '0' }}>
+          <span style={{
+            fontFamily:    FF_SYNE,
+            fontSize:      '16px',
+            fontWeight:    600,
+            textTransform: 'uppercase',
+            color:         '#72708F',
+          }}>
+            {labelDados}:
+          </span>
+          <span style={{
+            fontFamily:          FF_DM,
+            fontSize:            '16px',
+            fontWeight:          700,
+            color:               '#72708F',
+            fontVariantNumeric:  'tabular-nums',
+          }}>
+            {topico.metricaFormatada !== null ? topico.metricaFormatada : '—'}
+          </span>
+        </div>
       </div>
-
-      {/* Rodapé: métrica */}
-      {topico.metricaFormatada && (
-        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', margin: '24px 0 0' }}>
-          {visual?.labelRodape(topico.metricaFormatada) ?? topico.metricaFormatada}
-        </p>
-      )}
     </div>
   )
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function MeuQuartilClient({
-  mesLabel,
-  dataAtualizacao,
-  topicos,
-}: MeuQuartilProps) {
+export default function MeuQuartilClient({ mesLabel, dataAtualizacao, topicos }: MeuQuartilProps) {
   return (
     <>
-      <style>{`
-        @keyframes qFadeUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0);    }
+      <style dangerouslySetInnerHTML={{ __html: `
+        .mkpi-bg {
+          background-color: #01020a;
+          background-image:
+            linear-gradient(to right, rgba(244,212,124,0.035) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(244,212,124,0.035) 1px, transparent 1px);
+          background-size: 28px 28px;
+          border-radius: 14px;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
         }
-        .q-section { animation: qFadeUp 0.4s ease both; }
-        .q-card    { animation: qFadeUp 0.4s ease both; }
-        .q-section:nth-child(1) { animation-delay:  0ms; }
-        .q-section:nth-child(2) { animation-delay: 60ms; }
-        .q-section:nth-child(3) { animation-delay: 120ms; }
-        @media (prefers-reduced-motion: reduce) {
-          .q-section, .q-card { animation: none; }
-        }
-      `}</style>
+      `}} />
 
-      {/* Header da página */}
-      <div className="q-section" style={{
-        background: 'var(--void2)',
-        border: '1px solid rgba(201,168,76,0.1)',
-        borderRadius: '12px',
-        padding: '14px 20px',
-        display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap',
-      }}>
-        <span style={{
-          fontFamily: 'var(--ff-display)',
-          fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
-          background: 'linear-gradient(135deg, #e8c96d 0%, #c9a84c 100%)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-        }}>
-          Meu Quartil
-        </span>
-        <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mesLabel}</span>
-        {dataAtualizacao && (
-          <>
-            <div style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.2)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div className="animate-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Sincronizado <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{dataAtualizacao}</strong>
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+      <div className="mkpi-bg">
+        <PainelHeader titulo="MEU QUARTIL" mesLabel={mesLabel} dataReferencia={dataAtualizacao} />
+        <LinhaHorizontalDourada />
 
-      {/* Como funciona */}
-      <div className="q-section space-y-3">
-        <SectionLabel>Como Funciona</SectionLabel>
-        <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: '12px',
-          padding: '16px 20px',
-        }}>
-          <p style={{ fontSize: '13px', lineHeight: '1.65', color: 'rgba(255,255,255,0.70)', margin: 0 }}>
-            O Quartil divide os operadores em 4 grupos baseado em performance.
-            <br />
-            Q1 é o melhor (top 25%), Q4 o grupo com resultado fora do esperado.
-          </p>
-        </div>
-      </div>
-
-      {/* Cards por tópico */}
-      <div className="q-section space-y-3">
-        <SectionLabel>Resultado por Tópico</SectionLabel>
-        <div className="space-y-3">
-          {topicos.map((t, i) => (
-            <div
-              key={t.id}
-              className="q-card"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              {t.quartil !== null && t.metricaFormatada !== null
-                ? <QuartilCard topico={t} />
-                : <CardIndisponivel id={t.id} />
-              }
-            </div>
-          ))}
+        <div>
+          <MeuKpiSectionTitle>RESULTADO POR TÓPICO</MeuKpiSectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+            {topicos.map(t => <QuartilTopicoCard key={t.id} topico={t} />)}
+          </div>
         </div>
       </div>
     </>

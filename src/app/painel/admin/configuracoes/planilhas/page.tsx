@@ -2,6 +2,7 @@ import { requireAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
 import { getPlanilhaPorTipo, listarAbas, getMapeamentoKpiColunas, getMapeamentoKpiGestorColunas } from '@/lib/sheets'
+import { getMapeamentoQuartil } from '@/lib/quartil-config'
 import PlanilhasConfigClient from './PlanilhasConfigClient'
 
 export const dynamic = 'force-dynamic'
@@ -15,12 +16,13 @@ export default async function AjustePlanilhasPage() {
     getPlanilhaPorTipo('kpi_quartil'),
   ])
 
-  const [abasMesAtual, abasMesPassado, abasKpiQuartil, mapeamento, mapeamentoGestor] = await Promise.all([
+  const [abasMesAtual, abasMesPassado, abasKpiQuartil, mapeamento, mapeamentoGestor, mapeamentoQuartil] = await Promise.all([
     mesAtual   ? listarAbas(mesAtual.spreadsheet_id).catch(() => [])   : Promise.resolve([]),
     mesPassado ? listarAbas(mesPassado.spreadsheet_id).catch(() => []) : Promise.resolve([]),
     kpiQuartil ? listarAbas(kpiQuartil.spreadsheet_id).catch(() => []) : Promise.resolve([]),
     getMapeamentoKpiColunas(),
     getMapeamentoKpiGestorColunas(),
+    getMapeamentoQuartil(),
   ])
 
   return (
@@ -36,6 +38,7 @@ export default async function AjustePlanilhasPage() {
           kpiQuartil={kpiQuartil}      abasKpiQuartil={abasKpiQuartil}
           mapeamentoInicial={mapeamento}
           mapeamentoGestorInicial={mapeamentoGestor}
+          mapeamentoQuartilInicial={mapeamentoQuartil}
         />
       </div>
     </PainelShell>

@@ -2,6 +2,7 @@
 // Servidor apenas — importa googleapis.
 
 import { google } from 'googleapis'
+import { escaparNomeAba } from '@/lib/sheets'
 
 export type GLPIStatus   = 'Em Andamento' | 'Finalizado'
 export type GLPIEtiqueta = 'Urgente' | 'Normal' | 'Baixa Prioridade'
@@ -92,7 +93,7 @@ async function inicializarCabecalhoGLPI(spreadsheetId: string): Promise<void> {
   const res = await withTimeout(
     sheetsAPI().spreadsheets.values.get({
       spreadsheetId,
-      range: `'${ABA_GLPI}'!A1:K1`,
+      range: `${escaparNomeAba(ABA_GLPI)}!A1:K1`,
     })
   )
   const linha1 = (res.data.values ?? [])[0] ?? []
@@ -101,7 +102,7 @@ async function inicializarCabecalhoGLPI(spreadsheetId: string): Promise<void> {
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
-      range: `'${ABA_GLPI}'!A1`,
+      range: `${escaparNomeAba(ABA_GLPI)}!A1`,
       valueInputOption: 'RAW',
       requestBody: { values: [HEADER] },
     })
@@ -144,7 +145,7 @@ export async function buscarGLPIs(spreadsheetId: string): Promise<GLPIItem[]> {
     if (!exists) return []
     await inicializarCabecalhoGLPI(spreadsheetId)
     const res = await withTimeout(
-      sheetsAPI().spreadsheets.values.get({ spreadsheetId, range: `'${ABA_GLPI}'!A:K` })
+      sheetsAPI().spreadsheets.values.get({ spreadsheetId, range: `${escaparNomeAba(ABA_GLPI)}!A:K` })
     )
     const values = (res.data.values ?? []) as string[][]
     if (values.length <= 1) return []
@@ -160,7 +161,7 @@ export async function contarGLPIsPendentes(spreadsheetId: string): Promise<numbe
     const exists = await abaGLPIExiste(spreadsheetId)
     if (!exists) return 0
     const res = await withTimeout(
-      sheetsAPI().spreadsheets.values.get({ spreadsheetId, range: `'${ABA_GLPI}'!G2:G` })
+      sheetsAPI().spreadsheets.values.get({ spreadsheetId, range: `${escaparNomeAba(ABA_GLPI)}!G2:G` })
     )
     const values = (res.data.values ?? []) as string[][]
     return values.filter(r => r[0] === 'Em Andamento').length
@@ -185,7 +186,7 @@ async function getGLPISheetId(spreadsheetId: string): Promise<number> {
 export async function criarGLPI(spreadsheetId: string, dados: GLPIDados): Promise<void> {
   await garantirAbaGLPI(spreadsheetId)
   const colA = await withTimeout(
-    sheetsAPI().spreadsheets.values.get({ spreadsheetId, range: `'${ABA_GLPI}'!A:A` })
+    sheetsAPI().spreadsheets.values.get({ spreadsheetId, range: `${escaparNomeAba(ABA_GLPI)}!A:A` })
   )
   const linhas = (colA.data.values ?? []) as string[][]
   const id = gerarProximoId(linhas.slice(1))
@@ -205,7 +206,7 @@ export async function criarGLPI(spreadsheetId: string, dados: GLPIDados): Promis
   await withTimeout(
     sheetsAPI().spreadsheets.values.append({
       spreadsheetId,
-      range: `'${ABA_GLPI}'!A:K`,
+      range: `${escaparNomeAba(ABA_GLPI)}!A:K`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     })
@@ -220,7 +221,7 @@ export async function atualizarGLPI(
   const res = await withTimeout(
     sheetsAPI().spreadsheets.values.get({
       spreadsheetId,
-      range: `'${ABA_GLPI}'!A${rowIndex}:K${rowIndex}`,
+      range: `${escaparNomeAba(ABA_GLPI)}!A${rowIndex}:K${rowIndex}`,
     })
   )
   const cur = ((res.data.values ?? [[]])[0] ?? []) as string[]
@@ -240,7 +241,7 @@ export async function atualizarGLPI(
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
-      range: `'${ABA_GLPI}'!A${rowIndex}:K${rowIndex}`,
+      range: `${escaparNomeAba(ABA_GLPI)}!A${rowIndex}:K${rowIndex}`,
       valueInputOption: 'RAW',
       requestBody: { values: [merged] },
     })

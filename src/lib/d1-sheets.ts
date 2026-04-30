@@ -2,7 +2,7 @@
 // Servidor apenas — importa googleapis.
 
 import { google } from 'googleapis'
-import { resolverNomeAba } from '@/lib/sheets'
+import { resolverNomeAba, escaparNomeAba } from '@/lib/sheets'
 
 const ABA_D1 = 'D1'
 
@@ -58,7 +58,7 @@ export async function lerAbaD1(spreadsheetId: string): Promise<D1SheetData> {
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `'${aba}'!A1:F200`,
+        range: `${escaparNomeAba(aba)}!A1:F200`,
       })
     )
     const values = (res.data.values ?? []) as string[][]

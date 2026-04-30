@@ -3,7 +3,7 @@
 // Utilitários puros estão em @/lib/diario-utils — importe daí nos Client Components.
 
 import { google } from 'googleapis'
-import { getPlanilhaAtiva, resolverNomeAba } from '@/lib/sheets'
+import { getPlanilhaAtiva, resolverNomeAba, escaparNomeAba } from '@/lib/sheets'
 
 // Re-exporta tudo que é seguro usar no servidor também
 export * from '@/lib/diario-utils'
@@ -101,7 +101,7 @@ export async function buscarDiario(spreadsheetId: string): Promise<DiarioRegistr
     const res = await withTimeout(
       sheetsAPI().spreadsheets.values.get({
         spreadsheetId,
-        range: `'${aba}'!A:H`,
+        range: `${escaparNomeAba(aba)}!A:H`,
       })
     )
     const values = (res.data.values ?? []) as string[][]
@@ -167,7 +167,7 @@ export async function escreverRegistro(
   await withTimeout(
     sheetsAPI().spreadsheets.values.append({
       spreadsheetId,
-      range: `'${aba}'!A:H`,
+      range: `${escaparNomeAba(aba)}!A:H`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [row] },
     })
@@ -196,7 +196,7 @@ export async function editarRegistro(
   await withTimeout(
     sheetsAPI().spreadsheets.values.update({
       spreadsheetId,
-      range: `'${aba}'!A${sheetRow}:F${sheetRow}`,
+      range: `${escaparNomeAba(aba)}!A${sheetRow}:F${sheetRow}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [row] },
     })
