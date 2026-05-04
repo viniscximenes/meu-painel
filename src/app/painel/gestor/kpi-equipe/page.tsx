@@ -1,4 +1,5 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
+import { mesLabelDaPlanilha } from '@/lib/planilha-utils'
 import { getPlanilhaAtiva, getPlanilhaPorTipo, resolverNomeAba } from '@/lib/sheets'
 import { lerKpiConsolidado } from '@/lib/kpi-consolidado-sheets'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -13,7 +14,7 @@ export default async function GestorKpiEquipePage() {
   const profile  = await requireGestorOuAdmin()
   const planilha = await getPlanilhaPorTipo('kpi_quartil').then(p => p ?? getPlanilhaAtiva()).catch(() => null)
 
-  const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
+  const mesLabel = mesLabelDaPlanilha(planilha)
   const cssVars  = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
 
   if (!planilha) {

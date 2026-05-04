@@ -4,23 +4,40 @@ import { useMemo } from 'react'
 import { Flame, Shield, Package, CalendarX, Activity, Clock } from 'lucide-react'
 import { formatHHMMSS } from '@/lib/diario-utils'
 import type { KpiGestorData } from '@/lib/kpi-gestor-sheets'
+import { calcStatusGestor, type MetaGestorConfig } from '@/lib/kpi-utils'
 import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
 import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
-import { MeuKpiCard, type KpiCardData, type Status } from '@/components/kpi-individual/MeuKpiCard'
+import { MeuKpiCard, type KpiCardData } from '@/components/kpi-individual/MeuKpiCard'
 import { DadosComplementares, type SubsecaoConfig } from '@/components/kpi-individual/DadosComplementares'
-
-// ── Metas ─────────────────────────────────────────────────────────────────────
-const META_CHURN              = 1097
-const META_TX_RET_VERDE_PCT   = 66
-const META_TX_RET_AMARELO_PCT = 60
-const META_TMA_SEG            = 731   // 00:12:11
-const META_ABS_PCT            = 5
-const META_INDISP_PCT         = 14.5
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatNum(n: number): string { return n.toLocaleString('pt-BR') }
 function formatPct(n: number): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
+}
+function segParaMMSS(s: number): string {
+  const m = Math.floor(s / 60)
+  const sec = Math.round(s % 60)
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
+function formatGestorMeta(
+  cfg: MetaGestorConfig | undefined,
+  metaIndividual: number | null | undefined,
+  unit: '%' | 's' | 'num',
+): string | null {
+  if (cfg?.modo === 'coluna_individual') {
+    if (metaIndividual == null) return null
+    const fmt = unit === 'num' ? formatNum(metaIndividual) : unit === 's' ? segParaMMSS(metaIndividual) : `${metaIndividual}%`
+    const sinal = cfg.verde_op === '>=' ? '≥' : '≤'
+    return `META: ${sinal}${fmt}`
+  }
+  if (cfg?.modo === 'limiar_global' && cfg.verde_valor != null && cfg.verde_valor > 0) {
+    const sinal = cfg.verde_op === '>=' ? '≥' : '≤'
+    const fmt = unit === 'num' ? formatNum(cfg.verde_valor) : unit === 's' ? segParaMMSS(cfg.verde_valor) : `${cfg.verde_valor}%`
+    return `META: ${sinal}${fmt}`
+  }
+  return null
 }
 function mesLabelDeData(dataStr: string | null): string {
   if (dataStr) {
@@ -35,22 +52,14 @@ function mesLabelDeData(dataStr: string | null): string {
 }
 
 // ── KPI Cards ─────────────────────────────────────────────────────────────────
-function computarKPICards(data: KpiGestorData): KpiCardData[] {
+function computarKPICards(
+  data: KpiGestorData,
+  gc: Record<string, MetaGestorConfig>,
+): KpiCardData[] {
   const txRet  = data.txRetBrutaPct
   const tma    = data.tmaSeg
   const abs    = data.absPct
   const indisp = data.indispPct
-
-  const churnStatus:  Status = data.churn === null ? 'neutro'
-    : data.churn <= META_CHURN ? 'verde' : 'vermelho'
-  const txRetStatus:  Status = txRet === null ? 'neutro'
-    : txRet >= META_TX_RET_VERDE_PCT ? 'verde'
-    : txRet >= META_TX_RET_AMARELO_PCT ? 'amarelo' : 'vermelho'
-  const tmaStatus:    Status = tma === null ? 'neutro'
-    : tma > 0 && tma <= META_TMA_SEG ? 'verde'
-    : tma > META_TMA_SEG ? 'vermelho' : 'neutro'
-  const absStatus:    Status = abs === null ? 'neutro' : abs <= META_ABS_PCT ? 'verde' : 'vermelho'
-  const indispStatus: Status = indisp === null ? 'neutro' : indisp <= META_INDISP_PCT ? 'verde' : 'vermelho'
 
   return [
     {
@@ -64,36 +73,36 @@ function computarKPICards(data: KpiGestorData): KpiCardData[] {
       label:  'Churn',
       icon:   <Flame size={40} strokeWidth={1.25} />,
       valor:  data.churn !== null ? formatNum(data.churn) : null,
-      status: churnStatus,
-      meta:   data.churn !== null ? `META: ≤${formatNum(META_CHURN)}` : null,
+      status: calcStatusGestor(data.churn, gc['churn'], data.churnMetaIndividual),
+      meta:   data.churn !== null ? formatGestorMeta(gc['churn'], data.churnMetaIndividual, 'num') : null,
     },
     {
       label:  'Tx. Retenção',
       icon:   <Shield size={40} strokeWidth={1.25} />,
       valor:  txRet !== null ? formatPct(txRet) : null,
-      status: txRetStatus,
-      meta:   txRet !== null ? `META: ≥${META_TX_RET_VERDE_PCT}%` : null,
+      status: calcStatusGestor(txRet, gc['tx_ret_bruta']),
+      meta:   txRet !== null ? formatGestorMeta(gc['tx_ret_bruta'], null, '%') : null,
     },
     {
       label:  'TMA',
       icon:   <Clock size={40} strokeWidth={1.25} />,
       valor:  tma !== null && tma > 0 ? formatHHMMSS(tma) : null,
-      status: tmaStatus,
-      meta:   tma !== null ? 'META: ≤12:11' : null,
+      status: calcStatusGestor(tma, gc['tma']),
+      meta:   tma !== null ? formatGestorMeta(gc['tma'], null, 's') : null,
     },
     {
       label:  'ABS',
       icon:   <CalendarX size={40} strokeWidth={1.25} />,
       valor:  abs !== null ? formatPct(abs) : null,
-      status: absStatus,
-      meta:   abs !== null ? `META: ≤${META_ABS_PCT}%` : null,
+      status: calcStatusGestor(abs, gc['abs']),
+      meta:   abs !== null ? formatGestorMeta(gc['abs'], null, '%') : null,
     },
     {
       label:  'Indisponibilidade',
       icon:   <Activity size={40} strokeWidth={1.25} />,
       valor:  indisp !== null ? formatPct(indisp) : null,
-      status: indispStatus,
-      meta:   indisp !== null ? `META: ≤${META_INDISP_PCT.toFixed(1).replace('.', ',')}%` : null,
+      status: calcStatusGestor(indisp, gc['indisp']),
+      meta:   indisp !== null ? formatGestorMeta(gc['indisp'], null, '%') : null,
     },
   ]
 }
@@ -139,9 +148,15 @@ function gestorSubsecoes(data: KpiGestorData): SubsecaoConfig[] {
 }
 
 // ── Componente principal ───────────────────────────────────────────────────────
-export default function GestorMeuKPIClient({ data }: { data: KpiGestorData }) {
+export default function GestorMeuKPIClient({
+  data,
+  gestorConfigs,
+}: {
+  data: KpiGestorData
+  gestorConfigs: Record<string, MetaGestorConfig>
+}) {
   const mesLabel = useMemo(() => mesLabelDeData(data.dataReferencia), [data.dataReferencia])
-  const kpiCards = useMemo(() => computarKPICards(data), [data])
+  const kpiCards = useMemo(() => computarKPICards(data, gestorConfigs), [data, gestorConfigs])
   const subsecoes = useMemo(() => gestorSubsecoes(data), [data])
 
   return (

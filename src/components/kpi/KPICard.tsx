@@ -175,9 +175,19 @@ export default function KPICard({ kpi, index }: KPICardProps) {
   const valorFmt = formatarExibicao(kpi.valor, kpi.unidade)
   const sufixo   = sufixoUnidade(kpi.unidade)
 
-  const metaTexto = kpi.meta
-    ? `${kpi.meta.tipo === 'maior_melhor' ? '≥' : '≤'} ${formatarExibicao(String(kpi.meta.verde_inicio), kpi.meta.unidade)}`
-    : null
+  const metaTexto = (() => {
+    const tipo = kpi.meta?.tipo ?? (kpi.opConfig?.verde_op === '<=' ? 'menor_melhor' : 'maior_melhor')
+    const prefix = tipo === 'maior_melhor' ? '≥' : '≤'
+    const uni = kpi.meta?.unidade ?? ''
+    if (kpi.metaIndividual != null && kpi.metaIndividual > 0) {
+      return `${prefix} ${formatarExibicao(String(kpi.metaIndividual), uni)}`
+    }
+    if (kpi.opConfig?.modo === 'limiar_global' && kpi.opConfig.verde_valor != null && kpi.opConfig.verde_valor > 0) {
+      return `${prefix} ${formatarExibicao(String(kpi.opConfig.verde_valor), uni)}`
+    }
+    if (!kpi.meta) return null
+    return `${prefix} ${formatarExibicao(String(kpi.meta.verde_inicio), kpi.meta.unidade)}`
+  })()
 
   useEffect(() => {
     const bar = barRef.current

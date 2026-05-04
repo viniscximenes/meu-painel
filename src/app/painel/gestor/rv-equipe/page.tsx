@@ -1,5 +1,6 @@
 import React from 'react'
 import { requireGestorOuAdmin } from '@/lib/auth'
+import { mesLabelDaPlanilha } from '@/lib/planilha-utils'
 import {
   getPlanilhaAtiva,
   getPlanilhaPorTipo,
@@ -11,7 +12,9 @@ import {
   resolverNomeAba,
 } from '@/lib/sheets'
 import { getRVConfig, calcularRV } from '@/lib/rv'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import { getAppConfig } from '@/lib/app-config'
 import { lerAbaABS, contarFaltasPorOperador } from '@/lib/abs-sheets'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
@@ -29,20 +32,21 @@ export default async function RvEquipePage() {
 
   const admin = createAdminClient()
 
-  const [planilhaKpi, planilhaMes, rvConfig, metas, limiteRaw, ativosRes] = await Promise.all([
+  const [planilhaKpi, planilhaMes, rvConfig, metas, limiteRaw, ativosRes, opConfigs] = await Promise.all([
     getPlanilhaPorTipo('kpi_quartil').catch(() => null),
     getPlanilhaAtiva().catch(() => null),
     getRVConfig().catch(() => null),
     getMetas().catch(() => []),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
     admin.from('profiles').select('operador_id').eq('ativo', true).not('operador_id', 'is', null),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
   ])
 
   const ativosIds = new Set((ativosRes.data ?? []).map(p => p.operador_id as number))
   const operadoresAtivos = OPERADORES_DISPLAY.filter(op => ativosIds.has(op.id))
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 80
 
-  const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
+  const mesLabel = mesLabelDaPlanilha(planilhaKpi)
   const mesReferencia = new Date().toISOString().slice(0, 7)
   const cssVars = { '--void2': '#07070f', '--void3': '#0d0d1a' } as React.CSSProperties
 
@@ -100,10 +104,13 @@ export default async function RvEquipePage() {
       if (!row) {
         return { id: op.id, nome: op.nome, username: op.username, encontrado: false, resultado: null }
       }
-      const kpis = computarKPIs(headers, row, metas)
+      const metasIndividuais = buildMetasIndividuais(row, opConfigs)
+      const kpis = computarKPIs(headers, row, metas, undefined, opConfigs, metasIndividuais)
       const faltasNoMes = faltasPorOp[op.username] ?? 0
       const { config: _cfg, ...rvData } = calcularRV(
         headers, row, rvConfig, op.username, kpis, op.id, mesReferencia, faltasNoMes,
+        metasIndividuais['pedidos'] ?? null,
+        metasIndividuais['churn'] ?? null,
       )
       return { id: op.id, nome: op.nome, username: op.username, encontrado: true, resultado: rvData }
     })

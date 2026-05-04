@@ -1,104 +1,81 @@
 import { requireAdmin } from '@/lib/auth'
-import { getMetas } from '@/lib/kpi'
-import { getPlanilhaAtiva, buscarLinhasPlanilha } from '@/lib/sheets'
+import { getMetas, getMetasOperadorConfig, getMetasGestorConfig } from '@/lib/kpi'
+import { isMetaPrincipal } from '@/lib/kpi-utils'
 import PainelShell from '@/components/PainelShell'
+import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
+import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
+import MetasOperadorBloco from '@/components/kpi/MetasOperadorBloco'
+import MetasGestorBloco from '@/components/kpi/MetasGestorBloco'
 import MetasForm from '@/components/kpi/MetasForm'
-import { Target, AlertCircle } from 'lucide-react'
-import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
+
+const FF_DM = 'var(--ff-body)'
 
 export default async function MetasPage() {
   const profile = await requireAdmin()
+  const [todasMetas, opConfigs, gestorConfigs] = await Promise.all([
+    getMetas(), getMetasOperadorConfig(), getMetasGestorConfig(),
+  ])
 
-  const [metas, planilha] = await Promise.all([getMetas(), getPlanilhaAtiva()])
+  // Filtra metas que correspondem aos 6 KPIs principais — gerenciados por metas_operador_config
+  const metasComplementares = todasMetas.filter(m => !isMetaPrincipal(m))
 
-  let headers: string[] = []
-  if (planilha) {
-    const { headers: h } = await buscarLinhasPlanilha(planilha.spreadsheet_id, planilha.aba)
-    headers = h
-  }
+  const mesLabel = `${metasComplementares.length} META${metasComplementares.length !== 1 ? 'S' : ''} COMPLEMENTAR${metasComplementares.length !== 1 ? 'ES' : ''}`
 
   return (
-    <PainelShell profile={profile} title="Metas KPI">
-      <div className="max-w-2xl space-y-6">
-        {/* Header */}
-        <div className="flex items-start gap-3">
-          <div
-            className="p-2.5 rounded-xl shrink-0"
-            style={{ background: 'var(--gold-dim)', color: 'var(--gold-light)' }}
-          >
-            <Target size={18} />
-          </div>
-          <div>
-            <h2 style={{
-              fontFamily: 'var(--ff-display)',
-              fontSize: '20px',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              letterSpacing: '-0.02em',
-            }}>
-              Configuração de Metas
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-              Defina as metas para cada coluna da planilha. As cores dos KPIs são calculadas automaticamente.
-            </p>
-          </div>
-        </div>
+    <PainelShell profile={profile} title="Ajuste de KPI" iconName="Settings">
+      <div className="space-y-8 regiao-cards-painel">
+        <PainelHeader titulo="AJUSTE DE KPI" mesLabel={mesLabel} />
+        <LinhaHorizontalDourada />
 
-        {/* Aviso sem planilha */}
-        {!planilha && (
-          <div
-            className="flex items-start gap-3 rounded-xl border px-4 py-3"
-            style={{ background: 'rgba(245,158,11,0.05)', borderColor: 'rgba(245,158,11,0.2)' }}
-          >
-            <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-300">Nenhuma planilha ativa</p>
-              <p className="text-xs mt-0.5 text-amber-500">
-                Configure a{' '}
-                <Link href="/painel/config" className="underline hover:text-amber-300">planilha ativa</Link>
-                {' '}para ver os cabeçalhos disponíveis.
-              </p>
-            </div>
+        {/* Bloco 1 — 6 KPIs principais estruturados */}
+        <section>
+          <div style={{ marginBottom: '12px' }}>
+            <PainelSectionTitle>METAS OPERADOR</PainelSectionTitle>
           </div>
-        )}
+          <p style={{
+            fontFamily: FF_DM, fontSize: '12px', color: '#72708F',
+            maxWidth: '720px', marginBottom: '24px', lineHeight: 1.6,
+          }}>
+            Defina os limiares de cada KPI principal. Os limiares determinam quando o status do operador
+            fica <strong style={{ color: 'rgba(106,196,73,0.95)' }}>VERDE</strong>,{' '}
+            <strong style={{ color: '#FFB922' }}>AMARELO</strong> ou{' '}
+            <strong style={{ color: 'rgba(227,57,57,0.95)' }}>VERMELHO</strong> no painel.
+            Para PEDIDOS e CHURN, configure a coluna do KPI CONSOLIDADO que contém a meta individual de cada operador.
+          </p>
+          <MetasOperadorBloco configs={opConfigs} />
+        </section>
 
-        {/* Info sobre a planilha ativa */}
-        {planilha && (
-          <div className="card p-4 flex items-center gap-3 flex-wrap">
-            <div className="flex-1 flex items-center gap-2 flex-wrap">
-              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Planilha ativa:</span>
-              <span style={{
-                background: 'var(--gold-dim)',
-                color: 'var(--gold-light)',
-                border: '1px solid rgba(201,168,76,0.3)',
-                borderRadius: '20px',
-                padding: '2px 10px',
-                fontSize: '11px',
-                fontWeight: 600,
-              }}>
-                {planilha.nome}
-              </span>
-              {planilha.aba && (
-                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                  · aba: <span style={{ color: 'var(--text-secondary)' }}>{planilha.aba}</span>
-                </span>
-              )}
-              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                · {headers.length} colunas
-              </span>
-            </div>
-            <Link
-              href="/painel/config"
-              className="btn-secondary"
-              style={{ fontSize: '11px', padding: '4px 12px' }}
-            >
-              Trocar planilha
-            </Link>
+        {/* Bloco 2 — KPIs do Gestor */}
+        <section>
+          <div style={{ marginBottom: '12px' }}>
+            <PainelSectionTitle>METAS GESTOR</PainelSectionTitle>
           </div>
-        )}
+          <p style={{
+            fontFamily: FF_DM, fontSize: '12px', color: '#72708F',
+            maxWidth: '720px', marginBottom: '24px', lineHeight: 1.6,
+          }}>
+            Defina os limiares usados no painel do gestor. Para CHURN, configure a coluna da aba{' '}
+            <strong style={{ color: '#A6A2A2' }}>KPI GESTOR</strong> que contém a meta individual de cada gestor.
+          </p>
+          <MetasGestorBloco configs={gestorConfigs} />
+        </section>
 
-        {/* Formulário */}
-        <MetasForm metas={metas} headers={headers} />
+        {/* Bloco 4 — Metas dos 14 KPIs secundários */}
+        <section>
+          <div style={{ marginBottom: '12px' }}>
+            <PainelSectionTitle contador={metasComplementares.length}>METAS COMPLEMENTARES</PainelSectionTitle>
+          </div>
+          <p style={{
+            fontFamily: FF_DM, fontSize: '12px', color: '#72708F',
+            maxWidth: '720px', marginBottom: '20px', lineHeight: 1.6,
+          }}>
+            Configure metas para os KPIs secundários da planilha.
+            O limiar amarelo é calculado automaticamente em 80% do valor verde.
+          </p>
+          <MetasForm metas={metasComplementares} />
+        </section>
       </div>
     </PainelShell>
   )

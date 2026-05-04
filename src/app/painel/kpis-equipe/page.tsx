@@ -1,7 +1,9 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
-import { getMetas, computarKPIs, type KPIItem } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig, type KPIItem } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, extrairDataAtualizacao, formatarDataCurta, matchCelulaOperador } from '@/lib/sheets'
 import { getAppConfig } from '@/lib/app-config'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import PainelShell from '@/components/PainelShell'
 import Link from 'next/link'
@@ -17,10 +19,11 @@ export type DadosOperador = {
 export default async function KPIsEquipePage() {
   const profile = await requireGestorOuAdmin()
 
-  const [planilha, metas, limiteRaw] = await Promise.all([
+  const [planilha, metas, limiteRaw, opConfigs] = await Promise.all([
     getPlanilhaAtiva().catch(() => null),
     getMetas().catch(() => []),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
   ])
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
 
@@ -51,7 +54,8 @@ export default async function KPIsEquipePage() {
         const debugLabel = (!primeiroDebugFeito && row) ? op.username : undefined
         if (debugLabel) primeiroDebugFeito = true
 
-        const kpis = row ? computarKPIs(headers, row, metas, debugLabel) : []
+        const metasIndividuais = row ? buildMetasIndividuais(row, opConfigs) : {}
+        const kpis = row ? computarKPIs(headers, row, metas, debugLabel, opConfigs, metasIndividuais) : []
         if (!row) console.log(`[KPI Equipe] Operador "${op.username}" NÃO encontrado na planilha`)
         return { op, kpis, encontrado: !!row }
       })

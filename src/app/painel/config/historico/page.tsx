@@ -15,7 +15,7 @@ export default async function AjusteHistoricoPage() {
   const mesLabel = n === 0 ? 'NENHUM MÊS DISPONÍVEL' : n === 1 ? '1 MÊS PARA ANÁLISE' : `${n} MESES PARA ANÁLISE`
 
   return (
-    <PainelShell profile={profile} title="Ajuste de Histórico" iconName="Clock">
+    <PainelShell profile={profile} title="Ajuste de Histórico" iconName="Settings">
       <div className="space-y-6 regiao-cards-painel">
         <PainelHeader titulo="AJUSTE DE HISTÓRICO" mesLabel={mesLabel} />
         <LinhaHorizontalDourada />

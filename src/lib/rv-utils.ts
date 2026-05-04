@@ -55,6 +55,7 @@ export type RVConfigRaw = Record<string, string>
 
 export interface RVConfig {
   absMaximo: number
+  faltasLimite: number
   retracaoFaixas: FaixaRV[]
   indispLimite: number
   indispValor: number
@@ -64,6 +65,7 @@ export interface RVConfig {
   ticketMinRetracao: number
   pedidosMeta: number
   churnMeta: number
+  pedidosMultiplicadorMax: number
   bonusValor: number
   bonusRetracaoMinima: number
   bonusIndispMaxima: number
@@ -112,22 +114,25 @@ export interface ResultadoRV {
   descontoIndividualAplicado: { motivo: string; valor: number } | null
   semDados: boolean
   config: RVConfig
+  metaChurnUsada: number
 }
 
 export const RV_CONFIG_DEFAULTS: RVConfigRaw = {
-  abs_maximo:            '5',
-  bonus_valor:           '300',
-  retracao_faixas:       JSON.stringify([{min:66,valor:700},{min:63,valor:400},{min:60,valor:300},{min:57,valor:200}]),
-  indisp_limite:         '14.5',
-  indisp_valor:          '150',
-  tma_limite_seg:        '731',
-  tma_valor:             '150',
-  ticket_faixas:         JSON.stringify([{min:-6,valor:200},{min:-9,valor:150},{min:-15,valor:100},{min:-18,valor:50}]),
-  ticket_min_retracao:   '60',
-  pedidos_meta:          '260',
-  churn_meta:            '0',
-  bonus_retracao_minima: '66',
-  bonus_indisp_maxima:   '14.5',
+  abs_maximo:               '5',
+  faltas_limite:            '2',
+  bonus_valor:              '300',
+  retracao_faixas:          JSON.stringify([{min:66,valor:700},{min:63,valor:400},{min:60,valor:300},{min:57,valor:200}]),
+  indisp_limite:            '14.5',
+  indisp_valor:             '150',
+  tma_limite_seg:           '731',
+  tma_valor:                '150',
+  ticket_faixas:            JSON.stringify([{min:-6,valor:200},{min:-9,valor:150},{min:-15,valor:100},{min:-18,valor:50}]),
+  ticket_min_retracao:      '60',
+  pedidos_meta:             '260',
+  churn_meta:               '0',
+  pedidos_multiplicador_max: '1',
+  bonus_retracao_minima:    '66',
+  bonus_indisp_maxima:      '14.5',
   penalidades:              '[]',
   descontos_individuais:    '[]',
 }
@@ -136,20 +141,22 @@ export function parseRVConfig(raw: RVConfigRaw): RVConfig {
   const n = (k: string) => parseFloat(raw[k] ?? '0') || 0
   const j = <T,>(k: string): T => { try { return JSON.parse(raw[k] ?? '[]') } catch { return [] as unknown as T } }
   return {
-    absMaximo:           n('abs_maximo'),
-    retracaoFaixas:      j<FaixaRV[]>('retracao_faixas').sort((a, b) => b.min - a.min),
-    indispLimite:        n('indisp_limite'),
-    indispValor:         n('indisp_valor'),
-    tmaLimiteSeg:        n('tma_limite_seg'),
-    tmaValor:            n('tma_valor'),
-    ticketFaixas:        j<FaixaRV[]>('ticket_faixas').sort((a, b) => b.min - a.min),
-    ticketMinRetracao:   n('ticket_min_retracao'),
-    pedidosMeta:         n('pedidos_meta'),
-    churnMeta:           n('churn_meta'),
-    bonusValor:          n('bonus_valor'),
-    bonusRetracaoMinima: n('bonus_retracao_minima'),
-    bonusIndispMaxima:   n('bonus_indisp_maxima'),
-    penalidades:         j<PenalidadeRV[]>('penalidades'),
-    descontosIndividuais: j<DescontoIndividual[]>('descontos_individuais'),
+    absMaximo:              n('abs_maximo'),
+    faltasLimite:           n('faltas_limite') || 2,
+    retracaoFaixas:         j<FaixaRV[]>('retracao_faixas').sort((a, b) => b.min - a.min),
+    indispLimite:           n('indisp_limite'),
+    indispValor:            n('indisp_valor'),
+    tmaLimiteSeg:           n('tma_limite_seg'),
+    tmaValor:               n('tma_valor'),
+    ticketFaixas:           j<FaixaRV[]>('ticket_faixas').sort((a, b) => b.min - a.min),
+    ticketMinRetracao:      n('ticket_min_retracao'),
+    pedidosMeta:            n('pedidos_meta'),
+    churnMeta:              n('churn_meta'),
+    pedidosMultiplicadorMax: n('pedidos_multiplicador_max') || 1,
+    bonusValor:             n('bonus_valor'),
+    bonusRetracaoMinima:    n('bonus_retracao_minima'),
+    bonusIndispMaxima:      n('bonus_indisp_maxima'),
+    penalidades:            j<PenalidadeRV[]>('penalidades'),
+    descontosIndividuais:   j<DescontoIndividual[]>('descontos_individuais'),
   }
 }

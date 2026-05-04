@@ -8,4 +8,6 @@ export async function salvarRVConfigAction(dados: Record<string, string>): Promi
   revalidatePath('/painel/rv-config')
   revalidatePath('/painel/rv-equipe')
   revalidatePath('/painel/rv')
+  revalidatePath('/painel/gestor')
+  revalidatePath('/painel/gestor/meu-rv')
 }

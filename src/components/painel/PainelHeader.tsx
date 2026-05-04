@@ -2,8 +2,8 @@
 
 import React from 'react'
 
-const FF_SYNE = "'Syne', sans-serif"
-const FF_DM   = "'DM Sans', sans-serif"
+const FF_SYNE = 'var(--ff-syne)'
+const FF_DM   = 'var(--ff-body)'
 
 interface PainelHeaderProps {
   titulo: React.ReactNode

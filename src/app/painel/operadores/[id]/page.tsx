@@ -3,8 +3,10 @@ import { requireOperador } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import MetricCard from '@/components/MetricCard'
 import { getOperadorPorId, getAvatarStyle, getIniciaisNome, OPERADORES } from '@/lib/operadores'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, extrairDataAtualizacao, formatarDataPtBR, matchCelulaOperador } from '@/lib/sheets'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import KPIBasico from '@/components/kpi/KPIBasico'
 import { buscarDiarioAtivo, filtrarPorOperador, totalPausasJustificadas, formatTempo } from '@/lib/diario'
 import { BarChart2, CalendarCheck, Target, BookOpen, ChevronRight } from 'lucide-react'
@@ -25,10 +27,11 @@ export default async function OperadorDetalhe({ params }: PageProps) {
 
   const profile = await requireOperador(operadorId)
 
-  const [planilha, metas, { registros: todosRegistros }] = await Promise.all([
+  const [planilha, metas, { registros: todosRegistros }, opConfigs] = await Promise.all([
     getPlanilhaAtiva(),
     getMetas(),
     buscarDiarioAtivo(),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
   ])
   const registrosDiario = filtrarPorOperador(todosRegistros, operador.username, operador.nome)
   const minPausas = totalPausasJustificadas(registrosDiario)
@@ -44,7 +47,10 @@ export default async function OperadorDetalhe({ params }: PageProps) {
     const row = rows.find((r) =>
       matchCelulaOperador(r[col] ?? '', operador.username, operador.nome)
     )
-    if (row) kpis = computarKPIs(headers, row, metas)
+    if (row) {
+      const metasIndividuais = buildMetasIndividuais(row, opConfigs)
+      kpis = computarKPIs(headers, row, metas, undefined, opConfigs, metasIndividuais)
+    }
   }
 
   const metasAtingidas = kpis.filter((k) => k.status === 'verde').length

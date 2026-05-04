@@ -87,8 +87,17 @@ function InfoTooltip({ texto }: { texto: string }) {
 // ── Texto da meta ─────────────────────────────────────────────────────────────
 
 function metaTexto(kpi: KPIItem): string | null {
+  const tipo = kpi.meta?.tipo ?? (kpi.opConfig?.verde_op === '<=' ? 'menor_melhor' : 'maior_melhor')
+  const sinal = tipo === 'maior_melhor' ? '≥' : '≤'
+  const uni = kpi.meta?.unidade ?? ''
+
+  if (kpi.metaIndividual != null && kpi.metaIndividual > 0) {
+    return `meta ${sinal} ${formatarExibicao(String(kpi.metaIndividual), uni)}`
+  }
+  if (kpi.opConfig?.modo === 'limiar_global' && kpi.opConfig.verde_valor != null && kpi.opConfig.verde_valor > 0) {
+    return `meta ${sinal} ${formatarExibicao(String(kpi.opConfig.verde_valor), uni)}`
+  }
   if (!kpi.meta) return null
-  const sinal = kpi.meta.tipo === 'maior_melhor' ? '≥' : '≤'
   return `meta ${sinal} ${formatarExibicao(String(kpi.meta.verde_inicio), kpi.meta.unidade)}`
 }
 

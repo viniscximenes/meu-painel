@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 import { requireGestor } from '@/lib/auth'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
 import { normalizarChave } from '@/lib/kpi-utils'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import { getPlanilhaAtiva, buscarLinhaOperador } from '@/lib/sheets'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import { OPERADORES } from '@/lib/operadores'
 import PainelShell from '@/components/PainelShell'
 import KPIBasico from '@/components/kpi/KPIBasico'
@@ -44,7 +46,11 @@ export default async function KPIOperadorPage({ params, searchParams }: PageProp
   const operador = OPERADORES.find((o) => o.username === username)
   if (!operador) notFound()
 
-  const [planilha, metas] = await Promise.all([getPlanilhaAtiva(), getMetas()])
+  const [planilha, metas, opConfigs] = await Promise.all([
+    getPlanilhaAtiva(),
+    getMetas(),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
+  ])
 
   if (!planilha) {
     return (
@@ -84,7 +90,8 @@ export default async function KPIOperadorPage({ params, searchParams }: PageProp
     )
   }
 
-  const kpis = computarKPIs(resultado.headers, resultado.row, metas)
+  const metasIndividuais = buildMetasIndividuais(resultado.row, opConfigs)
+  const kpis = computarKPIs(resultado.headers, resultado.row, metas, undefined, opConfigs, metasIndividuais)
   const linkBase = `/painel/kpi/${username}`
 
   const dadosComplementares = COLUNAS_COMPLEMENTARES.map((nome) => {

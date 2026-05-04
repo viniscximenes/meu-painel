@@ -1,4 +1,5 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
+import { mesLabelDaPlanilha } from '@/lib/planilha-utils'
 import PainelShell from '@/components/PainelShell'
 import {
   getPlanilhaAtiva,
@@ -26,11 +27,13 @@ export const dynamic = 'force-dynamic'
 
 function parsePctRV(raw: string | null): number | null {
   if (!raw) return null
+  const hasPct = raw.includes('%')
   const s = raw.trim().replace(/\s/g, '').replace(',', '.')
   if (!s || s.startsWith('#')) return null
   const n = parseFloat(s.replace('%', ''))
   if (isNaN(n)) return null
-  return n > 0 && n < 2 ? n * 100 : n
+  if (!hasPct && n > 0 && n < 2) return n * 100
+  return n
 }
 
 function parseTMARV(raw: string | null): number | null {
@@ -177,7 +180,7 @@ export default async function GestorMeuRvPage() {
     erroSheets = e instanceof Error ? e.message : 'Erro desconhecido ao carregar planilha'
   }
 
-  const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
+  const mesLabel = mesLabelDaPlanilha(planilhaKpi)
 
   return (
     <PainelShell profile={profile} title="Meu RV" iconName="Wallet">

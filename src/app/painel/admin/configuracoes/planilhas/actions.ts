@@ -17,9 +17,10 @@ import type { MapeamentoQuartil } from '@/lib/quartil-config'
 
 function extrairSpreadsheetId(raw: string): string | null {
   const trimmed = raw.trim()
-  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
-  if (match) return match[1]
-  if (/^[a-zA-Z0-9_-]{20,}$/.test(trimmed)) return trimmed
+  if (!trimmed) return null
+  const urlMatch = trimmed.match(/\/d\/([A-Za-z0-9_-]+)/)
+  if (urlMatch) return urlMatch[1]
+  if (/^[A-Za-z0-9_-]{30,60}$/.test(trimmed)) return trimmed
   return null
 }
 

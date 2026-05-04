@@ -7,9 +7,9 @@ import { Profile } from '@/types'
 import { OPERADORES, getAvatarStyle, getIniciaisNome } from '@/lib/operadores'
 import {
   ChevronDown, BarChart2,
-  Target, Database, SlidersHorizontal, BookOpen, ClipboardList,
-  CalendarDays, Ticket, Clock, Gauge, Wallet,
-  BarChart3, Coins, Trophy, FileText, Settings, Users,
+  BookOpen, ClipboardList,
+  CalendarDays, Ticket, Gauge, Wallet,
+  BarChart3, Coins, Trophy, FileText, Settings,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useSidebarBadges } from '@/context/sidebar-badges'
@@ -390,32 +390,27 @@ function AdminNav({ pathname, onClose }: { pathname: string; onClose: () => void
           <Link href="/painel/admin/configuracoes/planilhas" onClick={onClose}
             className={pathname === '/painel/admin/configuracoes/planilhas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
             style={pathname !== '/painel/admin/configuracoes/planilhas' ? { color: 'rgba(123,163,217,0.55)' } : undefined}>
-            <Settings size={15} /> Ajuste de Planilhas
+            <Settings size={15} /> Ajus. Planilha
           </Link>
           <Link href="/painel/config/historico" onClick={onClose}
             className={pathname === '/painel/config/historico' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
             style={pathname !== '/painel/config/historico' ? { color: 'rgba(123,163,217,0.55)' } : undefined}>
-            <Clock size={15} /> Ajuste de Histórico
+            <Settings size={15} /> Ajus. Histórico
           </Link>
           <Link href="/painel/config/operadores" onClick={onClose}
             className={pathname === '/painel/config/operadores' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
             style={pathname !== '/painel/config/operadores' ? { color: 'rgba(123,163,217,0.55)' } : undefined}>
-            <Users size={15} /> Ajuste de Operadores
+            <Settings size={15} /> Ajus. Op
           </Link>
           <Link href="/painel/metas" onClick={onClose}
             className={pathname === '/painel/metas' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-            style={pathname !== '/painel/metas' ? { color: '#7ba3d9' } : undefined}>
-            <Target size={15} /> Metas KPI
+            style={pathname !== '/painel/metas' ? { color: 'rgba(123,163,217,0.55)' } : undefined}>
+            <Settings size={15} /> Ajus. KPI
           </Link>
           <Link href="/painel/rv-config" onClick={onClose}
             className={pathname === '/painel/rv-config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-            style={pathname !== '/painel/rv-config' ? { color: '#7ba3d9' } : undefined}>
-            <SlidersHorizontal size={15} /> Config. RV
-          </Link>
-          <Link href="/painel/config" onClick={onClose}
-            className={pathname === '/painel/config' ? 'sidebar-item-active' : 'sidebar-item-inactive'}
-            style={pathname !== '/painel/config' ? { color: '#7ba3d9' } : undefined}>
-            <Database size={15} /> Planilhas
+            style={pathname !== '/painel/rv-config' ? { color: 'rgba(123,163,217,0.55)' } : undefined}>
+            <Settings size={15} /> Ajus. RV
           </Link>
         </div>
       </div>

@@ -33,6 +33,53 @@ export interface KPIItem {
   meta?: Meta
   basico: boolean
   indice: number
+  metaIndividual?: number
+  opConfig?: MetaOperadorConfig
+}
+
+export interface MetaOperadorConfig {
+  kpi_key: string
+  modo: 'limiar_global' | 'coluna_individual'
+  verde_op?: string | null
+  verde_valor?: number | null
+  amarelo_op?: string | null
+  amarelo_valor?: number | null
+  coluna_meta?: string | null
+}
+
+/** Estruturalmente idêntico a MetaOperadorConfig — tabela separada (metas_gestor_config). */
+export type MetaGestorConfig = MetaOperadorConfig
+
+/** Calcula status para KPIs do gestor usando metas_gestor_config, sem depender da tabela metas legada. */
+export function calcStatusGestor(
+  v: number | null | undefined,
+  config?: MetaGestorConfig,
+  metaIndividual?: number | null,
+): Status {
+  if (v == null) return 'neutro'
+  if (!config) return 'neutro'
+
+  if (config.modo === 'coluna_individual') {
+    if (metaIndividual == null) return 'neutro'
+    return v <= metaIndividual ? 'verde' : 'vermelho'
+  }
+
+  if (config.modo === 'limiar_global') {
+    const { verde_op, verde_valor, amarelo_valor } = config
+    if (verde_valor == null || verde_valor <= 0) return 'neutro'
+    if (verde_op === '>=') {
+      if (v >= verde_valor) return 'verde'
+      if (amarelo_valor != null && v >= amarelo_valor) return 'amarelo'
+      return 'vermelho'
+    }
+    if (verde_op === '<=') {
+      if (v <= verde_valor) return 'verde'
+      if (amarelo_valor != null && v <= amarelo_valor) return 'amarelo'
+      return 'vermelho'
+    }
+  }
+
+  return 'neutro'
 }
 
 // ── Normalização de chave de coluna ──────────────────────────────────────────
@@ -83,6 +130,33 @@ function isTmaMeta(meta: Meta): boolean {
     lbl.includes('tempo medio') || lbl.includes('tempo médio')
 }
 
+function isChurn(meta: Meta): boolean {
+  const col = normalizarChave(meta.nome_coluna)
+  const lbl = normalizarChave(meta.label)
+  return col === 'churn' || lbl === 'churn'
+}
+
+function isIndisp(meta: Meta): boolean {
+  const col = normalizarChave(meta.nome_coluna)
+  const lbl = normalizarChave(meta.label)
+  return col.includes('indisp') || lbl.includes('indisp')
+}
+
+function detectKpiKey(meta: Meta): string | null {
+  if (isTxRetencao(meta)) return 'tx_ret_bruta'
+  if (isPedidos(meta))    return 'pedidos'
+  if (isTmaMeta(meta))    return 'tma'
+  if (isAbsHeader(meta.nome_coluna) || isAbsHeader(meta.label)) return 'abs'
+  if (isIndisp(meta))     return 'indisp'
+  if (isChurn(meta))      return 'churn'
+  return null
+}
+
+/** Retorna true se a meta corresponde a um dos 6 KPIs principais gerenciados por metas_operador_config. */
+export function isMetaPrincipal(meta: Meta): boolean {
+  return detectKpiKey(meta) !== null
+}
+
 function isTxRetencao(meta: Meta): boolean {
   const col = normalizarChave(meta.nome_coluna)
   const lbl = normalizarChave(meta.label)
@@ -96,8 +170,38 @@ function isPedidos(meta: Meta): boolean {
   return col.includes('pedido') || lbl.includes('pedido')
 }
 
-function calcStatus(v: number, meta: Meta): Status {
-  // Tx. Retenção: regra fixa independente do configurado nas metas
+function calcStatus(
+  v: number,
+  meta: Meta,
+  opConfig?: MetaOperadorConfig,
+  metaIndividual?: number,
+): Status {
+  // Config estruturada tem prioridade quando fornecida
+  if (opConfig) {
+    if (opConfig.modo === 'coluna_individual') {
+      if (metaIndividual == null || metaIndividual <= 0) return 'neutro'
+      if (opConfig.kpi_key === 'pedidos') return v >= metaIndividual ? 'verde' : 'vermelho'
+      if (opConfig.kpi_key === 'churn')   return v <= metaIndividual ? 'verde' : 'vermelho'
+      return 'neutro'
+    }
+    if (opConfig.modo === 'limiar_global') {
+      const { verde_op, verde_valor, amarelo_valor } = opConfig
+      if (verde_valor == null) return 'neutro'
+      if (verde_op === '>=') {
+        if (v >= verde_valor) return 'verde'
+        if (amarelo_valor != null && v >= amarelo_valor) return 'amarelo'
+        return 'vermelho'
+      }
+      if (verde_op === '<=') {
+        if (v <= verde_valor) return 'verde'
+        if (amarelo_valor != null && v <= amarelo_valor) return 'amarelo'
+        return 'vermelho'
+      }
+      return 'neutro'
+    }
+  }
+
+  // Fallback: comportamento legado com hardcodes
   if (isTxRetencao(meta)) {
     if (v >= 66) return 'verde'
     if (v >= 60) return 'amarelo'
@@ -106,19 +210,12 @@ function calcStatus(v: number, meta: Meta): Status {
 
   const limite = meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta
 
-  // Pedidos: binário — sem zona amarela
-  if (isPedidos(meta)) {
-    return v >= limite ? 'verde' : 'vermelho'
-  }
+  if (isPedidos(meta)) return v >= limite ? 'verde' : 'vermelho'
 
   const { tipo } = meta
 
-  // TMA é binário: verde/vermelho sem zona amarela (menor_melhor: verde se ≤ limite)
-  if (isTmaMeta(meta)) {
-    return v <= limite ? 'verde' : 'vermelho'
-  }
+  if (isTmaMeta(meta)) return v <= limite ? 'verde' : 'vermelho'
 
-  // Limiar amarelo automático: 80% do limite
   const limiarAmarelo = limite > 0 ? limite * 0.8 : 0
 
   if (tipo === 'maior_melhor') {
@@ -150,7 +247,9 @@ export function computarKPIs(
   headers: string[],
   row: string[],
   metas: Meta[],
-  debugLabel?: string
+  debugLabel?: string,
+  opConfigs?: Record<string, MetaOperadorConfig>,
+  metasIndividuais?: Record<string, number>,
 ): KPIItem[] {
   // Mapa: chave normalizada → meta
   const metaMap = new Map(metas.map((m) => [normalizarChave(m.nome_coluna), m]))
@@ -208,8 +307,26 @@ export function computarKPIs(
         ? `${Math.round((100 - valorNum) * 100) / 100}%`
         : raw || '—'
 
-      const status   = meta ? calcStatus(valorNum, meta) : 'neutro'
+      const kpiKey    = meta ? detectKpiKey(meta) : null
+      const opConfig  = (kpiKey && opConfigs) ? opConfigs[kpiKey] : undefined
+      const metaInd   = (kpiKey && metasIndividuais) ? metasIndividuais[kpiKey] : undefined
+      const status    = meta ? calcStatus(valorNum, meta, opConfig, metaInd) : 'neutro'
       const progresso = meta ? calcProgresso(valorNum, meta) : 0
+
+      if (kpiKey === 'pedidos' || kpiKey === 'churn') {
+        console.log(`[meta-${kpiKey}]`, {
+          operador: row[0],
+          configNova: opConfig ?? '(não encontrado em opConfigs)',
+          modo: opConfig?.modo,
+          colunaMeta: opConfig?.coluna_meta,
+          metaIndividualParseada: metaInd ?? '(não encontrado em metasIndividuais)',
+          valorOperador: valorNum,
+          statusFinal: status,
+          metaLegadoVerde: meta?.verde_inicio,
+          metaLegadoValor: meta?.valor_meta,
+          opConfigsKeys: opConfigs ? Object.keys(opConfigs) : '(opConfigs undefined)',
+        })
+      }
 
       if (debugLabel) {
         const limite = meta ? (meta.verde_inicio > 0 ? meta.verde_inicio : meta.valor_meta) : 0
@@ -231,6 +348,8 @@ export function computarKPIs(
         meta,
         basico: meta?.basico ?? false,
         indice: idx,
+        metaIndividual: metaInd,
+        opConfig,
       } satisfies KPIItem
     })
     .filter((item): item is NonNullable<typeof item> => item !== null) as KPIItem[]

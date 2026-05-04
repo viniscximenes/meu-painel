@@ -1,6 +1,7 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
 import { getPlanilhaAtiva, getPlanilhaPorTipo, resolverNomeAba } from '@/lib/sheets'
 import { lerKpiGestor } from '@/lib/kpi-gestor-sheets'
+import { getMetasGestorConfig } from '@/lib/kpi'
 import PainelShell from '@/components/PainelShell'
 import GestorMeuKPIClient from './GestorMeuKPIClient'
 import { AlertTriangle, Settings } from 'lucide-react'
@@ -29,10 +30,11 @@ export default async function GestorMeuKpiPage() {
 
   let kpiData = null
   let erro: string | null = null
+  const gestorConfigs = await getMetasGestorConfig()
 
   try {
     const aba = await resolverNomeAba(planilha.spreadsheet_id, 'KPI GESTOR').catch(() => 'KPI GESTOR')
-    kpiData = await lerKpiGestor(planilha.spreadsheet_id, aba)
+    kpiData = await lerKpiGestor(planilha.spreadsheet_id, aba, gestorConfigs)
   } catch (e) {
     erro = e instanceof Error ? e.message : 'Erro desconhecido ao carregar planilha'
   }
@@ -61,7 +63,7 @@ export default async function GestorMeuKpiPage() {
           </EmptyState>
         )}
 
-        {kpiData && <GestorMeuKPIClient data={kpiData} />}
+        {kpiData && <GestorMeuKPIClient data={kpiData} gestorConfigs={gestorConfigs} />}
       </div>
     </PainelShell>
   )

@@ -12,6 +12,7 @@ import {
 import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
 import { MeuKpiCard, MeuKpiSectionTitle, type KpiCardData, type Status } from '@/components/kpi-individual/MeuKpiCard'
 import { DadosComplementares, type SubsecaoConfig } from '@/components/kpi-individual/DadosComplementares'
+import { BannerAguardandoKPI } from '@/components/painel/BannerAguardandoKPI'
 
 export interface MeuKPIProps {
   kpis:            KPIItem[]
@@ -26,6 +27,8 @@ export interface MeuKPIProps {
   vizinhoAcima?:   { posicao: number; txRet: number }
   vizinhoAbaixo?:  { posicao: number; txRet: number }
   txRetLider?:     number
+  modoHistorico?:  boolean
+  mesFechamento?:  { mes: number; ano: number }
 }
 
 // ── Helpers de mapeamento ──────────────────────────────────────────────────────
@@ -55,12 +58,26 @@ function formatSeg(s: number): string {
 }
 
 function formatMetaStr(kpi: KPIItem): string | null {
+  const tipo = kpi.meta?.tipo ?? (kpi.opConfig?.verde_op === '<=' ? 'menor_melhor' : 'maior_melhor')
+  const prefix = tipo === 'menor_melhor' ? '≤' : '≥'
+  const uni = kpi.meta?.unidade ?? ''
+
+  // 1. Meta individual lida da coluna (coluna_individual)
+  if (kpi.metaIndividual != null && kpi.metaIndividual > 0) {
+    const fmtAlvo = isTempoKPI(kpi) ? formatSeg(kpi.metaIndividual) : formatMetricValue(String(kpi.metaIndividual), uni)
+    return `META: ${prefix}${fmtAlvo}`
+  }
+
+  // 2. Limiar global da config nova
+  if (kpi.opConfig?.modo === 'limiar_global' && kpi.opConfig.verde_valor != null && kpi.opConfig.verde_valor > 0) {
+    const fmtAlvo = isTempoKPI(kpi) ? formatSeg(kpi.opConfig.verde_valor) : formatMetricValue(String(kpi.opConfig.verde_valor), uni)
+    return `META: ${prefix}${fmtAlvo}`
+  }
+
+  // 3. Meta legada (tabela metas — KPIs secundários)
   if (!kpi.meta) return null
   const alvo = kpi.meta.verde_inicio > 0 ? kpi.meta.verde_inicio : kpi.meta.valor_meta
-  const prefix = kpi.meta.tipo === 'menor_melhor' ? '≤' : '≥'
-  const fmtAlvo = isTempoKPI(kpi)
-    ? formatSeg(alvo)
-    : formatMetricValue(String(alvo), kpi.meta.unidade)
+  const fmtAlvo = isTempoKPI(kpi) ? formatSeg(alvo) : formatMetricValue(String(alvo), kpi.meta.unidade)
   return `META: ${prefix}${fmtAlvo}`
 }
 
@@ -121,6 +138,7 @@ function buildSubsecoes(complementares: { label: string; valor: string }[]): Sub
 export default function MeuKPIClient({
   kpis, complementares,
   dataAtualizacao, mesLabel,
+  modoHistorico, mesFechamento,
 }: MeuKPIProps) {
   const cards    = useMemo(() => kpiItemsToCards(kpis),            [kpis])
   const subsecoes = useMemo(() => buildSubsecoes(complementares),  [complementares])
@@ -187,10 +205,13 @@ export default function MeuKPIClient({
       <div className="mkpi-bg">
 
         {/* ── Header ── */}
-        <PainelHeader titulo="Meu KPI" mesLabel={mesLabel} dataReferencia={dataAtualizacao} />
+        <PainelHeader titulo="Meu KPI" mesLabel={mesLabel} dataReferencia={modoHistorico ? null : dataAtualizacao} />
 
         {/* ── Linha dourada HALO ── */}
         <LinhaHorizontalDourada />
+
+        {/* ── Banner modo histórico ── */}
+        {modoHistorico && <BannerAguardandoKPI mesFechamento={mesFechamento} />}
 
         {/* ── KPIs Principais ── */}
         {cards.length > 0 && (
@@ -204,15 +225,17 @@ export default function MeuKPIClient({
           </div>
         )}
 
-        {/* ── KPIs Complementares ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <MeuKpiSectionTitle>KPIs COMPLEMENTARES</MeuKpiSectionTitle>
-          <DadosComplementares
-            subsecoes={subsecoes}
-            lsKey="halo:meu-kpi:subsecoes-expandidas"
-            defaultExpanded={COMPLEMENTARES_DEFAULT_EXPANDED}
-          />
-        </div>
+        {/* ── KPIs Complementares — oculto no modo histórico ── */}
+        {!modoHistorico && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <MeuKpiSectionTitle>KPIs COMPLEMENTARES</MeuKpiSectionTitle>
+            <DadosComplementares
+              subsecoes={subsecoes}
+              lsKey="halo:meu-kpi:subsecoes-expandidas"
+              defaultExpanded={COMPLEMENTARES_DEFAULT_EXPANDED}
+            />
+          </div>
+        )}
 
       </div>
     </>

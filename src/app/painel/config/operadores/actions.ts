@@ -102,3 +102,29 @@ export async function cadastrarOperadorAction(params: {
     return { ok: false, erro: e instanceof Error ? e.message : 'Erro ao cadastrar operador.' }
   }
 }
+
+export async function alterarRoleAction(
+  usuarioId: string,
+  novaRole: 'operador' | 'aux',
+): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const admin_profile = await requireAdmin()
+    if (admin_profile.id === usuarioId) return { ok: false, erro: 'Você não pode alterar a própria role.' }
+    if (novaRole !== 'operador' && novaRole !== 'aux') return { ok: false, erro: 'Role inválida.' }
+
+    const admin = createAdminClient()
+    const { data: target, error: fetchError } = await admin
+      .from('profiles').select('role').eq('id', usuarioId).single()
+    if (fetchError || !target) return { ok: false, erro: 'Usuário não encontrado.' }
+    if (target.role === 'admin' || target.role === 'gestor')
+      return { ok: false, erro: 'Esta role não pode ser alterada por aqui.' }
+
+    const { error } = await admin.from('profiles').update({ role: novaRole }).eq('id', usuarioId)
+    if (error) return { ok: false, erro: error.message }
+
+    revalidatePath('/painel/config/operadores')
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : 'Erro ao alterar role.' }
+  }
+}

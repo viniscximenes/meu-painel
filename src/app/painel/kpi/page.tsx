@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
 import { getProfile } from '@/lib/auth'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
 import { normalizarChave } from '@/lib/kpi-utils'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import { getPlanilhaAtiva, buscarLinhaOperador } from '@/lib/sheets'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import PainelShell from '@/components/PainelShell'
 import KPIBasico from '@/components/kpi/KPIBasico'
 import KPICompleto from '@/components/kpi/KPICompleto'
@@ -42,7 +44,11 @@ export default async function KPIPage({ searchParams }: PageProps) {
   const { view } = await searchParams
   const completo = view === 'completo'
 
-  const [planilha, metas] = await Promise.all([getPlanilhaAtiva(), getMetas()])
+  const [planilha, metas, opConfigs] = await Promise.all([
+    getPlanilhaAtiva(),
+    getMetas(),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
+  ])
 
   if (!planilha) {
     return (
@@ -62,7 +68,8 @@ export default async function KPIPage({ searchParams }: PageProps) {
     )
   }
 
-  const kpis = computarKPIs(resultado.headers, resultado.row, metas)
+  const metasIndividuais = buildMetasIndividuais(resultado.row, opConfigs)
+  const kpis = computarKPIs(resultado.headers, resultado.row, metas, undefined, opConfigs, metasIndividuais)
 
   const dadosComplementares = COLUNAS_COMPLEMENTARES.map((nome) => {
     const key = normalizarChave(nome)

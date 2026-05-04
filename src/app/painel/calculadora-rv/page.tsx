@@ -4,7 +4,9 @@ import { getRVConfig, calcularRV, extrairABSeIndisp } from '@/lib/rv'
 import { getPlanilhaAtiva, buscarLinhasPlanilha, encontrarColunaIdent, matchCelulaOperador } from '@/lib/sheets'
 import { lerAbaABS, contarFaltasPorOperador } from '@/lib/abs-sheets'
 import { getAppConfig } from '@/lib/app-config'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import PainelShell from '@/components/PainelShell'
 import CalculadoraRVClient from './CalculadoraRVClient'
 import type { CalculadoraRVProps } from './CalculadoraRVClient'
@@ -22,11 +24,12 @@ export default async function CalculadoraRVPage() {
   const mesLabel = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
   const mesReferencia = agora.toISOString().slice(0, 7)
 
-  const [rvConfig, planilha, metas, limiteRaw] = await Promise.all([
+  const [rvConfig, planilha, metas, limiteRaw, opConfigs] = await Promise.all([
     getRVConfig(),
     getPlanilhaAtiva().catch(() => null),
     getMetas().catch(() => []),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
   ])
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
 
@@ -54,13 +57,16 @@ export default async function CalculadoraRVPage() {
       const meuRow = rows.find(r => matchCelulaOperador(r[col] ?? '', profile.username, profile.nome))
 
       if (meuRow) {
-        const kpis      = computarKPIs(headers, meuRow, metas)
+        const metasIndividuais = buildMetasIndividuais(meuRow, opConfigs)
+        const kpis      = computarKPIs(headers, meuRow, metas, undefined, opConfigs, metasIndividuais)
         const faltasMap = absData ? contarFaltasPorOperador(absData) : {}
         faltasAtual     = faltasMap[profile.username] ?? 0
 
         const resultado = calcularRV(
           headers, meuRow, rvConfig, profile.username,
           kpis, profile.operador_id ?? 0, mesReferencia, faltasAtual,
+          metasIndividuais['pedidos'] ?? null,
+          metasIndividuais['churn'] ?? null,
         )
 
         const compRet    = resultado.componentes.find(c => c.id === 'retracao')

@@ -7,7 +7,7 @@ import {
   Menu, LogOut, BarChart2, BarChart3, UserCircle, Users, Banknote,
   CircleDollarSign, TrendingUp, CalendarDays, Ticket, Coins,
   Calculator, Link2, ClipboardCopy, Gauge, Target, Wallet, History, LineChart, Trophy, FileText,
-  BookOpen,
+  BookOpen, Settings,
 } from 'lucide-react'
 import { getIniciaisNome } from '@/lib/operadores'
 
@@ -34,6 +34,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Trophy,
   FileText,
   BookOpen,
+  Settings,
 }
 
 interface HeaderProps {

@@ -1,4 +1,5 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
+import { mesLabelDaPlanilha } from '@/lib/planilha-utils'
 import { getPlanilhaPorTipo } from '@/lib/sheets'
 import { lerQuartilEquipe } from '@/lib/quartil-sheets'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
@@ -12,8 +13,6 @@ export const dynamic = 'force-dynamic'
 export default async function Q4EquipePage() {
   const profile = await requireGestorOuAdmin()
 
-  const mesLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
-
   const admin = createAdminClient()
   const [planilha, ativosRes] = await Promise.all([
     getPlanilhaPorTipo('kpi_quartil').catch(() => null),
@@ -21,6 +20,7 @@ export default async function Q4EquipePage() {
   ])
   const ativosIds = new Set((ativosRes.data ?? []).map(p => p.operador_id as number))
   const operadoresAtivos = OPERADORES_DISPLAY.filter(op => ativosIds.has(op.id))
+  const mesLabel = mesLabelDaPlanilha(planilha)
 
   if (!planilha) {
     return (

@@ -1,6 +1,8 @@
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { mesLabelDaPlanilha } from '@/lib/planilha-utils'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import {
   getPlanilhaAtiva,
   getPlanilhaPorTipo,
@@ -12,11 +14,19 @@ import {
   extrairDataAtualizacao,
   getMapeamentoKpiColunas,
 } from '@/lib/sheets'
-import { extrairValor } from '@/lib/kpi-coluna-utils'
+import { extrairValor, buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import { getRVConfig, calcularRV, extrairABSeIndisp } from '@/lib/rv'
 import type { ResultadoRV } from '@/lib/rv-utils'
 import { lerAbaABS, contarFaltasPorOperador } from '@/lib/abs-sheets'
 import { getAppConfig } from '@/lib/app-config'
+import {
+  buscarPlanilhaHistoricaMaisRecente,
+  lerHistoricoFechamento,
+  extrairKPIsHistorico,
+  encontrarRowOperador,
+  HISTORICO_FAKE_HEADERS,
+  mesLabelFechamento,
+} from '@/lib/historico-fechamento'
 import PainelShell from '@/components/PainelShell'
 import MeuRVClient from './MeuRVClient'
 import type { MeuRVProps } from './MeuRVClient'
@@ -29,18 +39,121 @@ export default async function MeuRVPage() {
   const profile = await getProfile()
   if (profile.role === 'gestor') redirect('/painel')
 
-  const [planilhaKpi, planilhaMes, rvConfig, metas, limiteRaw] = await Promise.all([
+  const [kpiQuartilPlanilha, planilhaMes, rvConfig, metas, limiteRaw, opConfigs] = await Promise.all([
     getPlanilhaPorTipo('kpi_quartil').catch(() => null),
-    getPlanilhaAtiva().catch(() => null),   // para ABS/faltas
+    getPlanilhaAtiva().catch(() => null),   // para ABS/faltas no modo normal
     getRVConfig().catch(() => null),
     getMetas().catch(() => []),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
   ])
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
+  const modoHistorico = !kpiQuartilPlanilha
 
   const agora = new Date()
-  const mesLabel = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
+  const mesLabel = mesLabelDaPlanilha(kpiQuartilPlanilha)
   const mesReferencia = agora.toISOString().slice(0, 7)
+
+  // ── MODO HISTÓRICO ──────────────────────────────────────────────────────────
+  if (modoHistorico) {
+    if (!rvConfig) {
+      return (
+        <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
+          <div className="space-y-4">
+            <EmptyState icon={<Settings size={24} style={{ color: 'var(--gold)' }} />}>
+              <strong>Configuração de RV não encontrada</strong>
+              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>A supervisão ainda não configurou o RV.</span>
+            </EmptyState>
+          </div>
+        </PainelShell>
+      )
+    }
+
+    let dadosHistorico: MeuRVProps | null = null
+    let erroHistorico: string | null = null
+
+    try {
+      const planilhaHist = await buscarPlanilhaHistoricaMaisRecente()
+
+      console.log('[modo-historico] meu-rv', {
+        modoHistorico,
+        kpiQuartilPlanilha: null,
+        planilhaHistorica: planilhaHist?.spreadsheet_id ?? null,
+        refMes: planilhaHist?.referencia_mes ?? null,
+        refAno: planilhaHist?.referencia_ano ?? null,
+      })
+
+      if (planilhaHist?.referencia_mes && planilhaHist?.referencia_ano) {
+        const { rows } = await lerHistoricoFechamento(planilhaHist.spreadsheet_id)
+        const meuRow = encontrarRowOperador(rows, profile.username, profile.nome)
+
+        console.log('[modo-historico] meu-rv rows', { total: rows.length, encontrado: !!meuRow })
+
+        if (!meuRow) {
+          return (
+            <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
+              <div className="space-y-4">
+                <EmptyState icon={<AlertTriangle size={24} className="text-amber-400" />}>
+                  <strong>Sem dados no fechamento</strong>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                    Você não aparece no fechamento de {mesLabelFechamento(planilhaHist.referencia_mes, planilhaHist.referencia_ano).replace('FECHAMENTO ', '')}.
+                    Aguarde o RV do mês atual.
+                  </span>
+                </EmptyState>
+              </div>
+            </PainelShell>
+          )
+        }
+
+        const kpisHist = extrairKPIsHistorico(meuRow)
+        const metaPedidosNum = kpisHist.metaPedidos ? parseFloat(kpisHist.metaPedidos.replace(/[^\d.,]/g, '').replace(',', '.')) || null : null
+        const metaChurnNum   = kpisHist.metaChurn   ? parseFloat(kpisHist.metaChurn.replace(/[^\d.,]/g, '').replace(',', '.'))   || null : null
+        const absValAtual    = parseFloat((kpisHist.abs ?? '0').replace(/[%\s]/g, '').replace(',', '.')) || 0
+
+        const histMesRef = `${planilhaHist.referencia_ano}-${String(planilhaHist.referencia_mes).padStart(2, '0')}`
+
+        const rvResult = calcularRV(
+          HISTORICO_FAKE_HEADERS, meuRow, rvConfig, profile.username,
+          [], profile.operador_id ?? 0, histMesRef, 0,
+          metaPedidosNum, metaChurnNum,
+        )
+
+        dadosHistorico = {
+          resultado:       rvResult,
+          nomeOperador:    profile.nome,
+          mesLabel:        mesLabelFechamento(planilhaHist.referencia_mes, planilhaHist.referencia_ano),
+          dataAtualizacao: null,
+          absValAtual,
+          faltasNoMes:     0,
+          modoHistorico:   true,
+          mesFechamento:   { mes: planilhaHist.referencia_mes, ano: planilhaHist.referencia_ano },
+        }
+      }
+    } catch (e) {
+      erroHistorico = e instanceof Error ? e.message : 'Erro desconhecido'
+    }
+
+    return (
+      <PainelShell profile={profile} title="Meu RV" iconName="Wallet">
+        <div className="space-y-4">
+          {erroHistorico && (
+            <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
+              style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
+              <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-rose-300">Erro ao carregar fechamento</p>
+                <p className="text-xs mt-0.5 text-rose-500">{erroHistorico}</p>
+              </div>
+            </div>
+          )}
+          {dadosHistorico && <MeuRVClient {...dadosHistorico} />}
+        </div>
+      </PainelShell>
+    )
+  }
+
+  // ── MODO NORMAL ──────────────────────────────────────────────────────────────
+  const planilhaKpi = kpiQuartilPlanilha
 
   if (!planilhaKpi || !rvConfig) {
     return (
@@ -92,7 +205,8 @@ export default async function MeuRVPage() {
       )
     }
 
-    const kpis = computarKPIs(headers, meuRow, metas)
+    const metasIndividuais = buildMetasIndividuais(meuRow, opConfigs)
+    const kpis = computarKPIs(headers, meuRow, metas, undefined, opConfigs, metasIndividuais)
     const { absPercent: absValAtual } = extrairABSeIndisp(headers, meuRow)
 
     // Extração null-aware via mapeamento configurável (para detecção precisa de semDados)
@@ -106,6 +220,8 @@ export default async function MeuRVPage() {
     const rvResult = calcularRV(
       headers, meuRow, rvConfig, profile.username,
       kpis, profile.operador_id ?? 0, mesReferencia, faltasNoMes,
+      metasIndividuais['pedidos'] ?? null,
+      metasIndividuais['churn'] ?? null,
     )
 
     // semDados: se mapeamento encontrou ALGUM campo crítico → dados existem

@@ -1,7 +1,8 @@
 import { requireGestorOuAdmin } from '@/lib/auth'
 import PainelShell from '@/components/PainelShell'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
-import { getMetas, computarKPIs, type KPIItem, type Status } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig, type KPIItem, type Status } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import {
   getPlanilhaAtiva,
   buscarLinhasPlanilha,
@@ -13,6 +14,7 @@ import {
 import { getRVConfig, calcularRV, formatBRL, type ResultadoRV } from '@/lib/rv'
 import { lerAbaABS } from '@/lib/abs-sheets'
 import { contarFaltasPorOperador } from '@/lib/abs-utils'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import RVEquipeTabela, { type OpRV } from './RVEquipeTabela'
 
 function globalStatus(kpis: KPIItem[]): Status {
@@ -26,10 +28,11 @@ function globalStatus(kpis: KPIItem[]): Status {
 export default async function RVEquipePage() {
   const profile = await requireGestorOuAdmin()
 
-  const [planilha, metas, rvConfig] = await Promise.all([
+  const [planilha, metas, rvConfig, opConfigs] = await Promise.all([
     getPlanilhaAtiva(),
     getMetas(),
     getRVConfig(),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
   ])
 
   let operadores: OpRV[] = OPERADORES_DISPLAY.map((op) => ({
@@ -57,13 +60,14 @@ export default async function RVEquipePage() {
         )
         if (!row) return { id: op.id, nome: op.nome, username: op.username, gs: 'neutro' as Status, encontrado: false, motivosVermelhos: [], rv: null }
 
-        const kpis = metas.length > 0 ? computarKPIs(headers, row, metas) : []
+        const metasIndividuais = buildMetasIndividuais(row, opConfigs)
+        const kpis = metas.length > 0 ? computarKPIs(headers, row, metas, undefined, opConfigs, metasIndividuais) : []
         const gs   = globalStatus(kpis)
         const motivosVermelhos = kpis.filter((k) => k.status === 'vermelho').map((k) => k.label)
         const faltasNoMes = faltasPorOp[op.username] ?? 0
 
         let rv: ResultadoRV | null = null
-        try { rv = calcularRV(headers, row, rvConfig, '', kpis, op.id, mesAtual, faltasNoMes) } catch { /* continua */ }
+        try { rv = calcularRV(headers, row, rvConfig, '', kpis, op.id, mesAtual, faltasNoMes, metasIndividuais['pedidos'] ?? null, metasIndividuais['churn'] ?? null) } catch { /* continua */ }
 
         return { id: op.id, nome: op.nome, username: op.username, gs, encontrado: true, motivosVermelhos, rv }
       })

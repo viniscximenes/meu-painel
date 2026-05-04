@@ -7,6 +7,7 @@ import { XCircle, ChevronDown, Info } from 'lucide-react'
 import { useCountUp } from '@/hooks/useCountUp'
 import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
 import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
+import { BannerAguardandoKPI } from '@/components/painel/BannerAguardandoKPI'
 
 export interface MeuRVProps {
   resultado:       ResultadoRV
@@ -15,6 +16,8 @@ export interface MeuRVProps {
   dataAtualizacao: string | null
   absValAtual:     number
   faltasNoMes:     number
+  modoHistorico?:  boolean
+  mesFechamento?:  { mes: number; ano: number }
 }
 
 const FF_SYNE = "'Syne', sans-serif"
@@ -31,13 +34,14 @@ const COMP_LABELS: Record<string, string> = {
 
 export default function MeuRVClient({
   resultado, absValAtual, faltasNoMes, mesLabel, dataAtualizacao,
+  modoHistorico, mesFechamento,
 }: MeuRVProps) {
   const {
     elegivel, motivosInelegivel, componentes,
     rvBase, pedidosRealizados, pedidosMeta, multiplicador, rvAposPedidos,
     bonusCriterios, bonus, rvTotal,
     penalidades, descontoIndividualAplicado, rvFinal,
-    semDados, config,
+    semDados, config, metaChurnUsada,
   } = resultado
 
   const rvAnimado = useCountUp(rvFinal, 800)
@@ -57,8 +61,10 @@ export default function MeuRVClient({
 
       <div className="halo-cards-bg" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-        <PainelHeader titulo="MEU RV" mesLabel={mesLabel} dataReferencia={dataAtualizacao} />
+        <PainelHeader titulo="MEU RV" mesLabel={mesLabel} dataReferencia={modoHistorico ? null : dataAtualizacao} />
         <LinhaHorizontalDourada />
+
+        {modoHistorico && <BannerAguardandoKPI mesFechamento={mesFechamento} />}
 
         <PainelSectionTitle>RV ESTIMADO</PainelSectionTitle>
 
@@ -101,13 +107,14 @@ export default function MeuRVClient({
                   rvFinal={rvFinal}
                   elegivel={elegivel}
                   config={config}
+                  metaChurnUsada={metaChurnUsada}
                 />
               </div>
             </div>
           </>
         )}
 
-        <RegrasSection config={config} expanded={regrasOpen} onToggle={() => setRegrasOpen(v => !v)} />
+        <RegrasSection config={config} expanded={regrasOpen} onToggle={() => setRegrasOpen(v => !v)} metaChurnUsada={metaChurnUsada} pedidosMetaUsada={pedidosMeta} />
       </div>
     </>
   )
@@ -334,7 +341,7 @@ function CalculoSection({
   pedidosRealizados, pedidosMeta, multiplicador, rvAposPedidos,
   bonusCriterios, bonus, rvTotal,
   penalidades, descontoIndividualAplicado, rvFinal,
-  elegivel, config,
+  elegivel, config, metaChurnUsada,
 }: {
   componentes: ComponenteRV[]
   rvBase: number; pedidosRealizados: number; pedidosMeta: number
@@ -342,7 +349,7 @@ function CalculoSection({
   bonusCriterios: BonusCriterios; bonus: number; rvTotal: number
   penalidades: { metaLabel: string; percentual: number; valorDeduzido: number }[]
   descontoIndividualAplicado: { motivo: string; valor: number } | null
-  rvFinal: number; elegivel: boolean; config: RVConfig
+  rvFinal: number; elegivel: boolean; config: RVConfig; metaChurnUsada: number
 }) {
   const temMult     = pedidosMeta > 0
   const bonusGanhou = bonusCriterios.retracaoOk && bonusCriterios.indispOk && bonusCriterios.churnOk && elegivel && bonus > 0
@@ -421,8 +428,8 @@ function CalculoSection({
         <div style={{ display: 'flex', gap: '14px', marginTop: '4px', flexWrap: 'wrap' }}>
           <BonusCondicao ok={bonusCriterios.retracaoOk} label={`RET ≥ ${config.bonusRetracaoMinima}%`} />
           <BonusCondicao ok={bonusCriterios.indispOk}   label={`INDISP ≤ ${config.bonusIndispMaxima}%`} />
-          {config.churnMeta > 0 && (
-            <BonusCondicao ok={bonusCriterios.churnOk} label={`CHURN ≤ ${config.churnMeta}`} />
+          {metaChurnUsada > 0 && (
+            <BonusCondicao ok={bonusCriterios.churnOk} label={`CHURN ≤ ${metaChurnUsada}`} />
           )}
         </div>
       </div>
@@ -559,8 +566,9 @@ function DeflatorRow({ label, percentual, valor }: { label: string; percentual: 
 
 // ── Regras ────────────────────────────────────────────────────────────────────
 
-function RegrasSection({ config, expanded, onToggle }: {
+function RegrasSection({ config, expanded, onToggle, metaChurnUsada, pedidosMetaUsada }: {
   config: RVConfig; expanded: boolean; onToggle: () => void
+  metaChurnUsada: number; pedidosMetaUsada: number
 }) {
   return (
     <div style={{
@@ -621,9 +629,9 @@ function RegrasSection({ config, expanded, onToggle }: {
             ))}
           </RegraBloco>
 
-          {config.pedidosMeta > 0 && (
+          {pedidosMetaUsada > 0 && (
             <RegraBloco titulo="MULTIPLICADOR DE PEDIDOS" desc="RV = RV Base × (Pedidos / Meta), máximo 1×.">
-              <RegraLine label="Meta de pedidos" valor={String(config.pedidosMeta)} />
+              <RegraLine label="Meta de pedidos" valor={String(pedidosMetaUsada)} />
             </RegraBloco>
           )}
 
@@ -634,8 +642,8 @@ function RegrasSection({ config, expanded, onToggle }: {
             >
               <RegraLine label={`TX Retenção ≥ ${config.bonusRetracaoMinima}%`} valor="Obrigatório" />
               <RegraLine label={`Indisponibilidade ≤ ${config.bonusIndispMaxima}%`} valor="Obrigatório" />
-              {config.churnMeta > 0 && (
-                <RegraLine label={`Churn ≤ ${config.churnMeta}`} valor="Obrigatório" />
+              {metaChurnUsada > 0 && (
+                <RegraLine label={`Churn ≤ ${metaChurnUsada}`} valor="Obrigatório" />
               )}
             </RegraBloco>
           )}

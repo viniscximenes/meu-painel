@@ -49,3 +49,53 @@ export async function salvarOrdemMetas(ordens: { id: string; ordem: number }[]):
     ordens.map(({ id, ordem }) => db.from('metas').update({ ordem }).eq('id', id))
   )
 }
+
+// ── Supabase: MetasOperadorConfig ─────────────────────────────────────────────
+
+import type { MetaOperadorConfig, MetaGestorConfig } from '@/lib/kpi-utils'
+
+export async function getMetasOperadorConfig(): Promise<Record<string, MetaOperadorConfig>> {
+  try {
+    const db = createAdminClient()
+    const { data, error } = await db.from('metas_operador_config').select('*')
+    if (error) throw error
+    const out: Record<string, MetaOperadorConfig> = {}
+    for (const row of data ?? []) out[row.kpi_key] = row as MetaOperadorConfig
+    return out
+  } catch (e) {
+    console.error('[getMetasOperadorConfig]', e)
+    return {}
+  }
+}
+
+export async function upsertMetaOperadorConfig(config: MetaOperadorConfig): Promise<void> {
+  const db = createAdminClient()
+  const { error } = await db
+    .from('metas_operador_config')
+    .upsert({ ...config, atualizado_em: new Date().toISOString() }, { onConflict: 'kpi_key' })
+  if (error) throw error
+}
+
+// ── Supabase: MetasGestorConfig ───────────────────────────────────────────────
+
+export async function getMetasGestorConfig(): Promise<Record<string, MetaGestorConfig>> {
+  try {
+    const db = createAdminClient()
+    const { data, error } = await db.from('metas_gestor_config').select('*')
+    if (error) throw error
+    const out: Record<string, MetaGestorConfig> = {}
+    for (const row of data ?? []) out[row.kpi_key] = row as MetaGestorConfig
+    return out
+  } catch (e) {
+    console.error('[getMetasGestorConfig]', e)
+    return {}
+  }
+}
+
+export async function upsertMetaGestorConfig(config: MetaGestorConfig): Promise<void> {
+  const db = createAdminClient()
+  const { error } = await db
+    .from('metas_gestor_config')
+    .upsert({ ...config, atualizado_em: new Date().toISOString() }, { onConflict: 'kpi_key' })
+  if (error) throw error
+}

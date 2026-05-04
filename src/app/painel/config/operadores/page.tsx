@@ -35,7 +35,7 @@ export default async function OperadoresConfigPage() {
   const mesLabel = `${nAtivos} USUÁRIO${nAtivos !== 1 ? 'S' : ''} ATIVO${nAtivos !== 1 ? 'S' : ''}`
 
   return (
-    <PainelShell profile={profile} title="Ajuste de Operadores" iconName="Users">
+    <PainelShell profile={profile} title="Ajuste de Operadores" iconName="Settings">
       <div className="space-y-6 regiao-cards-painel">
         <PainelHeader titulo="AJUSTE DE OPERADORES" mesLabel={mesLabel} />
         <LinhaHorizontalDourada />

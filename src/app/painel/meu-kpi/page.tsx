@@ -1,6 +1,8 @@
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { mesLabelDaPlanilha } from '@/lib/planilha-utils'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import {
   getPlanilhaAtiva,
   getPlanilhaPorTipo,
@@ -14,9 +16,17 @@ import {
   getMapeamentoKpiColunas,
 } from '@/lib/sheets'
 import { KPIS_PRINCIPAIS, KPIS_SECUNDARIOS } from '@/lib/kpis-config'
-import { letraColunaParaIndice } from '@/lib/kpi-coluna-utils'
+import { letraColunaParaIndice, buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import { OPERADORES_DISPLAY } from '@/lib/operadores'
 import { getAppConfig } from '@/lib/app-config'
+import {
+  buscarPlanilhaHistoricaMaisRecente,
+  lerHistoricoFechamento,
+  extrairKPIsHistorico,
+  encontrarRowOperador,
+  buildKPIsHistorico,
+  mesLabelFechamento,
+} from '@/lib/historico-fechamento'
 import PainelShell from '@/components/PainelShell'
 import MeuKPIClient, { type MeuKPIProps } from './MeuKPIClient'
 import { AlertTriangle, Settings } from 'lucide-react'
@@ -28,22 +38,112 @@ export default async function MeuKPIPage() {
   const profile = await getProfile()
   if (profile.role === 'gestor') redirect('/painel')
 
-  const [planilha, metas, limiteRaw, mapeamento] = await Promise.all([
-    getPlanilhaPorTipo('kpi_quartil').then(p => p ?? getPlanilhaAtiva()).catch(() => null),
+  const [kpiQuartilPlanilha, metas, limiteRaw, mapeamento, opConfigs] = await Promise.all([
+    getPlanilhaPorTipo('kpi_quartil').catch(() => null),
     getMetas().catch(() => []),
     getAppConfig('kpi_consolidado_limite_linhas').catch(() => null),
     getMapeamentoKpiColunas().catch(() => ({} as Record<string, string>)),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
   ])
   const limiteLinhas = limiteRaw ? parseInt(limiteRaw, 10) : 50
+  const modoHistorico = !kpiQuartilPlanilha
 
-
-  const agora = new Date()
-  const mesLabel = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
+  const mesLabel = mesLabelDaPlanilha(kpiQuartilPlanilha)
 
   const cssVars = {
     '--void2': '#07070f',
     '--void3': '#0d0d1a',
   } as React.CSSProperties
+
+  // ── MODO HISTÓRICO ──────────────────────────────────────────────────────────
+  if (modoHistorico) {
+    let dadosHistorico: MeuKPIProps | null = null
+    let erroHistorico: string | null = null
+
+    try {
+      const planilhaHist = await buscarPlanilhaHistoricaMaisRecente()
+
+      console.log('[modo-historico] meu-kpi', {
+        modoHistorico,
+        kpiQuartilPlanilha: null,
+        planilhaHistorica: planilhaHist?.spreadsheet_id ?? null,
+        refMes: planilhaHist?.referencia_mes ?? null,
+        refAno: planilhaHist?.referencia_ano ?? null,
+      })
+
+      if (planilhaHist?.referencia_mes && planilhaHist?.referencia_ano) {
+        const { rows } = await lerHistoricoFechamento(planilhaHist.spreadsheet_id)
+        const meuRow = encontrarRowOperador(rows, profile.username, profile.nome)
+
+        console.log('[modo-historico] meu-kpi rows', { total: rows.length, encontrado: !!meuRow })
+
+        if (!meuRow) {
+          return (
+            <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
+              <div style={cssVars} className="space-y-4">
+                <EmptyState icon={<AlertTriangle size={24} className="text-amber-400" />}>
+                  <strong>Sem dados no fechamento</strong>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                    Você não aparece no fechamento de {mesLabelFechamento(planilhaHist.referencia_mes, planilhaHist.referencia_ano).replace('FECHAMENTO ', '')}.
+                    Aguarde o KPI do mês atual.
+                  </span>
+                </EmptyState>
+              </div>
+            </PainelShell>
+          )
+        }
+
+        const kpisHist = extrairKPIsHistorico(meuRow)
+        const kpis     = buildKPIsHistorico(kpisHist, opConfigs)
+
+        dadosHistorico = {
+          kpis,
+          complementares: [],
+          posicaoRanking: 0,
+          meuTxRet: 0,
+          totalNoRanking: 0,
+          nomeOperador: profile.nome,
+          planilhaNome: planilhaHist.nome,
+          dataAtualizacao: null,
+          mesLabel: mesLabelFechamento(planilhaHist.referencia_mes, planilhaHist.referencia_ano),
+          modoHistorico: true,
+          mesFechamento: { mes: planilhaHist.referencia_mes, ano: planilhaHist.referencia_ano },
+        }
+      }
+    } catch (e) {
+      erroHistorico = e instanceof Error ? e.message : 'Erro desconhecido'
+    }
+
+    return (
+      <PainelShell profile={profile} title="Meu KPI" iconName="Gauge">
+        <div style={cssVars} className="space-y-4">
+          {erroHistorico && (
+            <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
+              style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
+              <AlertTriangle size={15} className="text-rose-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-rose-300">Erro ao carregar fechamento</p>
+                <p className="text-xs mt-0.5 text-rose-500">{erroHistorico}</p>
+              </div>
+            </div>
+          )}
+          {dadosHistorico && <MeuKPIClient {...dadosHistorico} />}
+          {!dadosHistorico && !erroHistorico && (
+            <MeuKPIClient
+              kpis={[]} complementares={[]} posicaoRanking={0}
+              meuTxRet={0} totalNoRanking={0}
+              nomeOperador={profile.nome} planilhaNome="—"
+              dataAtualizacao={null} mesLabel="AGUARDANDO KPI"
+              modoHistorico={true}
+            />
+          )}
+        </div>
+      </PainelShell>
+    )
+  }
+
+  // ── MODO NORMAL ──────────────────────────────────────────────────────────────
+  const planilha = kpiQuartilPlanilha
 
   if (!planilha) {
     return (
@@ -90,7 +190,8 @@ export default async function MeuKPIPage() {
       )
     }
 
-    const kpis = computarKPIs(headers, meuRow, metas)
+    const metasIndividuais = buildMetasIndividuais(meuRow, opConfigs)
+    const kpis = computarKPIs(headers, meuRow, metas, undefined, opConfigs, metasIndividuais)
 
     // 6 KPIs principais — sempre presentes, valor vem do mapeamento de colunas
     const kpisPrincipais = KPIS_PRINCIPAIS.map(kpiDef => {

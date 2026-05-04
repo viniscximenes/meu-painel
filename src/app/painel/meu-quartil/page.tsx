@@ -1,5 +1,6 @@
 import { getProfile } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { mesLabelDaPlanilha } from '@/lib/planilha-utils'
 import { getPlanilhaPorTipo } from '@/lib/sheets'
 import { lerTodosQuartis } from '@/lib/quartil-sheets'
 import PainelShell from '@/components/PainelShell'
@@ -13,10 +14,27 @@ export default async function MeuQuartilPage() {
   const profile = await getProfile()
   if (profile.role === 'gestor') redirect('/painel')
 
-  const agora    = new Date()
-  const mesLabel = agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
+  // Modo histórico: kpi_quartil não cadastrada
+  const kpiQuartilPlanilha = await getPlanilhaPorTipo('kpi_quartil').catch(() => null)
+  const modoHistorico      = !kpiQuartilPlanilha
+  const mesLabel           = mesLabelDaPlanilha(kpiQuartilPlanilha)
 
-  const planilha = await getPlanilhaPorTipo('kpi_quartil').catch(() => null)
+  if (modoHistorico) {
+    return (
+      <PainelShell profile={profile} title="Meu Quartil" iconName="BarChart3">
+        <div className="space-y-4">
+          <MeuQuartilClient
+            mesLabel={mesLabel}
+            dataAtualizacao={null}
+            topicos={[]}
+            modoHistorico={true}
+          />
+        </div>
+      </PainelShell>
+    )
+  }
+
+  const planilha = kpiQuartilPlanilha
 
   if (!planilha) {
     return (

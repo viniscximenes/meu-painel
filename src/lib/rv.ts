@@ -262,6 +262,8 @@ export function calcularRV(
   operadorId = 0,
   mesReferencia = '',
   faltasNoMes = 0,
+  metaPedidosIndividual?: number | null,
+  metaChurnIndividual?: number | null,
 ): ResultadoRV {
   const debug = !!label
 
@@ -333,8 +335,8 @@ export function calcularRV(
   if (!semDados && absValFinal > config.absMaximo) {
     motivosInelegivel.push(`ABS ${fmtPct(absVal)} — máximo ${fmtPct(config.absMaximo)}`)
   }
-  if (!semDados && faltasNoMes >= 2) {
-    motivosInelegivel.push(`${faltasNoMes} falta(s) no mês — limite 1`)
+  if (!semDados && faltasNoMes >= config.faltasLimite) {
+    motivosInelegivel.push(`${faltasNoMes} falta(s) no mês — limite ${config.faltasLimite - 1}`)
   }
   const elegivel = !semDados && motivosInelegivel.length === 0
 
@@ -420,16 +422,34 @@ export function calcularRV(
   const rvBase = componentes.reduce((s, c) => s + c.premio, 0)
   if (debug) console.log(`[RV] RV Base: R$${rvBase}`)
 
+  const metaPedidos = metaPedidosIndividual != null ? metaPedidosIndividual : config.pedidosMeta
   let multiplicador = 1
-  if (!semDados && config.pedidosMeta > 0 && pedidosVal > 0) {
-    multiplicador = Math.round(Math.min(pedidosVal / config.pedidosMeta, 1) * 10000) / 10000
+  if (!semDados && metaPedidos > 0 && pedidosVal > 0) {
+    multiplicador = Math.round(Math.min(pedidosVal / metaPedidos, config.pedidosMultiplicadorMax) * 10000) / 10000
   }
   const rvAposPedidos = Math.round(rvBase * multiplicador * 100) / 100
-  if (debug) console.log(`[RV] Pedidos: ${pedidosVal}/${config.pedidosMeta} = ×${multiplicador} → RV R$${rvAposPedidos}`)
+  if (debug) {
+    const fonteMeta = metaPedidosIndividual != null ? 'individual' : 'global'
+    console.log(`[RV multiplicador] operador=${label} pedidos=${pedidosVal} metaIndividual=${metaPedidosIndividual} metaGlobal=${config.pedidosMeta} fonte=${fonteMeta} multiplicador=${multiplicador} cap=${config.pedidosMultiplicadorMax}`)
+  }
 
   const bonusRetracaoOk = retracaoVal >= config.bonusRetracaoMinima
   const bonusIndispOk   = indispVal > 0 && indispVal <= config.bonusIndispMaxima
-  const bonusChurnOk    = config.churnMeta <= 0 || (churnVal > 0 && churnVal <= config.churnMeta)
+  const metaChurnFinal  = metaChurnIndividual != null && metaChurnIndividual > 0
+    ? metaChurnIndividual
+    : config.churnMeta
+  const bonusChurnOk    = metaChurnFinal <= 0 || (churnVal > 0 && churnVal <= metaChurnFinal)
+  if (debug) {
+    console.log('[RV bônus critério 3 (churn)]', {
+      operador: label,
+      churnReal: churnVal,
+      metaIndividual: metaChurnIndividual,
+      metaGlobalLegada: config.churnMeta,
+      metaUsada: metaChurnFinal,
+      fonte: metaChurnIndividual != null ? 'individual' : 'fallback_global',
+      cr3: bonusChurnOk,
+    })
+  }
   const bonusCriterios: BonusCriterios = {
     retracaoOk: bonusRetracaoOk, retracaoAtual: retracaoVal,
     churnOk: bonusChurnOk,       churnAtual: churnVal,    churnMeta: config.churnMeta,
@@ -501,7 +521,7 @@ export function calcularRV(
 
   return {
     elegivel, motivosInelegivel, componentes,
-    rvBase, pedidosRealizados: pedidosVal, pedidosMeta: config.pedidosMeta,
+    rvBase, pedidosRealizados: pedidosVal, pedidosMeta: metaPedidos, metaChurnUsada: metaChurnFinal,
     multiplicador, rvAposPedidos,
     bonusCriterios, bonus, rvTotal,
     penalidades: penalidadesAplicadas, totalPenalidade, rvFinal,

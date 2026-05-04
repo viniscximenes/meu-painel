@@ -3,16 +3,15 @@
 import { useState, useTransition } from 'react'
 import { salvarMeta, excluirMeta } from '@/app/painel/metas/actions'
 import type { Meta } from '@/lib/kpi-utils'
-import { Plus, Trash2, Edit2, Check, X, Star } from 'lucide-react'
+import { Plus, Trash2, Edit2, Check, X } from 'lucide-react'
 import { HaloSpinner } from '@/components/HaloSpinner'
 import { ICON_MAP, ICON_NAMES } from '@/lib/kpi-icons'
+import { KPIS_SECUNDARIOS } from '@/lib/kpis-config'
 
-function sufixoDisplay(unidade: string): string {
-  const u = unidade.trim().toLowerCase()
-  if (u === 'porcentagem') return '%'
-  if (u === 'tempo') return 's'
-  return ''
-}
+const FF_SYNE = 'var(--ff-syne)'
+const FF_DM   = 'var(--ff-body)'
+
+type Toast = { tipo: 'ok' | 'erro'; msg: string } | null
 
 function segParaHHMMSS(s: number): string {
   if (!s) return ''
@@ -30,43 +29,43 @@ function hhmmssParaSeg(s: string): number {
   return parseFloat(s) || 0
 }
 
-interface MetasFormProps {
-  metas: Meta[]
-  headers: string[]
-}
-
-const TIPO_LABELS = {
-  maior_melhor: 'Maior = melhor (ex: Pedidos, TX Retenção)',
-  menor_melhor: 'Menor = melhor (ex: Churn, TMA, ABS)',
+const LABEL_STYLE: React.CSSProperties = {
+  fontFamily: FF_SYNE, fontSize: '10px', fontWeight: 600,
+  textTransform: 'uppercase', letterSpacing: '0.08em',
+  color: '#474658', marginBottom: '6px', display: 'block',
 }
 
 // ── Formulário de adição/edição ───────────────────────────────────────────────
 
 function MetaForm({
   inicial,
-  headers,
   onSalvar,
   onCancelar,
+  onToast,
 }: {
   inicial?: Partial<Meta>
-  headers: string[]
-  onSalvar: (formData: FormData) => Promise<void>
+  onSalvar: (formData: FormData) => Promise<{ ok: boolean; erro?: string }>
   onCancelar: () => void
+  onToast: (tipo: 'ok' | 'erro', msg: string) => void
 }) {
   const [pending, startTransition] = useTransition()
-  const [tipo, setTipo] = useState<'maior_melhor' | 'menor_melhor'>(
-    inicial?.tipo ?? 'maior_melhor'
-  )
+  const [tipo, setTipo]       = useState<'maior_melhor' | 'menor_melhor'>(inicial?.tipo ?? 'maior_melhor')
   const [unidade, setUnidade] = useState(inicial?.unidade ?? 'numero')
-  const [basicoAtivo, setBasicoAtivo] = useState(inicial?.basico ?? false)
   const [iconeAtivo, setIconeAtivo] = useState(inicial?.icone ?? 'BarChart2')
+  const [selectedKpi, setSelectedKpi] = useState(inicial?.nome_coluna ?? '')
+  const [labelValue, setLabelValue]   = useState(inicial?.label ?? '')
 
   const isTempo = unidade === 'tempo'
+
+  function handleKpiChange(val: string) {
+    setSelectedKpi(val)
+    const kpi = KPIS_SECUNDARIOS.find(k => k.label === val)
+    if (kpi) setLabelValue(kpi.label)
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    // verde_inicio é sempre igual à meta (limite); amarelo é auto (80%)
     if (isTempo) {
       const seg = String(hhmmssParaSeg(fd.get('valor_meta') as string))
       fd.set('valor_meta', seg)
@@ -75,8 +74,13 @@ function MetaForm({
       fd.set('verde_inicio', fd.get('valor_meta') as string)
     }
     startTransition(async () => {
-      await onSalvar(fd)
-      onCancelar()
+      const res = await onSalvar(fd)
+      if (res.ok) {
+        onToast('ok', inicial?.id ? 'Meta atualizada.' : 'Meta salva.')
+        onCancelar()
+      } else {
+        onToast('erro', res.erro ?? 'Erro ao salvar.')
+      }
     })
   }
 
@@ -86,47 +90,45 @@ function MetaForm({
       className="rounded-2xl border p-5 space-y-4"
       style={{ background: 'rgba(201,168,76,0.04)', borderColor: 'rgba(201,168,76,0.18)' }}
     >
-      <h4 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-        {inicial?.id ? 'Editar meta' : 'Nova meta'}
-      </h4>
+      <span style={{
+        fontFamily: FF_SYNE, fontWeight: 700, fontSize: '12px',
+        textTransform: 'uppercase', letterSpacing: '0.08em', color: '#f4d47c',
+      }}>
+        {inicial?.id ? 'EDITAR META' : 'NOVA META'}
+      </span>
 
       {inicial?.id && <input type="hidden" name="id" value={inicial.id} />}
+      <input type="hidden" name="basico" value="false" />
+      <input type="hidden" name="ordem"  value="0" />
+      <input type="hidden" name="amarelo_inicio" value="0" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Coluna da planilha */}
+        {/* KPI canônico */}
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            Coluna da planilha *
-          </label>
-          {headers.length > 0 ? (
-            <select name="nome_coluna" defaultValue={inicial?.nome_coluna ?? ''} required className="select">
-              <option value="">Selecione…</option>
-              {headers.map((h) => (
-                <option key={h} value={h}>{h}</option>
-              ))}
-            </select>
-          ) : (
-            <input
-              type="text"
-              name="nome_coluna"
-              defaultValue={inicial?.nome_coluna ?? ''}
-              placeholder="Nome exato do cabeçalho"
-              required
-              className="input"
-            />
-          )}
+          <span style={LABEL_STYLE}>KPI *</span>
+          <select
+            name="nome_coluna"
+            value={selectedKpi}
+            onChange={e => handleKpiChange(e.target.value)}
+            required
+            className="select"
+          >
+            <option value="">Selecione um KPI…</option>
+            {KPIS_SECUNDARIOS.map(k => (
+              <option key={k.key} value={k.label}>{k.label}</option>
+            ))}
+          </select>
         </div>
 
         {/* Label de exibição */}
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            Nome exibido *
-          </label>
+          <span style={LABEL_STYLE}>NOME EXIBIDO *</span>
           <input
             type="text"
             name="label"
-            defaultValue={inicial?.label ?? ''}
-            placeholder="ex: TX Retenção Bruta"
+            value={labelValue}
+            onChange={e => setLabelValue(e.target.value)}
+            placeholder="Ex: TX. RETENÇÃO LÍQUIDA 15D"
             required
             className="input"
           />
@@ -134,41 +136,40 @@ function MetaForm({
 
         {/* Tipo */}
         <div className="sm:col-span-2">
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Tipo</label>
+          <span style={LABEL_STYLE}>TIPO</span>
           <select
             name="tipo"
             value={tipo}
-            onChange={(e) => setTipo(e.target.value as typeof tipo)}
+            onChange={e => setTipo(e.target.value as typeof tipo)}
             className="select"
           >
-            {Object.entries(TIPO_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
+            <option value="maior_melhor">MAIOR É MELHOR (ex: CSAT, Engajamento)</option>
+            <option value="menor_melhor">MENOR É MELHOR (ex: Rechamada, Transfer)</option>
           </select>
         </div>
 
         {/* Unidade */}
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Unidade</label>
+          <span style={LABEL_STYLE}>UNIDADE</span>
           <select
             name="unidade"
             value={unidade}
-            onChange={(e) => setUnidade(e.target.value)}
+            onChange={e => setUnidade(e.target.value)}
             className="select"
           >
-            <option value="numero">Número (ex: 150)</option>
-            <option value="porcentagem">Porcentagem (ex: 87%)</option>
-            <option value="tempo">Tempo → HH:MM:SS (TMA, Indisponibilidade)</option>
-            <option value="texto">Texto (sem formatação)</option>
+            <option value="numero">NÚMERO</option>
+            <option value="porcentagem">PORCENTAGEM (%)</option>
+            <option value="tempo">TEMPO (HH:MM:SS)</option>
+            <option value="texto">TEXTO</option>
           </select>
         </div>
 
         {/* Valor meta */}
         <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            {tipo === 'maior_melhor' ? 'Meta alvo (≥)' : 'Meta alvo (≤)'}
-            {isTempo && <span className="ml-1 opacity-60">(HH:MM:SS)</span>}
-          </label>
+          <span style={LABEL_STYLE}>
+            {tipo === 'maior_melhor' ? 'META ALVO (≥)' : 'META ALVO (≤)'}
+            {isTempo && <span style={{ marginLeft: '4px', opacity: 0.6 }}>(HH:MM:SS)</span>}
+          </span>
           {isTempo ? (
             <input type="text" name="valor_meta" placeholder="00:12:11"
               defaultValue={inicial?.valor_meta ? segParaHHMMSS(inicial.valor_meta) : ''}
@@ -179,48 +180,13 @@ function MetaForm({
           )}
         </div>
 
-        {/* verde_inicio e amarelo_inicio — calculados automaticamente no submit */}
-        <input type="hidden" name="amarelo_inicio" value="0" />
-
-        {/* Ordem */}
-        <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            Ordem no KPI Básico
-          </label>
-          <input type="number" name="ordem" min="0"
-            defaultValue={inicial?.ordem ?? 0} className="input" />
-        </div>
-
-        {/* Básico — estrela clicável */}
-        <div className="flex items-end pb-0.5">
-          <input type="hidden" name="basico" value={basicoAtivo ? 'true' : 'false'} />
-          <button
-            type="button"
-            onClick={() => setBasicoAtivo(!basicoAtivo)}
-            className="flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 border transition-all"
-            style={{
-              background: basicoAtivo ? 'rgba(245,158,11,0.08)' : 'transparent',
-              borderColor: basicoAtivo ? 'rgba(245,158,11,0.3)' : 'rgba(201,168,76,0.12)',
-              color: basicoAtivo ? '#fbbf24' : 'var(--text-muted)',
-            }}
-          >
-            <Star
-              size={16}
-              className={basicoAtivo ? 'fill-amber-400 text-amber-400' : 'text-gray-500'}
-            />
-            <span className="text-sm font-medium">
-              {basicoAtivo ? 'No KPI Básico' : 'Mostrar no KPI Básico'}
-            </span>
-          </button>
-        </div>
-
         {/* Ícone */}
         <div className="sm:col-span-2">
-          <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Ícone</label>
+          <span style={{ ...LABEL_STYLE, marginBottom: '8px' }}>ÍCONE</span>
           <input type="hidden" name="icone" value={iconeAtivo} />
           <div className="flex flex-wrap gap-1.5">
-            {ICON_NAMES.map((name) => {
-              const Ic = ICON_MAP[name]
+            {ICON_NAMES.map(name => {
+              const Ic  = ICON_MAP[name]
               const ativo = iconeAtivo === name
               return (
                 <button
@@ -244,12 +210,22 @@ function MetaForm({
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button type="submit" disabled={pending} className="btn-primary flex items-center gap-1.5 text-sm py-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="btn-primary flex items-center gap-1.5 py-2"
+          style={{ fontFamily: FF_SYNE, fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+        >
           {pending ? <HaloSpinner size="sm" /> : <Check size={14} />}
-          Salvar
+          SALVAR
         </button>
-        <button type="button" onClick={onCancelar} className="btn-ghost flex items-center gap-1.5 text-sm py-2">
-          <X size={14} /> Cancelar
+        <button
+          type="button"
+          onClick={onCancelar}
+          className="btn-ghost flex items-center gap-1.5 py-2"
+          style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+        >
+          <X size={14} /> CANCELAR
         </button>
       </div>
     </form>
@@ -258,100 +234,86 @@ function MetaForm({
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function MetasForm({ metas, headers }: MetasFormProps) {
-  const [editando, setEditando] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+export default function MetasForm({ metas }: { metas: Meta[] }) {
+  const [editando, setEditando]   = useState<string | null>(null)
+  const [, startTransition]       = useTransition()
+  const [toast, setToast]         = useState<Toast>(null)
+
+  function showToast(tipo: 'ok' | 'erro', msg: string) {
+    setToast({ tipo, msg })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   function handleExcluir(id: string) {
     if (!confirm('Excluir esta meta?')) return
-    startTransition(() => excluirMeta(id))
+    startTransition(async () => {
+      const res = await excluirMeta(id)
+      if (res.ok) showToast('ok', 'Meta excluída.')
+      else showToast('erro', res.erro ?? 'Erro ao excluir.')
+    })
   }
 
-  const basicosOrdenados = [...metas].filter((m) => m.basico).sort((a, b) => a.ordem - b.ordem)
-  const semBasico = metas.filter((m) => !m.basico)
-
   return (
-    <div className="space-y-6">
-      {/* KPI Básico */}
-      {basicosOrdenados.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="section-heading flex items-center gap-1.5">
-              <Star size={11} className="text-amber-400" />
-              KPI Básico
-            </h3>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({basicosOrdenados.length} métricas)</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          </div>
-          <div className="space-y-2">
-            {basicosOrdenados.map((meta) => (
-              <MetaItem
-                key={meta.id}
-                meta={meta}
-                headers={headers}
-                editando={editando === meta.id}
-                onEditar={() => setEditando(editando === meta.id ? null : meta.id)}
-                onCancelar={() => setEditando(null)}
-                onExcluir={() => handleExcluir(meta.id)}
-              />
-            ))}
-          </div>
+    <div className="space-y-3">
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 50,
+          background: toast.tipo === 'ok' ? 'rgba(106,196,73,0.12)' : 'rgba(239,68,68,0.12)',
+          border: `1px solid ${toast.tipo === 'ok' ? 'rgba(106,196,73,0.4)' : 'rgba(239,68,68,0.4)'}`,
+          borderRadius: '10px', padding: '12px 18px',
+          fontFamily: FF_SYNE, fontWeight: 600, fontSize: '13px',
+          color: toast.tipo === 'ok' ? '#4ade80' : '#f87171',
+          pointerEvents: 'none',
+        }}>
+          {toast.msg}
         </div>
       )}
 
-      {/* Todas as outras */}
-      {semBasico.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="section-heading">KPI Completo</h3>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({semBasico.length} métricas)</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          </div>
-          <div className="space-y-2">
-            {semBasico.map((meta) => (
-              <MetaItem
-                key={meta.id}
-                meta={meta}
-                headers={headers}
-                editando={editando === meta.id}
-                onEditar={() => setEditando(editando === meta.id ? null : meta.id)}
-                onCancelar={() => setEditando(null)}
-                onExcluir={() => handleExcluir(meta.id)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Lista plana de metas complementares */}
+      {metas.map(meta => (
+        <MetaItem
+          key={meta.id}
+          meta={meta}
+          editando={editando === meta.id}
+          onEditar={() => setEditando(editando === meta.id ? null : meta.id)}
+          onCancelar={() => setEditando(null)}
+          onExcluir={() => handleExcluir(meta.id)}
+          onToast={showToast}
+        />
+      ))}
 
-      {metas.length === 0 && (
+      {metas.length === 0 && editando !== 'new' && (
         <div
           className="rounded-2xl border p-8 text-center"
           style={{ background: 'var(--bg-elevated)', borderColor: 'rgba(201,168,76,0.10)' }}
         >
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Nenhuma meta cadastrada ainda.
-          </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-            Adicione a primeira meta abaixo.
+          <p style={{
+            fontFamily: FF_SYNE, fontSize: '12px', textTransform: 'uppercase',
+            letterSpacing: '0.08em', color: 'var(--text-secondary)',
+          }}>
+            Nenhuma meta complementar cadastrada.
           </p>
         </div>
       )}
 
-      {/* Formulário de nova meta */}
       {editando === 'new' ? (
         <MetaForm
-          headers={headers}
           onSalvar={salvarMeta}
           onCancelar={() => setEditando(null)}
+          onToast={showToast}
         />
       ) : (
         <button
           onClick={() => setEditando('new')}
-          className="btn-primary w-full flex items-center justify-center gap-2"
-          style={{ padding: '10px 18px' }}
+          className="btn-primary w-full flex items-center justify-center gap-2 mt-2"
+          style={{
+            padding: '10px 18px',
+            fontFamily: FF_SYNE, fontWeight: 700, fontSize: '11px',
+            textTransform: 'uppercase', letterSpacing: '0.06em',
+          }}
         >
           <Plus size={15} />
-          Adicionar nova meta
+          ADICIONAR META SECUNDÁRIA
         </button>
       )}
     </div>
@@ -361,126 +323,83 @@ export default function MetasForm({ metas, headers }: MetasFormProps) {
 // ── Item de meta existente ────────────────────────────────────────────────────
 
 function MetaItem({
-  meta, headers, editando, onEditar, onCancelar, onExcluir,
+  meta, editando, onEditar, onCancelar, onExcluir, onToast,
 }: {
   meta: Meta
-  headers: string[]
   editando: boolean
   onEditar: () => void
   onCancelar: () => void
   onExcluir: () => void
+  onToast: (tipo: 'ok' | 'erro', msg: string) => void
 }) {
   if (editando) {
     return (
       <MetaForm
         inicial={meta}
-        headers={headers}
         onSalvar={salvarMeta}
         onCancelar={onCancelar}
+        onToast={onToast}
       />
     )
   }
 
   const isTempo = meta.unidade === 'tempo'
-  const suf = isTempo ? '' : sufixoDisplay(meta.unidade)
-  const simb = meta.tipo === 'maior_melhor' ? '≥' : '≤'
-  const fmtVal = (v: number) => isTempo ? segParaHHMMSS(v) : `${v}${suf}`
+  const simb    = meta.tipo === 'maior_melhor' ? '≥' : '≤'
+  const fmtVal  = (v: number) => isTempo ? segParaHHMMSS(v) : `${v}${meta.unidade === 'porcentagem' ? '%' : ''}`
 
   return (
     <div
       className="card group transition-colors"
       style={{ padding: '14px 18px' }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
     >
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Nome + badge tipo */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span
-            style={{
-              fontFamily: 'var(--ff-display)',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
+        <div className="flex-1 min-w-0">
+          <span style={{
+            fontFamily: FF_SYNE, fontSize: '13px', fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: '0.04em',
+            color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            display: 'block',
+          }}>
             {meta.label}
           </span>
-          {meta.basico && (
-            <span
-              className="flex items-center gap-0.5 shrink-0"
-              style={{
-                background: 'var(--gold-dim)',
-                color: 'var(--gold-light)',
-                border: '1px solid rgba(201,168,76,0.25)',
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '9px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              <Star size={8} className="fill-current" /> básico #{meta.ordem}
-            </span>
-          )}
         </div>
 
-        {/* Tag coluna */}
-        <span
-          style={{
-            background: 'var(--bg-surface)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border)',
-            borderRadius: '6px',
-            padding: '3px 8px',
-            fontSize: '11px',
-            fontFamily: 'monospace',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span style={{
+          background: 'var(--bg-surface)', color: 'var(--text-secondary)',
+          border: '1px solid var(--border)', borderRadius: '6px',
+          padding: '3px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap',
+        }}>
           {meta.nome_coluna}
         </span>
 
-        {/* Pills thresholds */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span style={{
-            background: 'rgba(34,197,94,0.12)',
-            color: '#22c55e',
-            border: '1px solid rgba(34,197,94,0.25)',
-            borderRadius: '6px',
-            padding: '3px 8px',
-            fontSize: '10px',
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
+            background: 'rgba(34,197,94,0.12)', color: '#22c55e',
+            border: '1px solid rgba(34,197,94,0.25)', borderRadius: '6px',
+            padding: '3px 8px', fontSize: '10px', fontFamily: FF_SYNE, fontWeight: 600,
+            textTransform: 'uppercase', whiteSpace: 'nowrap',
           }}>
             {simb} {fmtVal(meta.verde_inicio)}
           </span>
           <span style={{
-            background: 'rgba(234,179,8,0.12)',
-            color: '#eab308',
-            border: '1px solid rgba(234,179,8,0.25)',
-            borderRadius: '6px',
-            padding: '3px 8px',
-            fontSize: '10px',
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
+            background: 'rgba(234,179,8,0.12)', color: '#eab308',
+            border: '1px solid rgba(234,179,8,0.25)', borderRadius: '6px',
+            padding: '3px 8px', fontSize: '10px', fontFamily: FF_SYNE, fontWeight: 600,
+            textTransform: 'uppercase', whiteSpace: 'nowrap',
           }}>
-            auto 80%
+            AUTO 80%
           </span>
         </div>
 
-        {/* Ações */}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
           <button
             onClick={onEditar}
             className="p-1.5 rounded-lg transition-colors"
             style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-primary)'; el.style.background = 'rgba(201,168,76,0.06)' }}
-            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-primary)'; el.style.background = 'rgba(201,168,76,0.06)' }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
           >
             <Edit2 size={13} />
           </button>
@@ -488,8 +407,8 @@ function MetaItem({
             onClick={onExcluir}
             className="p-1.5 rounded-lg transition-colors"
             style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = '#f87171'; el.style.background = 'rgba(239,68,68,0.08)' }}
-            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#f87171'; el.style.background = 'rgba(239,68,68,0.08)' }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--text-muted)'; el.style.background = 'transparent' }}
           >
             <Trash2 size={13} />
           </button>

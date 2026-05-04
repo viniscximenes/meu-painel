@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation'
 import { Profile } from '@/types'
 import { getOperadorPorId } from '@/lib/operadores'
 import MetricCard from '@/components/MetricCard'
-import { getMetas, computarKPIs } from '@/lib/kpi'
+import { getMetas, computarKPIs, getMetasOperadorConfig } from '@/lib/kpi'
+import type { MetaOperadorConfig } from '@/lib/kpi-utils'
 import { getPlanilhaAtiva, buscarLinhaOperador } from '@/lib/sheets'
+import { buildMetasIndividuais } from '@/lib/kpi-coluna-utils'
 import KPIBasico from '@/components/kpi/KPIBasico'
 import { Target, Clock, Database } from 'lucide-react'
 import type { KPIItem } from '@/lib/kpi'
@@ -21,13 +23,18 @@ export default async function PainelOperador({ profile }: PainelOperadorProps) {
   const hora = new Date().getHours()
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
 
-  const [planilha, metas] = await Promise.all([getPlanilhaAtiva(), getMetas()])
+  const [planilha, metas, opConfigs] = await Promise.all([
+    getPlanilhaAtiva(),
+    getMetas(),
+    getMetasOperadorConfig().catch(() => ({} as Record<string, MetaOperadorConfig>)),
+  ])
 
   let kpis: KPIItem[] = []
   if (planilha) {
     const resultado = await buscarLinhaOperador(profile.username, planilha.spreadsheet_id, planilha.aba)
     if (resultado) {
-      kpis = computarKPIs(resultado.headers, resultado.row, metas)
+      const metasIndividuais = buildMetasIndividuais(resultado.row, opConfigs)
+      kpis = computarKPIs(resultado.headers, resultado.row, metas, undefined, opConfigs, metasIndividuais)
     }
   }
 

@@ -341,7 +341,7 @@ export default async function RVEstimadaPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           {[
                             { label: `TX ≥${rv.config.bonusRetracaoMinima}%`, ok: b.retracaoOk },
-                            { label: `Churn${rv.config.churnMeta > 0 ? ` ≤${rv.config.churnMeta}` : ' (N/A)'}`, ok: b.churnOk },
+                            { label: rv.metaChurnUsada > 0 ? `Churn ≤${rv.metaChurnUsada}` : 'Churn (N/A)', ok: b.churnOk },
                             { label: `Indisp ≤${rv.config.bonusIndispMaxima}%`, ok: b.indispOk },
                           ].map(({ label, ok: c }) => (
                             <span
@@ -429,8 +429,8 @@ export default async function RVEstimadaPage() {
             <p>ABS máximo: <span style={{ color: 'var(--text-secondary)' }}>{rvConfig.absMaximo}%</span></p>
             <p>TMA limite: <span style={{ color: 'var(--text-secondary)' }}>{segParaMMSS(rvConfig.tmaLimiteSeg)}</span></p>
             <p>Indisp limite: <span style={{ color: 'var(--text-secondary)' }}>{rvConfig.indispLimite}%</span></p>
-            {rvConfig.churnMeta > 0 && (
-              <p>Meta churn: <span style={{ color: 'var(--text-secondary)' }}>{rvConfig.churnMeta}</span></p>
+            {(rv?.metaChurnUsada ?? 0) > 0 && (
+              <p>Meta churn: <span style={{ color: 'var(--text-secondary)' }}>{rv!.metaChurnUsada}</span></p>
             )}
           </div>
         </div>

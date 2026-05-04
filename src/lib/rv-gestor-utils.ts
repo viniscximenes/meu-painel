@@ -9,6 +9,7 @@ export interface DeflatorABSFaixa { limite: number; perda: number }
 export type RVGestorConfigRaw = Record<string, string>
 
 export interface RVGestorConfig {
+  monitoriasMinimas:    number
   retencaoFaixas:       FaixaGestor[]
   indispMeta:           number
   indispValor:          number
@@ -69,6 +70,7 @@ export interface ResultadoRVGestor {
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 export const RV_GESTOR_DEFAULTS: RVGestorConfigRaw = {
+  gestor_monitorias_minimas:    '13',
   gestor_retracao_faixas:       JSON.stringify([{min:65,valor:800},{min:63,valor:500},{min:60,valor:400},{min:58,valor:200}]),
   gestor_indisp_meta:           '14.5',
   gestor_indisp_valor:          '200',
@@ -93,6 +95,7 @@ export function parseRVGestorConfig(raw: RVGestorConfigRaw): RVGestorConfig {
   const n = (k: string) => parseFloat(raw[k] ?? '0') || 0
   const j = <T,>(k: string): T => { try { return JSON.parse(raw[k] ?? '[]') } catch { return [] as unknown as T } }
   return {
+    monitoriasMinimas:    n('gestor_monitorias_minimas') || 13,
     retencaoFaixas:       j<FaixaGestor[]>('gestor_retracao_faixas').sort((a, b) => b.min - a.min),
     indispMeta:           n('gestor_indisp_meta'),
     indispValor:          n('gestor_indisp_valor'),
@@ -131,11 +134,11 @@ export function calcularRVGestor(
   const { retencaoVal, indispVal, tmaValSeg, ticketVal, absVal, monitoriasCompletas, semDados } = dados
 
   // Elegibilidade — não interrompe o cálculo; RV é sempre computada
-  const elegivel = !semDados && monitoriasCompletas >= 13
+  const elegivel = !semDados && monitoriasCompletas >= config.monitoriasMinimas
   const motivoInelegivel = semDados
     ? 'Sem dados na planilha'
     : !elegivel
-      ? `Monitorias incompletas: ${monitoriasCompletas}/14 operadores com 4+ monitorias`
+      ? `Monitorias incompletas: ${monitoriasCompletas}/${config.monitoriasMinimas} operadores com 4+ monitorias`
       : null
 
   if (semDados) {

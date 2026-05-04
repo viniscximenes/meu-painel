@@ -1,8 +1,11 @@
 'use client'
 
+'use client'
+
 import { Shield, Clock, Flame, Activity, Calendar, type LucideIcon } from 'lucide-react'
 import { PainelHeader, LinhaHorizontalDourada } from '@/components/painel/PainelHeader'
 import { MeuKpiSectionTitle } from '@/components/kpi-individual/MeuKpiCard'
+import { BannerAguardandoKPI } from '@/components/painel/BannerAguardandoKPI'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -19,6 +22,7 @@ export interface MeuQuartilProps {
   mesLabel:        string
   dataAtualizacao: string | null
   topicos:         QuartilTopicoData[]
+  modoHistorico?:  boolean
 }
 
 // ── Paleta semântica por quartil ──────────────────────────────────────────────
@@ -196,7 +200,7 @@ function QuartilTopicoCard({ topico }: { topico: QuartilTopicoData }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function MeuQuartilClient({ mesLabel, dataAtualizacao, topicos }: MeuQuartilProps) {
+export default function MeuQuartilClient({ mesLabel, dataAtualizacao, topicos, modoHistorico }: MeuQuartilProps) {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -215,15 +219,25 @@ export default function MeuQuartilClient({ mesLabel, dataAtualizacao, topicos }:
       `}} />
 
       <div className="mkpi-bg">
-        <PainelHeader titulo="MEU QUARTIL" mesLabel={mesLabel} dataReferencia={dataAtualizacao} />
+        <PainelHeader
+          titulo="MEU QUARTIL"
+          mesLabel={modoHistorico ? 'AGUARDANDO KPI' : mesLabel}
+          dataReferencia={modoHistorico ? null : dataAtualizacao}
+        />
         <LinhaHorizontalDourada />
 
-        <div>
-          <MeuKpiSectionTitle>RESULTADO POR TÓPICO</MeuKpiSectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-            {topicos.map(t => <QuartilTopicoCard key={t.id} topico={t} />)}
+        {modoHistorico ? (
+          <BannerAguardandoKPI
+            texto="O quartil será disponibilizado quando o KPI do mês atual for liberado."
+          />
+        ) : (
+          <div>
+            <MeuKpiSectionTitle>RESULTADO POR TÓPICO</MeuKpiSectionTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+              {topicos.map(t => <QuartilTopicoCard key={t.id} topico={t} />)}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   )
