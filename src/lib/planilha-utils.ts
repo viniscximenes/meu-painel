@@ -31,3 +31,12 @@ export function mesLabelDaPlanilha(planilha: { nome: string } | null | undefined
   if (!mesAno) return ''
   return `${MESES_EXIB[mesAno.mes - 1]} DE ${mesAno.ano}`
 }
+
+export function extrairSpreadsheetId(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const urlMatch = trimmed.match(/\/d\/([A-Za-z0-9_-]+)/)
+  if (urlMatch) return urlMatch[1]
+  if (/^[A-Za-z0-9_-]{30,60}$/.test(trimmed)) return trimmed
+  return null
+}

@@ -10,19 +10,11 @@ import {
   salvarMapeamentoKpiColunasDb,
   salvarMapeamentoKpiGestorColunasDb,
 } from '@/lib/sheets'
+import { extrairSpreadsheetId } from '@/lib/planilha-utils'
 import { KPIS_TODOS } from '@/lib/kpis-config'
 import type { TipoPlanilha } from '@/lib/planilhas-config'
 import { QUARTIL_TOPICOS, salvarMapeamentoQuartilDb } from '@/lib/quartil-config'
 import type { MapeamentoQuartil } from '@/lib/quartil-config'
-
-function extrairSpreadsheetId(raw: string): string | null {
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  const urlMatch = trimmed.match(/\/d\/([A-Za-z0-9_-]+)/)
-  if (urlMatch) return urlMatch[1]
-  if (/^[A-Za-z0-9_-]{30,60}$/.test(trimmed)) return trimmed
-  return null
-}
 
 function nomeDefault(tipo: TipoPlanilha): string {
   if (tipo === 'mes_atual')   return 'Planilha Mês Atual'

@@ -1,13 +1,23 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Planilha } from '@/lib/sheets'
-import { salvarReferenciaAction } from './actions'
-import { Save, X } from 'lucide-react'
-import Link from 'next/link'
+import { extrairSpreadsheetId } from '@/lib/planilha-utils'
+import { PainelSectionTitle } from '@/components/painel/PainelSectionTitle'
+import { cadastrarPlanilhaHistoricaAction, salvarReferenciaAction } from './actions'
+import { Plus, Save, X } from 'lucide-react'
 
 const FF_SYNE = "'Syne', sans-serif"
 const FF_DM   = "'DM Sans', sans-serif"
+
+const BG_CARD  = '#0d0d1a'
+const BG_INPUT = '#111126'
+const BORDA    = '#211F3C'
+const GOLD     = '#f4d47c'
+const MUTED    = '#72708F'
+const TEXT     = '#A6A2A2'
+const LABEL    = '#474658'
 
 type Toast = { tipo: 'ok' | 'erro'; msg: string } | null
 
@@ -94,7 +104,11 @@ function TituloAno({ ano }: { ano: number | null }) {
   )
 }
 
-const INPUT_STYLE: React.CSSProperties = {
+function DivisorSecao() {
+  return <div style={{ height: '1px', background: BORDA, margin: '32px 0' }} />
+}
+
+const INPUT_REF_STYLE: React.CSSProperties = {
   background: '#03040C',
   border: '1px solid rgba(114,112,143,0.5)',
   borderRadius: '8px',
@@ -105,6 +119,176 @@ const INPUT_STYLE: React.CSSProperties = {
   fontVariantNumeric: 'tabular-nums',
   padding: '7px 10px',
   outline: 'none',
+}
+
+const FORM_LABEL_STYLE: React.CSSProperties = {
+  fontFamily: FF_SYNE,
+  fontSize: '10px',
+  fontWeight: 600,
+  letterSpacing: '0.12em',
+  color: LABEL,
+  textTransform: 'uppercase',
+  display: 'block',
+  marginBottom: '6px',
+}
+
+const FORM_INPUT_STYLE: React.CSSProperties = {
+  background: BG_INPUT,
+  border: `1px solid ${BORDA}`,
+  borderRadius: '6px',
+  color: TEXT,
+  fontFamily: FF_DM,
+  fontSize: '13px',
+  fontVariantNumeric: 'tabular-nums',
+  padding: '9px 12px',
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+}
+
+// ── Card de cadastro ──────────────────────────────────────────────────────────
+
+function CadastroPlanilhaCard({ onToast }: { onToast: (t: Toast) => void }) {
+  const router = useRouter()
+  const [nome, setNome] = useState('')
+  const [idOuUrl, setIdOuUrl] = useState('')
+  const [mes, setMes] = useState('')
+  const [ano, setAno] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  const validacao = useMemo(() => {
+    if (!nome.trim()) return { ok: false }
+    if (!extrairSpreadsheetId(idOuUrl)) return { ok: false }
+    const mesNum = parseInt(mes, 10)
+    const anoNum = parseInt(ano, 10)
+    if (!Number.isInteger(mesNum) || mesNum < 1 || mesNum > 12) return { ok: false }
+    if (!Number.isInteger(anoNum) || anoNum < 2020 || anoNum > 2100) return { ok: false }
+    return { ok: true, mesNum, anoNum }
+  }, [nome, idOuUrl, mes, ano])
+
+  function cadastrar() {
+    setErro(null)
+    if (!validacao.ok) return
+    const { mesNum, anoNum } = validacao
+    startTransition(async () => {
+      const res = await cadastrarPlanilhaHistoricaAction(nome.trim(), idOuUrl.trim(), mesNum!, anoNum!)
+      if (res.ok) {
+        onToast({ tipo: 'ok', msg: 'Planilha cadastrada' })
+        setNome('')
+        setIdOuUrl('')
+        setMes('')
+        setAno('')
+        router.refresh()
+      } else {
+        setErro(res.error ?? 'Erro')
+        onToast({ tipo: 'erro', msg: res.error ?? 'Erro ao cadastrar' })
+      }
+    })
+  }
+
+  const desabilitado = pending || !validacao.ok
+
+  return (
+    <div style={{
+      background: BG_CARD,
+      border: `1px solid ${BORDA}`,
+      borderRadius: '12px',
+      padding: '20px 24px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '14px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Plus size={14} color={GOLD} />
+        <span style={{
+          fontFamily: FF_SYNE, fontSize: '11px', fontWeight: 600,
+          letterSpacing: '0.12em', color: GOLD, textTransform: 'uppercase',
+        }}>
+          NOVA PLANILHA HISTÓRICA
+        </span>
+      </div>
+
+      <p style={{ fontFamily: FF_DM, fontSize: '12px', color: MUTED, margin: 0 }}>
+        Cadastre uma planilha já fechada para análise histórica. A planilha deve ter o mesmo formato das mensais (aba KPI CONSOLIDADO).
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div>
+          <label style={FORM_LABEL_STYLE}>Nome da planilha *</label>
+          <input
+            value={nome}
+            onChange={e => setNome(e.target.value)}
+            disabled={pending}
+            placeholder="Ex.: ABRIL.2026"
+            style={FORM_INPUT_STYLE}
+          />
+        </div>
+
+        <div>
+          <label style={FORM_LABEL_STYLE}>ID ou URL da planilha *</label>
+          <input
+            value={idOuUrl}
+            onChange={e => setIdOuUrl(e.target.value)}
+            disabled={pending}
+            placeholder="Cole o ID ou a URL do Google Sheets"
+            style={FORM_INPUT_STYLE}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 140px' }}>
+            <label style={FORM_LABEL_STYLE}>Mês de referência *</label>
+            <input
+              type="number"
+              value={mes}
+              onChange={e => setMes(e.target.value)}
+              disabled={pending}
+              min={1} max={12}
+              placeholder="04"
+              style={FORM_INPUT_STYLE}
+            />
+          </div>
+          <div style={{ flex: '1 1 140px' }}>
+            <label style={FORM_LABEL_STYLE}>Ano *</label>
+            <input
+              type="number"
+              value={ano}
+              onChange={e => setAno(e.target.value)}
+              disabled={pending}
+              min={2020} max={2100}
+              placeholder="2026"
+              style={FORM_INPUT_STYLE}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={cadastrar}
+          disabled={desabilitado}
+          className="btn-primary"
+          style={{
+            fontFamily: FF_SYNE,
+            fontWeight: 700,
+            fontSize: '12px',
+            letterSpacing: '0.10em',
+            textTransform: 'uppercase',
+          }}
+        >
+          <Plus size={14} />
+          {pending ? 'Cadastrando…' : 'Cadastrar planilha'}
+        </button>
+        {erro && (
+          <span style={{ fontFamily: FF_DM, fontSize: '12px', color: '#f87171' }}>
+            {erro}
+          </span>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function PlanilhaCard({ planilha, onToast }: { planilha: Planilha; onToast: (t: Toast) => void }) {
@@ -187,7 +371,7 @@ function PlanilhaCard({ planilha, onToast }: { planilha: Planilha; onToast: (t: 
           onChange={e => setMes(e.target.value)}
           disabled={isPending}
           min={1} max={12}
-          style={{ ...INPUT_STYLE, width: '110px' }}
+          style={{ ...INPUT_REF_STYLE, width: '110px' }}
         />
         <input
           type="number"
@@ -196,7 +380,7 @@ function PlanilhaCard({ planilha, onToast }: { planilha: Planilha; onToast: (t: 
           onChange={e => setAno(e.target.value)}
           disabled={isPending}
           min={2020} max={2100}
-          style={{ ...INPUT_STYLE, width: '100px' }}
+          style={{ ...INPUT_REF_STYLE, width: '100px' }}
         />
         <button
           type="button"
@@ -243,25 +427,6 @@ export default function HistoricoConfigClient({ planilhas }: { planilhas: Planil
     setTimeout(() => setToast(null), 3000)
   }
 
-  if (!planilhas.length) {
-    return (
-      <div style={{
-        padding: '32px', borderRadius: '10px', textAlign: 'center',
-        background: '#070714', border: '1px solid rgba(244,212,124,0.10)',
-      }}>
-        <p style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '13px', color: '#72708F', marginBottom: '8px' }}>
-          Nenhuma planilha cadastrada.
-        </p>
-        <Link
-          href="/painel/admin/configuracoes/planilhas"
-          style={{ fontFamily: FF_DM, fontSize: '12px', color: 'rgba(244,212,124,0.7)', textDecoration: 'underline' }}
-        >
-          Cadastrar em Ajuste de Planilhas
-        </Link>
-      </div>
-    )
-  }
-
   const grupos = agruparPorAno(planilhas)
 
   return (
@@ -280,18 +445,36 @@ export default function HistoricoConfigClient({ planilhas }: { planilhas: Planil
         </div>
       )}
 
-      <div>
-        {grupos.map(grupo => (
-          <div key={grupo.ano ?? 'sem-ref'}>
-            <TituloAno ano={grupo.ano} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {grupo.planilhas.map(p => (
-                <PlanilhaCard key={p.id} planilha={p} onToast={showToast} />
-              ))}
-            </div>
-          </div>
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <PainelSectionTitle>CADASTRAR NOVA PLANILHA HISTÓRICA</PainelSectionTitle>
+        <CadastroPlanilhaCard onToast={showToast} />
       </div>
+
+      <DivisorSecao />
+
+      {planilhas.length === 0 ? (
+        <div style={{
+          padding: '32px', borderRadius: '10px', textAlign: 'center',
+          background: '#070714', border: '1px solid rgba(244,212,124,0.10)',
+        }}>
+          <p style={{ fontFamily: FF_SYNE, fontWeight: 600, fontSize: '13px', color: MUTED, margin: 0 }}>
+            Nenhuma planilha histórica cadastrada. Use o formulário acima.
+          </p>
+        </div>
+      ) : (
+        <div>
+          {grupos.map(grupo => (
+            <div key={grupo.ano ?? 'sem-ref'}>
+              <TituloAno ano={grupo.ano} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {grupo.planilhas.map(p => (
+                  <PlanilhaCard key={p.id} planilha={p} onToast={showToast} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   )
 }

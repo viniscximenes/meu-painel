@@ -378,6 +378,40 @@ export async function associarReferencia(
   await db.from('planilhas').update({ referencia_mes: mes, referencia_ano: ano }).eq('id', id)
 }
 
+export async function cadastrarPlanilhaHistorica(
+  nome: string,
+  spreadsheet_id: string,
+  mes: number,
+  ano: number,
+): Promise<{ ok: boolean; error?: string; id?: string }> {
+  const db = createAdminClient()
+
+  const { data: existente } = await db
+    .from('planilhas')
+    .select('id')
+    .eq('spreadsheet_id', spreadsheet_id)
+    .maybeSingle()
+  if (existente) {
+    return { ok: false, error: 'Já existe uma planilha cadastrada com esse ID.' }
+  }
+
+  const { data, error } = await db
+    .from('planilhas')
+    .insert({
+      nome,
+      spreadsheet_id,
+      aba: '',
+      tipo: null,
+      ativa: false,
+      referencia_mes: mes,
+      referencia_ano: ano,
+    })
+    .select('id')
+    .single()
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, id: (data as { id: string }).id }
+}
+
 export async function listarPlanilhasHistorico(): Promise<Planilha[]> {
   try {
     const db = createAdminClient()
